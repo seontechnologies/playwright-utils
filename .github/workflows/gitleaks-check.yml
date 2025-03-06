@@ -1,0 +1,13 @@
+name: Run Gitleaks against changed files
+on:
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  call-gitleaks-workflow:
+    uses: seontechnologies/internal-tools-security/.github/workflows/gitleaks-actions.yml@master
+    with:
+      prnumber: ${{ github.event.number }}
+      reponame: ${{ github.repository }}
+    secrets:
+      slackwebhook:  ${{ secrets.CREDENTIAL_LEAK_SLACK_WEBHOOK }}
