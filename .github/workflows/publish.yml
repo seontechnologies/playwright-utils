@@ -1,0 +1,39 @@
+name: Publish Package
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout the repository
+      - uses: actions/checkout@v4
+
+      # 2. Read Node version from .nvmrc
+      - name: Read Node version from .nvmrc
+        id: node_version
+        run: echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_ENV
+
+      # 3. Set up Node.js with Auth Token
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org/'
+
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 5. Build the project
+      - name: Build
+        run: npm run build
+
+      # 6. Publish to npm
+      - name: Publish
+        run: npm publish --access public
