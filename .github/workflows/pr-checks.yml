@@ -1,0 +1,31 @@
+name: Run PR checks
+on:
+  pull_request:
+  workflow_dispatch:
+
+# if this branch is pushed back to back, cancel the older branch's workflow
+concurrency:
+  group: ${{ github.ref }} && ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  pr-check:
+    runs-on: kubernetes-default
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run typecheck
+        run: npm run typecheck
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run unit test
+        run: npm run test
