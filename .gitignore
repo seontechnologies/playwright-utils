@@ -12,15 +12,13 @@ dist
 # misc
 .DS_Store
 .env
-
+.vscode
 npm-debug.log*
 
-# Cypress
-**/videos
-**/screenshots
-**/downloads
-**/cypress.env.json
-
-
-# Pact
-pacts
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+downloads
