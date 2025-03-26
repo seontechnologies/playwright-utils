@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   pr-check:
-    runs-on: ubuntu-latest
+    runs-on: kubernetes-default
     steps:
       - uses: actions/checkout@v4
 
