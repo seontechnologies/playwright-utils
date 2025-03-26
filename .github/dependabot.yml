@@ -1,0 +1,44 @@
+version: 2
+updates:
+  # GitHub Actions Updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "22:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 2
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - "type: dependencies"
+      - "github-actions"
+  
+  # npm Updates
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "22:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 2
+    groups:
+      minor-patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "type: dependencies"
+      - "npm"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "chore"
+      include: "scope"
