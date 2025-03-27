@@ -1,0 +1,131 @@
+name: 'Detect-and-Burn-in Reusable'
+
+on:
+  workflow_call:
+    outputs:
+      runE2E:
+        description: 'Whether to run E2E tests'
+        value: ${{ jobs.detect-changes.outputs.runE2E }}
+    inputs:
+      base-ref:
+        type: string
+        description: 'Base ref to compare changed files with HEAD'
+        default: 'main'
+      test-directory:
+        type: string
+        description: 'Directory containing test files'
+        default: 'playwright/'
+      test-pattern:
+        type: string
+        description: 'Regex pattern to match test files'
+        default: '.*\.spec\.ts'
+      repeat-count:
+        type: number
+        description: 'Number of times to repeat each test'
+        default: 2
+      retry-count:
+        type: number
+        description: 'Number of test retries - recommended number is 0'
+        default: 0
+      install-command:
+        type: string
+        description: 'Dependency install command'
+        default: 'npm ci'
+      test-command:
+        type: string
+        description: 'Command to run tests'
+        default: 'npx playwright test'
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  detect-changes:
+    runs-on: kubernetes-default
+    permissions:
+      id-token: write
+      contents: read
+      packages: read
+    outputs:
+      runE2E: ${{ steps.set-runE2E.outputs.runE2E }}
+      shouldBurnIn: ${{ steps.detect-changed.outputs.shouldBurnIn }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }} # ensure we're checking out the correct commit
+          fetch-depth: 0
+
+      - name: Detect changed E2E test files
+        id: detect-changed
+        run: |
+          # Fetch base branch explicitly
+          git remote set-branches --add origin ${{ inputs.base-ref }}
+          git fetch origin ${{ inputs.base-ref }}
+          changed_files=$(git diff --name-only origin/${{ inputs.base-ref }} HEAD)
+
+          echo "Changed files:"
+          echo "$changed_files"
+
+          if echo "$changed_files" | grep -Eq '^${{ inputs.test-directory }}.*${{ inputs.test-pattern }}'; then
+            echo "shouldBurnIn=true" >> $GITHUB_OUTPUT
+            echo "Found test file changes => will run burn-in"
+          else
+            echo "shouldBurnIn=false" >> $GITHUB_OUTPUT
+            echo "No test file changes => will skip burn-in"
+          fi
+
+      - name: Set runE2E output
+        id: set-runE2E
+        run: |
+          if [ "${{ steps.detect-changed.outputs.shouldBurnIn }}" = "false" ]; then
+            echo "runE2E=true" >> $GITHUB_OUTPUT
+            echo "No E2E test files changed => skipping burn-in, but E2E can still proceed."
+          else
+            echo "runE2E=true" >> $GITHUB_OUTPUT
+            echo "Test files changed => will run burn-in, E2E depends on its outcome"
+          fi
+
+  burn-in-rwf:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.shouldBurnIn == 'true'
+    runs-on: kubernetes-default
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install dependencies
+        run: ${{ inputs.install-command }}
+
+      - name: Run Burn-in
+        id: burn-in-step
+        run: |
+          git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
+          ${{ inputs.test-command }} \
+            --only-changed=${{ inputs.base-ref }} \
+            --repeat-each=${{ inputs.repeat-count }} \
+            --retries=${{ inputs.retry-count }}
+        env:
+          PW_BURN_IN: true
+
+      - name: Update runE2E based on burn-in result
+        if: always()
+        run: |
+          if [ "${{ steps.burn-in-step.outcome }}" = "success" ]; then
+            echo "runE2E=true" >> $GITHUB_OUTPUT
+            echo "Burn-in passed => E2E can proceed"
+          else
+            echo "runE2E=false" >> $GITHUB_OUTPUT
+            echo "Burn-in failed => E2E will be skipped"
+          fi

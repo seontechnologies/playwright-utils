@@ -30,10 +30,13 @@
     "test": "jest --detectOpenHandles --verbose --silent --config jest.config.ts",
     "test:watch": "jest --watch --config jest.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint --ext=.js,.ts,.tsx --fix"
+    "lint": "eslint --ext=.js,.ts,.tsx --fix",
+    "test:pw": "TEST_ENV=dev npx playwright test",
+    "test:pw-ui": "TEST_ENV=dev npx playwright test --ui"
   },
   "devDependencies": {
     "@faker-js/faker": "9.6.0",
+    "@playwright/test": "^1.51.1",
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.16",
     "@types/node": "22.13.13",
