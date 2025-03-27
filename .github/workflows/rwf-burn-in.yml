@@ -91,6 +91,11 @@ jobs:
     if: needs.detect-changes.outputs.shouldBurnIn == 'true'
     runs-on: kubernetes-default
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2]
+        shardTotal: [2]
     permissions:
       id-token: write
       contents: read
@@ -117,8 +122,7 @@ jobs:
       - name: Install dependencies
         run: ${{ inputs.install-command }}
 
-      - name: Install Playwright Chromium and Google Chrome
-        # all necessary system dependencies are installed along with the browser
+      - name: Install Playwright Chromium
         run: |
           npx playwright install --with-deps chromium
           npx playwright install --with-deps chrome
@@ -130,7 +134,8 @@ jobs:
           ${{ inputs.test-command }} \
             --only-changed=${{ inputs.base-ref }} \
             --repeat-each=${{ inputs.repeat-count }} \
-            --retries=${{ inputs.retry-count }}
+            --retries=${{ inputs.retry-count }} \
+            --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           PW_BURN_IN: true
 
