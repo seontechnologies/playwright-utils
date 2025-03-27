@@ -35,10 +35,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium Only
+      - name: Install Playwright Chromium and Google Chrome
         run: |
           npx playwright install chromium
-          npx playwright install google-chrome
+          npx playwright install chrome
 
       - name: Run Playwright tests
         run: npm run test:pw
