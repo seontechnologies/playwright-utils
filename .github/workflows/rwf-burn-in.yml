@@ -105,8 +105,21 @@ jobs:
         with:
           node-version-file: '.nvmrc'
 
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
       - name: Install dependencies
         run: ${{ inputs.install-command }}
+
+      - name: Install Playwright Chromium and Google Chrome
+        run: |
+          npx playwright install chromium
+          npx playwright install chrome
 
       - name: Run Burn-in
         id: burn-in-step
