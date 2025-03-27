@@ -43,8 +43,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shardIndex: [1, 2]
-        shardTotal: [2]
+        shardIndex: [1] # [1, 2]
+        shardTotal: [1] # [2]
     runs-on: kubernetes-default
     steps:
       - uses: actions/checkout@v4

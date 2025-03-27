@@ -39,12 +39,7 @@ export const baseConfig = defineConfig({
 
   /* Shared settings for all the projects below */
   use: {
-    // baseURL: 'http://127.0.0.1:3000',
-
-    trace: 'retain-on-first-failure',
-    launchOptions: {
-      // slowMo: 500, // slows down test execution, useful for debugging
-    }
+    trace: 'retain-on-first-failure'
   },
 
   projects: [
