@@ -59,7 +59,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ github.sha }}
+          # only creates a new cache when dependencies change
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
@@ -67,12 +68,13 @@ jobs:
         run: ${{ needs.vars.outputs.install_command }}
 
       - name: Install Playwright Chromium and Google Chrome
+        # all necessary system dependencies are installed along with the browser
         run: |
-          npx playwright install chromium
-          npx playwright install chrome
+          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chrome
 
       - name: Run Playwright tests
-        run: ${{ needs.vars.outputs.test_command }} --shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        run: ${{ needs.vars.outputs.test_command }} -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Copy trace files to blob-report
         run: |
