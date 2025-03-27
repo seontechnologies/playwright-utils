@@ -43,8 +43,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shardIndex: [1] # [1, 2]
-        shardTotal: [1] # [2]
+        shardIndex: [1, 2]
+        shardTotal: [2]
     runs-on: kubernetes-default
     steps:
       - uses: actions/checkout@v4
@@ -67,11 +67,8 @@ jobs:
       - name: Install dependencies
         run: ${{ needs.vars.outputs.install_command }}
 
-      - name: Install Playwright Chromium and Google Chrome
-        # all necessary system dependencies are installed along with the browser
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright install --with-deps chrome
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
         run: ${{ needs.vars.outputs.test_command }} -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
