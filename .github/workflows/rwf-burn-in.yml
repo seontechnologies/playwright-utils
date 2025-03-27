@@ -128,7 +128,7 @@ jobs:
           npx playwright install --with-deps chrome
 
       - name: Run Burn-in
-        id: burn-in-stepi
+        id: burn-in-step
         run: |
           git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
           ${{ inputs.test-command }} \
