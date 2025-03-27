@@ -72,7 +72,7 @@ jobs:
           npx playwright install chrome
 
       - name: Run Playwright tests
-        run: ${{ needs.vars.outputs.test_command }} --shard ${matrix.shardIndex}/${matrix.shardTotal}
+        run: ${{ needs.vars.outputs.test_command }} --shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Copy trace files to blob-report
         run: |
