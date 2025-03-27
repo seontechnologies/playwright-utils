@@ -50,7 +50,7 @@ export const baseConfig = defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
+      use: { ...devices['Desktop Chrome'], channel: 'chrome' }
     },
 
     // Only enable Google Chrome when multi-browser is explicitly enabled
@@ -58,7 +58,7 @@ export const baseConfig = defineConfig({
       ? [
           {
             name: 'google-chrome',
-            use: { ...devices['Desktop Chrome'], channel: 'chrome' }
+            use: { ...devices['Desktop Chrome'], channel: 'chromium' }
           }
         ]
       : [])

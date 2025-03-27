@@ -24,19 +24,21 @@ jobs:
         with:
           node-version-file: '.nvmrc'
 
-      # - name: Cache Playwright Browsers
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.cache/ms-playwright
-      #     key: playwright-${{ runner.os }}-${{ github.sha }}
-      #     restore-keys: |
-      #       playwright-${{ runner.os }}-
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
 
       - name: Install dependencies
         run: npm ci
 
-      # - name: Install Playwright Chromium Only
-      #   run: npx playwright install chromium
+      - name: Install Playwright Chromium Only
+        run: |
+          npx playwright install chromium
+          npx playwright install google-chrome
 
       - name: Run Playwright tests
         run: npm run test:pw
