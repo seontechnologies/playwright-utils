@@ -3,9 +3,26 @@
   "version": "1.0.0",
   "description": "A collection of utilities for Playwright.",
   "author": "Murat Ozcan",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "main": "dist/playwright-utils.js",
   "types": "dist/playwright-utils.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js"
+    },
+    "./api-request": {
+      "types": "./dist/api-request/index.d.ts",
+      "require": "./dist/api-request/index.js",
+      "import": "./dist/api-request/index.js"
+    },
+    "./api-request/fixtures": {
+      "types": "./dist/api-request/fixtures.d.ts",
+      "require": "./dist/api-request/fixtures.js",
+      "import": "./dist/api-request/fixtures.js"
+    }
+  },
   "files": [
     "dist",
     "README.md"
