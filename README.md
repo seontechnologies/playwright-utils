@@ -46,10 +46,9 @@ console.log(response.body) // Parsed response body
 
 ```typescript
 // Import the fixture
-import { test as apiRequest } from '@seon/playwright-utils/api-request/fixtures'
 
 // Use the fixture in your tests
-apiRequest('should fetch user data', async ({ apiRequest }) => {
+test('should fetch user data', async ({ apiRequest }) => {
   const { status, body } = await apiRequest<UserResponse>({
     method: 'GET',
     path: '/api/users/123',
