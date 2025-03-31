@@ -2,6 +2,8 @@
 
 A collection of utilities for Playwright tests at SEON Technologies, designed to make testing more efficient and maintainable.
 
+All utilities can be used as Playwright fixtures by importing the test object:
+
 ## Installation
 
 ```bash
@@ -20,8 +22,17 @@ A typed, flexible HTTP client for making API requests in tests.
 // Direct import
 import { apiRequest } from '@seon/playwright-utils'
 
+test('example', async ({ request }) => {
+  const { status, body } = await apiRequest({
+    request, // need to pass in request context when using this way
+    method: 'GET',
+    path: '/api/users/123'
+  })
+})
+
 // As a fixture
 import { test } from '@seon/playwright-utils/fixtures'
+// or use your own main fixture (with mergeTests) and import from there
 
 test('example', async ({ apiRequest }) => {
   const { status, body } = await apiRequest({
@@ -38,11 +49,22 @@ test('example', async ({ apiRequest }) => {
 A powerful polling utility for waiting on asynchronous conditions.
 
 ```typescript
+// note that there is no need to pass in request or page context from Playwright
+
 // Direct import
 import { recurse } from '@seon/playwright-utils'
 
+test('example', async ({ recurse }) => {
+  const result = await recurse({
+    command: () => fetchData(),
+    predicate: (data) => data.status === 'ready',
+    options: { timeout: 30000 }
+  })
+})
+
 // As a fixture
 import { test } from '@seon/playwright-utils/fixtures'
+// or use your own main fixture (with mergeTests) and import from there
 
 test('example', async ({ recurse }) => {
   const result = await recurse({
@@ -54,27 +76,6 @@ test('example', async ({ recurse }) => {
 ```
 
 [→ Recurse Documentation](./docs/recurse.md)
-
-## Using Fixtures
-
-All utilities can be used as Playwright fixtures by importing the test object:
-
-```typescript
-import { test } from '@seon/playwright-utils/fixtures'
-
-// Now you have access to all fixtures
-test('using multiple utilities', async ({ apiRequest, recurse }) => {
-  // Your test code here
-})
-```
-
-## TypeScript Support
-
-This library is built with TypeScript and provides full type definitions for all utilities. It follows SEON's TypeScript best practices, including:
-
-- Using primitive types over interfaces (e.g., `boolean` instead of `Boolean`)
-- Providing explicit return types for functions
-- Leveraging discriminated unions for complex states
 
 ## Contributing
 

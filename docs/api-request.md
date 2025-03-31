@@ -93,30 +93,44 @@ type ApiRequestResponse<T = unknown> = {
 
 ## Examples
 
-### URL Resolution Strategies
+### GET Request with Authentication
 
 ```typescript
-test('demonstrates URL resolution', async ({ apiRequest }) => {
-  // 1. Explicit baseUrl takes precedence
-  await apiRequest({
+import { test } from '@seon/playwright-utils/api-request/fixtures'
+
+test('fetch user profile', async ({ apiRequest }) => {
+  const { status, body } = await apiRequest<UserProfile>({
     method: 'GET',
-    path: '/users',
-    baseUrl: 'https://api.example.com' // This will be used
-    // configBaseUrl is ignored when baseUrl is provided
+    path: '/api/profile',
+    headers: {
+      Authorization: 'Bearer token123'
+    }
   })
 
-  // 2. Playwright config baseURL is used when no explicit baseUrl is provided
-  await apiRequest({
-    method: 'GET',
-    path: '/users'
-    // Uses the baseURL from playwright.config.ts
+  expect(status).toBe(200)
+  expect(body.email).toBeDefined()
+})
+```
+
+#### POST Request with Body
+
+```typescript
+import { test } from '@seon/playwright-utils/api-request/fixtures'
+
+test('create new item', async ({ apiRequest }) => {
+  const { status, body } = await apiRequest<CreateItemResponse>({
+    method: 'POST',
+    path: '/api/items',
+    baseUrl: 'https://api.example.com', // override default baseURL
+    body: {
+      name: 'New Item',
+      price: 19.99
+    },
+    headers: { 'Content-Type': 'application/json' }
   })
 
-  // 3. Direct paths (with protocol) are used as-is
-  await apiRequest({
-    method: 'GET',
-    path: 'https://api.example.com/users' // Used directly, ignores baseUrl
-  })
+  expect(status).toBe(201)
+  expect(body.id).toBeDefined()
 })
 ```
 
@@ -158,5 +172,51 @@ test('handles different response types', async ({ apiRequest }) => {
     }
   })
   // textResponse.body is a string
+})
+```
+
+### Using URL Resolution Strategy
+
+> **Note**: The apiRequest utility follows a priority order for resolving URLs:
+>
+> 1. Explicit `baseUrl` parameter in the function call
+> 2. `configBaseUrl` parameter in the function call
+> 3. Playwright config's `baseURL` from your `playwright.config.ts` file
+> 4. Absolute URLs in the `path` parameter are used as-is
+
+```typescript
+import { test } from '@seon/playwright-utils/api-request/fixtures'
+
+test('demonstrates URL resolution', async ({ apiRequest }) => {
+  // 1. Explicit baseUrl takes precedence
+  await apiRequest({
+    method: 'GET',
+    path: '/users',
+    baseUrl: 'https://api.explicit.com', // This will be used
+    configBaseUrl: 'https://api.config.com'
+  })
+  // Results in: https://api.explicit.com/users
+
+  // 2. Falls back to configBaseUrl if no explicit baseUrl
+  await apiRequest({
+    method: 'GET',
+    path: '/users',
+    configBaseUrl: 'https://api.config.com'
+  })
+  // Results in: https://api.config.com/users
+
+  // 3. Uses Playwright config's baseURL if available
+  await apiRequest({
+    method: 'GET',
+    path: '/users'
+  })
+  // Results in: https://your-playwright-config-baseurl.com/users (from playwright.config.ts)
+
+  // 4. Works with absolute URLs in path
+  await apiRequest({
+    method: 'GET',
+    path: 'https://api.absolute.com/users'
+  })
+  // Results in: https://api.absolute.com/users
 })
 ```
