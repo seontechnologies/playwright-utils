@@ -1,6 +1,8 @@
 # Playwright Utils
 
-A collection of utilities for Playwright tests at SEON Technologies.
+A collection of utilities for Playwright tests at SEON Technologies, designed to make testing more efficient and maintainable.
+
+All utilities can be used as Playwright fixtures by importing the test object:
 
 ## Installation
 
@@ -8,176 +10,69 @@ A collection of utilities for Playwright tests at SEON Technologies.
 npm install @seon/playwright-utils
 ```
 
-## API Request Utility
+## Available Utilities
 
-The API Request utility provides a clean, typed interface for making HTTP requests in Playwright tests. It handles URL construction, header management, and response parsing with proper TypeScript support.
+The library provides the following utilities, each with both direct function imports and Playwright fixtures:
 
-### Features
+### [API Request](./docs/api-request.md)
 
-- Strong TypeScript typing for request parameters and responses
-- Three-tier URL resolution strategy (explicit baseUrl, config baseURL, or direct path)
-- Proper handling of URL path normalization and slashes
-- Content-type based response parsing
-- Support for all common HTTP methods
-
-### Usage
-
-The utility can be used in two ways:
-
-#### 1. As a Plain Function
+A typed, flexible HTTP client for making API requests in tests.
 
 ```typescript
-import { apiRequest } from '@seon/playwright-utils/api-request'
+// Direct import
+import { apiRequest } from '@seon/playwright-utils'
 
-// Inside a test or another function
-const response = await apiRequest({
-  request: context.request, // Playwright request context
-  method: 'GET',
-  path: '/api/users',
-  baseUrl: 'https://api.example.com',
-  headers: { Authorization: 'Bearer token' }
+test('example', async ({ request }) => {
+  const { status, body } = await apiRequest({
+    request, // need to pass in request context when using this way
+    method: 'GET',
+    path: '/api/users/123'
+  })
 })
 
-console.log(response.status) // HTTP status code
-console.log(response.body) // Parsed response body
-```
+// As a fixture
+import { test } from '@seon/playwright-utils/fixtures'
+// or use your own main fixture (with mergeTests) and import from there
 
-#### 2. As a Playwright Fixture
-
-```typescript
-// Import the fixture
-
-// Use the fixture in your tests
-test('should fetch user data', async ({ apiRequest }) => {
-  const { status, body } = await apiRequest<UserResponse>({
+test('example', async ({ apiRequest }) => {
+  const { status, body } = await apiRequest({
     method: 'GET',
-    path: '/api/users/123',
-    headers: { Authorization: 'Bearer token' }
+    path: '/api/users/123'
   })
-
-  // Assertions
-  expect(status).toBe(200)
-  expect(body.name).toBe('John Doe')
 })
 ```
 
-### API Reference
+[→ API Request Documentation](./docs/api-request.md)
 
-#### apiRequest Function
+### [Recurse (Polling)](./docs/recurse.md)
 
-```typescript
-async function apiRequest<T = unknown>({
-  request,
-  method,
-  path,
-  baseUrl,
-  configBaseUrl,
-  body,
-  headers,
-  params
-}: ApiRequestParams): Promise<ApiRequestResponse<T>>
-```
-
-#### Parameters
-
-| Parameter     | Type                                                      | Description                              |
-| ------------- | --------------------------------------------------------- | ---------------------------------------- |
-| request       | APIRequestContext                                         | The Playwright request context           |
-| method        | 'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH' \| 'HEAD' | HTTP method to use                       |
-| path          | string                                                    | The URL path (e.g., '/api/users')        |
-| baseUrl       | string (optional)                                         | Base URL to prepend to the path          |
-| configBaseUrl | string (optional)                                         | Fallback base URL from Playwright config |
-| body          | unknown (optional)                                        | Request body for POST/PUT/PATCH          |
-| headers       | Record<string, string> (optional)                         | HTTP headers                             |
-| params        | Record<string, string \| boolean \| number> (optional)    | Query parameters                         |
-
-#### Return Type
+A powerful polling utility for waiting on asynchronous conditions.
 
 ```typescript
-type ApiRequestResponse<T = unknown> = {
-  status: number // HTTP status code
-  body: T // Response body, typed as T
-}
-```
+// note that there is no need to pass in request or page context from Playwright
 
-### Examples
+// Direct import
+import { recurse } from '@seon/playwright-utils'
 
-#### GET Request with Authentication
-
-```typescript
-import { test } from '@seon/playwright-utils/api-request/fixtures'
-
-test('fetch user profile', async ({ apiRequest }) => {
-  const { status, body } = await apiRequest<UserProfile>({
-    method: 'GET',
-    path: '/api/profile',
-    headers: {
-      Authorization: 'Bearer token123'
-    }
+test('example', async ({ recurse }) => {
+  const result = await recurse({
+    command: () => fetchData(),
+    predicate: (data) => data.status === 'ready',
+    options: { timeout: 30000 }
   })
+})
 
-  expect(status).toBe(200)
-  expect(body.email).toBeDefined()
+// As a fixture
+import { test } from '@seon/playwright-utils/fixtures'
+// or use your own main fixture (with mergeTests) and import from there
+
+test('example', async ({ recurse }) => {
+  const result = await recurse({
+    command: () => fetchData(),
+    predicate: (data) => data.status === 'ready',
+    options: { timeout: 30000 }
+  })
 })
 ```
 
-#### POST Request with Body
-
-```typescript
-import { test } from '@seon/playwright-utils/api-request/fixtures'
-
-test('create new item', async ({ apiRequest }) => {
-  const { status, body } = await apiRequest<CreateItemResponse>({
-    method: 'POST',
-    path: '/api/items',
-    baseUrl: 'https://api.example.com', // override default baseURL
-    body: {
-      name: 'New Item',
-      price: 19.99
-    },
-    headers: { 'Content-Type': 'application/json' }
-  })
-
-  expect(status).toBe(201)
-  expect(body.id).toBeDefined()
-})
-```
-
-#### Using URL Resolution Strategy
-
-```typescript
-import { test } from '@seon/playwright-utils/api-request/fixtures'
-
-test('demonstrates URL resolution', async ({ apiRequest }) => {
-  // 1. Explicit baseUrl takes precedence
-  await apiRequest({
-    method: 'GET',
-    path: '/users',
-    baseUrl: 'https://api.explicit.com', // This will be used
-    configBaseUrl: 'https://api.config.com'
-  })
-  // Results in: https://api.explicit.com/users
-
-  // 2. Falls back to configBaseUrl if no explicit baseUrl
-  await apiRequest({
-    method: 'GET',
-    path: '/users',
-    configBaseUrl: 'https://api.config.com'
-  })
-  // Results in: https://api.config.com/users
-
-  // 3. Uses path directly if no base URLs provided
-  await apiRequest({
-    method: 'GET',
-    path: '/users'
-  })
-  // Results in: /users
-
-  // 4. Works with absolute URLs in path
-  await apiRequest({
-    method: 'GET',
-    path: 'https://api.absolute.com/users'
-  })
-  // Results in: https://api.absolute.com/users
-})
-```
+[→ Recurse Documentation](./docs/recurse.md)
