@@ -1,3 +1,2 @@
-// Export only the core API request functionality
-// No fixtures are exported from this path
+// export only the core API request functionality (no fixtures)
 export * from './api-request'

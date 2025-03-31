@@ -7,8 +7,8 @@
 
 // Export core API request functionality (plain functions only)
 export * from './api-request'
+export * from './recurse'
 
 // Future function exports can be added here
-// export * from './recursion';
 // export * from './logging';
 // export * from './auth';
