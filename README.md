@@ -2,7 +2,14 @@
 
 A collection of utilities for Playwright tests at SEON Technologies, designed to make testing more efficient and maintainable.
 
-All utilities can be used as Playwright fixtures by importing the test object:
+All utilities can be used as Playwright fixtures by importing the test object
+
+- [Playwright Utils](#playwright-utils)
+  - [Installation](#installation)
+  - [Available Utilities](#available-utilities)
+    - [API Request](#api-request)
+    - [Recurse (Polling)](#recurse-polling)
+    - [Logging](#logging)
 
 ## Installation
 
@@ -76,3 +83,30 @@ test('example', async ({ recurse }) => {
 ```
 
 [→ Recurse Documentation](./docs/recurse.md)
+
+### [Logging](./docs/log.md)
+
+A specialized logging utility that integrates with Playwright's test reports.
+
+```typescript
+// Direct import
+import { log } from '@seon/playwright-utils'
+
+await log.info('Information message')
+await log.step('Starting a new test step')
+await log.error('Something went wrong', false) // Disable console output
+```
+
+```typescript
+// As a fixture
+import { test } from '@seon/playwright-utils/log/fixtures'
+
+test('example', async ({ log }) => {
+  await log({
+    message: 'Starting test',
+    level: 'step'
+  })
+})
+```
+
+[→ Logging Documentation](./docs/log.md)
