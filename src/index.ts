@@ -12,3 +12,21 @@ export * from './log'
 
 // Future function exports can be added here
 // export * from './auth';
+
+///////////////////////
+// Internal logger to use our log implementation instead of console.log
+// This avoids circular dependencies between modules
+///////////////////////
+
+import { configureLogger } from './internal'
+import { log } from './log'
+
+// Shared logger interface for internal use
+configureLogger({
+  info: (message: string) => log.info(message),
+  step: (message: string) => log.step(message),
+  success: (message: string) => log.success(message),
+  warning: (message: string) => log.warning(message),
+  error: (message: string) => log.error(message),
+  debug: (message: string) => log.debug(message)
+})

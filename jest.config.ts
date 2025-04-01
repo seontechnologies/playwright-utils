@@ -30,7 +30,22 @@ export const config: JestConfigWithTsJest = {
   moduleDirectories: ['node_modules', 'src'],
   modulePathIgnorePatterns: ['dist'],
   testMatch: ['**/*.test.ts'],
-  testEnvironment: 'node'
+  testEnvironment: 'node',
+
+  // Added ESM support
+  preset: 'ts-jest/presets/default-esm',
+  extensionsToTreatAsEsm: ['.ts'],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1'
+  },
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        useESM: true
+      }
+    ]
+  }
 }
 
 export default config
