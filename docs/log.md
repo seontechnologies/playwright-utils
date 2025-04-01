@@ -21,7 +21,6 @@ A powerful logging utility for Playwright tests that integrates with both consol
 		- [Available Decorators](#available-decorators)
 		- [Using Method Decorators in Page Objects](#using-method-decorators-in-page-objects)
 		- [Using Function Decorators for Utility Functions / Functional Helpers](#using-function-decorators-for-utility-functions--functional-helpers)
-		- [Benefits of Using Step Decorators](#benefits-of-using-step-decorators)
 
 ## Features
 
@@ -403,12 +402,3 @@ test('page has correct number of items', async ({ page }) => {
   // Step will show as "Check element count" in reports & PW UI
 })
 ```
-
-### Benefits of Using Step Decorators
-
-1. **Enhanced Test Reports**: Steps appear clearly in Playwright HTML reports & PW UI with timing information
-2. **Automatic Logging**: Consistent logging at the start and end of each step
-3. **Error Handling**: Errors are properly logged before being thrown
-4. **Cleaner Test Code**: Remove repetitive `test.step()` wrappers
-5. **Better Structure**: Encourage Page Object Model and utility function patterns
-6. **Type Safety**: Full TypeScript type safety for parameters and return values

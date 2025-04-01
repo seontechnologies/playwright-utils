@@ -3,4 +3,4 @@
  */
 
 // Re-export everything from the step module
-export * from './step'
+export * from './test-step'
