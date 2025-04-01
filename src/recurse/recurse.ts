@@ -1,5 +1,6 @@
 // utilities for polling and retrying operations using Playwright's expect.poll mechanism
 import { expect } from '@playwright/test'
+import { getLogger } from '../internal'
 
 /** default options for the recurse function */
 const RecurseDefaults = {
@@ -109,21 +110,15 @@ const logAttempt = async <T>(
 
   if (typeof state.options.log === 'string') {
     if (successful) {
-      console.log(state.options.log)
-      // TODO: use log-utils
-      // await log.success(state.options.log)
+      await getLogger().success(state.options.log)
     }
     return
   }
 
   if (successful) {
-    console.log(`Attempt #${iteration} (${elapsed}ms): SUCCESS`)
-    // TODO: use log-utils
-    // await log.success(`Attempt #${iteration} (${elapsed}ms): SUCCESS`)
+    await getLogger().success(`Attempt #${iteration} (${elapsed}ms): SUCCESS`)
   } else {
-    console.log(`Attempt #${iteration} (${elapsed}ms): RETRY`)
-    // TODO: use log-utils
-    // await log.info(`Attempt #${iteration} (${elapsed}ms): RETRY`)
+    await getLogger().info(`Attempt #${iteration} (${elapsed}ms): RETRY`)
   }
 }
 
@@ -137,17 +132,11 @@ const logInitialStep = async <T>(state: RecurseState<T>) => {
   const { options, timeout, interval } = state
 
   if (options.log && typeof options.log === 'string') {
-    console.log(`Polling: ${options.log}`)
-    // TODO: use log-utils
-    // await log.step(`Polling: ${options.log}`)
+    await getLogger().step(`Polling: ${options.log}`)
   } else {
-    console.log(
+    await getLogger().step(
       `Polling until condition is met (timeout: ${timeout}ms, interval: ${interval}ms)`
     )
-    // TODO: use log-utils
-    // await log.step(
-    //   `Polling until condition is met (timeout: ${timeout}ms, interval: ${interval}ms)`
-    // )
   }
 }
 
@@ -163,15 +152,11 @@ const logSuccess = async <T>(state: RecurseState<T>) => {
   if (!wasSuccessful) return
 
   if (options.log && typeof options.log === 'string') {
-    console.log(options.log)
-    // TODO: use log-utils
-    // await log.success(options.log)
+    await getLogger().success(options.log)
   } else {
-    console.log(`Polling completed successfully after ${iteration} iterations`)
-    // TODO: use log-utils
-    // await log.success(
-    //   `Polling completed successfully after ${iteration} iterations`
-    // )
+    await getLogger().success(
+      `Polling completed successfully after ${iteration} iterations`
+    )
   }
 }
 
