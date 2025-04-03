@@ -1,11 +1,6 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from '@playwright/test'
-import {
-  log,
-  methodTestStep,
-  functionTestStep,
-  captureTestContext
-} from '../../src'
+import { log, methodTestStep, functionTestStep } from '../../src'
 
 const TODO_ITEMS = [
   'buy some cheese',

@@ -18,6 +18,8 @@ A functional logging utility for Playwright tests with enhanced features for tes
     - [Using With Playwright Test Steps](#using-with-playwright-test-steps)
   - [Log Organization and Test Context](#log-organization-and-test-context)
     - [How Test Context Capture Works](#how-test-context-capture-works)
+      - [Option 1: Global Configuration (Recommended)](#option-1-global-configuration-recommended)
+      - [Option 2: Per-Test-File Setup](#option-2-per-test-file-setup)
     - [Log File Structure](#log-file-structure)
   - [Worker ID Logging](#worker-id-logging)
     - [Sample Output](#sample-output)
@@ -88,12 +90,12 @@ import { log } from '@seon/playwright-utils'
 test('should allow me to add todo items', async ({ page }) => {
   await log.info('Starting todo creation test')
   await log.step('Adding new todo items')
-  
+
   // Test code...
-  
+
   await log.success('Successfully added all todo items')
   await log.warning('Some items might be duplicates')
-  
+
   // You can also log objects
   await log.debug('Current todo items:', { items: ['item1', 'item2'] })
 })
@@ -139,7 +141,7 @@ log.configure({
 })
 
 export const baseConfig = defineConfig({
-  testDir: './playwright/tests',
+  testDir: './playwright/tests'
   // ... other configuration
 })
 
@@ -160,7 +162,7 @@ log.configure({
 const testContextProject = setupTestContextCapture()
 
 export default defineConfig(
-  merge({}, baseConfig, { 
+  merge({}, baseConfig, {
     // Add the test context project to enable organization
     projects: [...(baseConfig.projects || []), testContextProject]
   })
@@ -371,9 +373,11 @@ test('demonstrates test step integration', async ({ page }) => {
 
 ## Log Organization and Test Context
 
-Logs are automatically organized by test file and test name when test context is captured. This provides a clean separation of logs for each test run.
+By default, when file logging is enabled, all logs go to a single file. However, when test context is captured, logs are automatically organized by test file and test name, providing a clean separation of logs for each test run.
 
 ### How Test Context Capture Works
+
+There are three ways to set up test context capture, listed in order of preference:
 
 #### Option 1: Global Configuration (Recommended)
 
@@ -398,10 +402,10 @@ log.configure({
 const testContextProject = setupTestContextCapture()
 
 export default defineConfig(
-  merge({}, baseConfig, { 
+  merge({}, baseConfig, {
     // Your other config options here
     use: { baseURL: 'https://test-api.k6.io' },
-    
+
     // 3. Add the special project to your config
     projects: [...(baseConfig.projects || []), testContextProject]
   })
@@ -422,23 +426,32 @@ import { log, captureTestContext } from '@seon/playwright-utils'
 test.beforeEach(async ({}, testInfo) => {
   captureTestContext(testInfo)
 })
+```
 
-// Example fixture file approach (would go in a separate fixtures.ts file)
-// import { test as baseTest, expect } from '@playwright/test'
-// import { captureTestContext } from '@seon/playwright-utils'
-//
-// export const test = baseTest.extend({
-//   // Auto-capture test context for all tests using this fixture
-//   _captureContext: [
-//     async ({}, use, testInfo) => {
-//       captureTestContext(testInfo)
-//       await use()
-//     },
-//     { auto: true }
-//   ]
-// })
-// 
-// export { expect }
+#### Option 3: Custom Test Fixture Approach
+
+You can also create a custom test fixture that automatically captures context for all tests:
+
+```typescript
+// In a separate fixtures.ts file
+import { test as baseTest, expect } from '@playwright/test'
+import { captureTestContext } from '@seon/playwright-utils'
+
+export const test = baseTest.extend({
+  // Auto-capture test context for all tests using this fixture
+  _captureContext: [
+    async ({}, use, testInfo) => {
+      captureTestContext(testInfo)
+      await use()
+    },
+    { auto: true }
+  ]
+})
+
+export { expect }
+
+// Then in your test files:
+// import { test, expect } from './fixtures'
 ```
 
 ### Log File Structure
@@ -446,6 +459,7 @@ test.beforeEach(async ({}, testInfo) => {
 When test context is captured, logs are organized into directories like this:
 
 ```text
+# With test context captured (organized by test)
 playwright-logs/
   2025-04-03/
     login-tests.spec/
@@ -453,9 +467,15 @@ playwright-logs/
       should-fail-with-invalid-password-worker-1.log
     checkout-tests.spec/
       should-complete-purchase-worker-0.log
+
+# Without test context (default behavior)
+playwright-logs/
+  2025-04-03/
+    default-test-folder/
+      playwright-combined-logs.log  # Single file for all logs
 ```
 
-Without test context, logs go to a default folder specified by the `testFolder` option.
+Without test context, all logs go to a single file in a default folder specified by the `testFolder` option.
 
 ## Worker ID Logging
 
@@ -496,40 +516,42 @@ export const baseConfig = defineConfig({
 [10:45:34] [W1] ℹ Different worker running another test
 ```
 
-### Per-Test Worker ID Override
+### Per-Message Worker ID Options
 
-For specific test files, you can override the worker ID format if needed. When called inside a test context, local scope is automatically detected - no need to specify 'local':
+While the global worker ID format is set in your configuration, you can override it for individual log messages:
 
 ```typescript
 import { test } from '@playwright/test'
 import { log } from '@seon/playwright-utils'
 
-test.beforeAll(() => {
-  // Override worker ID format just for this test file
-  log.configure({
-    workerID: {
-      format: '[Worker-{workerIndex}]'
-    }
-  })
-})
-
 test('example with custom worker ID', async () => {
+  // Use the default worker ID format
   await log.info('Starting test')
-  // Output: [10:45:32] [Worker-1] ℹ Starting test
+  // Output: [10:45:32] [W0] ℹ Starting test
 
-  // Or disable worker ID for just one log message
+  // Disable worker ID for just one log message
   await log.info('Special message', { workerID: false })
   // Output: [10:45:32] ℹ Special message
+  
+  // Custom format for just one log message
+  await log.info('Custom format message', { 
+    workerID: { 
+      format: '[Worker-{workerIndex}]' 
+    }
+  })
+  // Output: [10:45:32] [Worker-0] ℹ Custom format message
 })
 ```
 
-## Source File Tracking
+> **Note:** While it's technically possible to set a custom worker ID format for an entire test file using `log.configure()` in a `beforeAll` hook, we recommend using the global configuration for consistency and only overriding per-message when needed.
 
-The logging utility can automatically track the source file location of log calls, which is particularly useful when debugging complex test scenarios or when using decorators and function wrappers.
+## Source File Tracking for Decorators
 
-### Source Tracking Configuration
+When using the `methodTestStep` decorator or `functionTestStep` wrapper, the logging utility automatically tracks the source file location of the decorated method or function. This is particularly useful when debugging complex test scenarios that use the Page Object Model pattern or other abstraction layers.
 
-Source file tracking is enabled by default but not shown in logs to reduce noise. You can control this behavior using global configuration:
+### Source Tracking Configuration for Decorators
+
+Source file tracking is enabled by default for decorators but the file paths are not shown in logs to reduce noise. You can control this behavior using global configuration:
 
 ```typescript
 // Global configuration - in your playwright config
@@ -543,7 +565,7 @@ log.configure({
 })
 ```
 
-To temporarily show source files in logs for debugging:
+To temporarily show source files in logs for debugging decorated methods:
 
 ```typescript
 // Enable source file display for a specific test
@@ -554,21 +576,34 @@ test.beforeEach(() => {
 })
 
 // Output format with source file showing:
-// [10:45:32] [W0] ℹ Starting test [src/tests/login.spec.ts]
+// [10:45:32] [W0] ℹ LoginPage.login [src/pages/login-page.ts]
 ```
 
-### How It Works
+### How Decorator Source Tracking Works
 
-Source file tracking works by analyzing the stack trace to extract the file path of the original call site. This information is stored in the test context and can be used for enhanced logging and debugging.
+Decorator source tracking automatically analyzes the stack trace to extract the file path of the original method or function. This helps you identify which class or utility file contains the functionality, even when using abstraction layers.
 
 ```typescript
-// This happens automatically with decorators and function wrappers
-// but can also be used directly if needed
-const sourceFilePath = extractSourceFilePath()
-log.setTestContext({ sourceFilePath })
+// This happens automatically when using these decorators:
+
+// In a Page Object class
+class LoginPage {
+  @methodTestStep
+  async login(username: string, password: string) {
+    // Source file tracking automatically captures 'login-page.ts'
+  }
+}
+
+// Or with function wrappers
+const checkElementCount = functionTestStep(
+  'Check element count',
+  async (page, selector, count) => {
+    // Source file tracking automatically captures the file this function is in
+  }
+)
 ```
 
-### Benefits
+### Benefits of Decorator Source Tracking
 
 - **Easier Debugging**: Quickly identify which file originated a log message or test failure
 - **Better Traceability**: Follow the execution path through multiple files and components
