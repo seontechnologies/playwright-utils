@@ -19,6 +19,7 @@ npm-debug.log*
 node_modules/
 /test-results/
 /playwright-report/
+/playwright-logs/
 /blob-report/
 /playwright/.cache/
 downloads

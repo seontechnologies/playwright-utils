@@ -1,6 +1,12 @@
 import { defineConfig, devices } from '@playwright/test'
 import { config as dotenvConfig } from 'dotenv'
+import { log } from '../../src'
 import path from 'path'
+
+// Configure logging at global level
+log.configure({
+  console: false
+})
 
 dotenvConfig({
   path: path.resolve(__dirname, '../../.env')

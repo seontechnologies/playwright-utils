@@ -21,6 +21,26 @@
       "types": "./dist/api-request/fixtures.d.ts",
       "require": "./dist/api-request/fixtures.js",
       "import": "./dist/api-request/fixtures.js"
+    },
+    "./log": {
+      "types": "./dist/log/index.d.ts",
+      "require": "./dist/log/index.js",
+      "import": "./dist/log/index.js"
+    },
+    "./log/fixtures": {
+      "types": "./dist/log/fixtures.d.ts",
+      "require": "./dist/log/fixtures.js",
+      "import": "./dist/log/fixtures.js"
+    },
+    "./recurse": {
+      "types": "./dist/recurse/index.d.ts",
+      "require": "./dist/recurse/index.js",
+      "import": "./dist/recurse/index.js"
+    },
+    "./recurse/fixtures": {
+      "types": "./dist/recurse/fixtures.d.ts",
+      "require": "./dist/recurse/fixtures.js",
+      "import": "./dist/recurse/fixtures.js"
     }
   },
   "files": [
@@ -76,5 +96,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.1",
     "typescript": "5.8.2"
+  },
+  "dependencies": {
+    "deepmerge": "^4.3.1"
   }
 }

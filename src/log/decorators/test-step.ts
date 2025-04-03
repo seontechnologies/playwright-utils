@@ -3,9 +3,43 @@
  *
  * Provides decorators that can be used to wrap methods or functions in test steps
  * with proper logging integration.
+ *
+ * Enhanced with worker ID, file logging, and source file information.
  */
 import { test } from '@playwright/test'
 import { log } from '../log'
+
+/**
+ * Extract source file path from stack trace, excluding specific files
+ *
+ * @param excludeFiles - Array of filenames to exclude from the stack trace
+ * @returns The source file path or undefined if not found
+ */
+const extractSourceFilePath = (
+  excludeFiles: string[] = ['test-step.ts']
+): string | undefined =>
+  new Error().stack
+    ?.split('\n')
+    // Filter out lines that don't include .ts files or contain excluded files
+    .find(
+      (line) =>
+        line.includes('.ts:') &&
+        !excludeFiles.some((file) => line.includes(file))
+    )
+    ?.trim()
+    .split(' ')
+    .pop()
+    ?.split(':')[0]
+
+/**
+ * Set source file information in the test context if available
+ */
+// Source file context setting has been removed as it's no longer needed
+const setSourceFileContext = (): void => {
+  // Previously set the source file path in test context, now deprecated
+  // Just extract the path for potential future use if needed
+  extractSourceFilePath()
+}
 
 /**
  * Method decorator for class methods to wrap them in a test.step with logging
@@ -52,6 +86,9 @@ export function methodTestStep(stepName?: string) {
       const className = this.constructor ? this.constructor.name : 'Unknown'
       // Combine them for a descriptive step name in test reports
       const fullStepName = `${name} (${className})`
+
+      // Get file information for source tracking and set context
+      setSourceFileContext()
 
       // Log the step to our custom logger before Playwright's test.step
       // This allows for consistent logging across all our test utilities
@@ -104,6 +141,9 @@ export function functionTestStep<T extends any[], R>(
   return async function (...args: T): Promise<R> {
     // Unlike methodTestStep, we don't need to handle 'this' context
     // Because we're working with standalone functions, not class methods
+
+    // Get file information for source tracking and set context
+    setSourceFileContext()
 
     // Log the step to our custom logger for consistent output
     log.step(stepName)

@@ -1,96 +1,174 @@
-# Logging Utility
+# Playwright Logging Utility
 
-A powerful logging utility for Playwright tests that integrates with both console output and Playwright's test step API for improved visibility and reporting.
+A functional logging utility for Playwright tests with enhanced features for test automation.
 
-- [Logging Utility](#logging-utility)
-	- [Features](#features)
-	- [Installation](#installation)
-	- [Usage](#usage)
-		- [Basic Logging](#basic-logging)
-		- [Controlling Console Output](#controlling-console-output)
-		- [Using as a Fixture](#using-as-a-fixture)
-	- [API Reference](#api-reference)
-		- [Log Levels](#log-levels)
-		- [Methods](#methods)
-		- [Using With Playwright Test Steps](#using-with-playwright-test-steps)
-	- [Test Step Decorators / Function Wrappers](#test-step-decorators--function-wrappers)
-		- [Why Use Decorators / Function Wrappers?](#why-use-decorators--function-wrappers)
-			- [Without Decorators (Using raw `test.step`)](#without-decorators-using-raw-teststep)
-			- [With Decorators (Using our library)](#with-decorators-using-our-library)
-		- [Raw test.step Usage (default Playwright API - Not Recommended)](#raw-teststep-usage-default-playwright-api---not-recommended)
-		- [Available Decorators](#available-decorators)
-		- [Using Method Decorators in Page Objects](#using-method-decorators-in-page-objects)
-		- [Using Function Decorators for Utility Functions / Functional Helpers](#using-function-decorators-for-utility-functions--functional-helpers)
+- [Playwright Logging Utility](#playwright-logging-utility)
+  - [Core Features](#core-features)
+  - [Installation](#installation)
+  - [Quick Start](#quick-start)
+  - [Basic Usage](#basic-usage)
+  - [Configuration](#configuration)
+    - [Default Settings](#default-settings)
+    - [Unified Configuration API](#unified-configuration-api)
+  - [API Reference](#api-reference)
+    - [Log Levels](#log-levels)
+    - [Global Configuration Interface](#global-configuration-interface)
+    - [Logging Methods](#logging-methods)
+    - [LogOptions Interface](#logoptions-interface)
+    - [Using With Playwright Test Steps](#using-with-playwright-test-steps)
+  - [Log Organization and Test Context](#log-organization-and-test-context)
+    - [How Test Context Capture Works](#how-test-context-capture-works)
+    - [Log File Structure](#log-file-structure)
+  - [Worker ID Logging](#worker-id-logging)
+    - [Sample Output](#sample-output)
+    - [Per-Test Worker ID Override](#per-test-worker-id-override)
+  - [Source File Tracking](#source-file-tracking)
+    - [Source Tracking Configuration](#source-tracking-configuration)
+    - [How It Works](#how-it-works)
+    - [Benefits](#benefits)
+    - [Custom Exclusions](#custom-exclusions)
+  - [Test Step Decorators / Function Wrappers](#test-step-decorators--function-wrappers)
+    - [Why Use Decorators / Function Wrappers?](#why-use-decorators--function-wrappers)
+      - [Without Decorators (Using raw `test.step`)](#without-decorators-using-raw-teststep)
+      - [With Decorators (Using our library)](#with-decorators-using-our-library)
+    - [Raw test.step Usage (default Playwright API - Not Recommended)](#raw-teststep-usage-default-playwright-api---not-recommended)
+      - [Working with raw test.step (click to expand)](#working-with-raw-teststep-click-to-expand)
+    - [Available Decorators](#available-decorators)
+    - [Using Method Decorators in Page Objects](#using-method-decorators-in-page-objects)
+    - [Using Function Decorators for Utility Functions / Functional Helpers](#using-function-decorators-for-utility-functions--functional-helpers)
 
-## Features
+## Core Features
 
-- Consistent logging format with visual indicators for different log levels
-- Integrates with Playwright's test.step API for better test reports & PW UI
-- Colorized terminal output for improved readability
-- Asynchronous logging that properly handles I/O operations
-- Graceful fallback in non-test contexts
+- **Functional Programming Approach**: Pure functions and immutable data flows
+- **Unified Options Interface**: Consistent API with configurable defaults
+- **Console Formatting**: Clear visual indicators for different log levels
+- **Playwright Integration**: Automatic test step reporting
 
 ## Installation
-
-The logging utility is automatically available when you install the package:
 
 ```bash
 npm install @seon/playwright-utils
 ```
 
-## Usage
+## Quick Start
 
-### Basic Logging
+```typescript
+// Import the logging utility
+import { log } from '@seon/playwright-utils'
+
+// Configure once in your project setup
+log.configure({
+  console: { enabled: true, colorize: true },
+  workerID: { enabled: true }, // Auto-prefix logs with worker ID
+  fileLogging: {
+    enabled: true // Logs will be grouped by test run in playwright-logs
+  }
+})
+
+// Use in your tests
+test('my first test with enhanced logging', async ({ page }) => {
+  await log.info('Starting test')
+  await log.step('Navigating to homepage')
+  await page.goto('https://example.com')
+  await log.success('Test completed successfully')
+})
+```
+
+## Basic Usage
 
 ```typescript
 import { log } from '@seon/playwright-utils'
 
-// Different log levels with appropriate formatting
-await log.info('Information message')
-await log.step('Starting a new test step')
-await log.success('Operation completed successfully')
-await log.warning('Something might be wrong')
-await log.error('An error occurred')
-await log.debug('Debugging information')
-```
-
-### Controlling Console Output
-
-By default, all log messages are output to the console. You can disable console output if needed:
-
-```typescript
-// Disable console output for this message
-await log.info('Silent info message', false)
-
-// Enable console output (default behavior)
-await log.info('Standard info message', true)
-```
-
-### Using as a Fixture
-
-> **Note:** When using the log fixture, you must use the object parameter pattern shown above. The fixture does not support the method-based syntax (e.g., `log.step('message')`) that's available when using the direct import. This is by design to provide a consistent interface through the fixture.
-
-```typescript
-import { test } from '@seon/playwright-utils/log/fixtures'
-
-test('demonstrates logging with fixtures', async ({ log }) => {
-  // Basic usage
-  await log({ message: 'Information message' })
-
-  // Specifying log level
-  await log({
-    message: 'Starting test',
-    level: 'step'
-  })
-
-  // Disabling console output
-  await log({
-    message: 'Silent success',
-    level: 'success',
-    console: false
-  })
+// Simple logging with different levels
+await log.info('User data loaded')
+await log.step('Starting checkout process')
+await log.success('Order completed successfully')
+await log.warning('Low inventory alert')
+await log.error('Payment processing failed')
+await log.debug('API response payload:', {
+  /* data */
 })
 ```
+
+## Configuration
+
+### Default Settings
+
+The logging system comes with these default settings:
+
+```typescript
+// These are the internal defaults - you don't need to set these
+const defaults = {
+  // Console output is enabled
+  console: true,
+  // File logging is enabled and writes to playwright-logs directory
+  fileLogging: true,
+  // Files are grouped by test run for better organization
+  // Format settings
+  format: {
+    // Each log level has its own prefix (ℹ, ✓, ⚠, etc.)
+    // Log timestamps are enabled
+    // Output is colorized
+  }
+}
+```
+
+### Unified Configuration API
+
+We use a single `log.configure()` function for all configuration needs with a clear priority order of **base config < fixture files < test files**. Each level inherits from the previous while allowing specific overrides.
+
+```typescript
+// -- In SEON Project --
+
+// 1. GLOBAL: In your base.config.ts (lowest priority)
+import { defineConfig } from '@playwright/test'
+import { log } from '@seon/playwright-utils'
+
+log.configure({
+  console: {
+    enabled: true,
+    colorize: true,
+    timestamps: true
+  },
+  fileLogging: {
+    enabled: true,
+    outputDir: './playwright-logs' // Logs are grouped by test run automatically
+  }
+})
+
+export const baseConfig = defineConfig({
+  // ... base configuration
+})
+
+// 2. SHARED: In your fixtures/base.ts (middle priority)
+import { test as baseTest } from '@playwright/test'
+import { log } from '@seon/playwright-utils'
+
+log.configure({
+  console: {
+    colorize: false // Override specific setting from base config
+  }
+})
+
+export const test = baseTest.extend({
+  // your fixtures...
+})
+
+// 3. LOCAL: In individual test files (highest priority)
+import { test } from '../fixtures/base'
+import { log } from '@seon/playwright-utils'
+
+test('example test', async () => {
+  // Test-specific overrides (local scope is automatically detected)
+  log.configure({
+    format: { prefix: 'Test:' }
+  })
+
+  await log.info('This log will use the merged configuration')
+})
+```
+
+> **Priority Mechanism**: Settings are merged intelligently - local overrides don't completely replace global settings, they only override the specific properties that are defined.
 
 ## API Reference
 
@@ -99,23 +177,170 @@ test('demonstrates logging with fixtures', async ({ log }) => {
 | Level     | Description         | Console Method | Visual Indicator |
 | --------- | ------------------- | -------------- | ---------------- |
 | `info`    | General information | console.info   | ℹ               |
-| `step`    | Test step delimiter | console.log    | ====             |
+| `step`    | Test step delimiter | console.log    | (newline)        |
 | `success` | Success messages    | console.log    | ✓                |
 | `warning` | Warning messages    | console.warn   | ⚠               |
 | `error`   | Error messages      | console.error  | ✖               |
 | `debug`   | Debug information   | console.debug  | 🔍               |
 
-### Methods
+### Global Configuration Interface
 
-Each logging method has the following signature:
+Used with `log.configure()` for system-wide settings:
 
 ```typescript
-async function logXXX(message: string, console: boolean = true): Promise<void>
+interface LoggingConfig {
+  // Console output configuration
+  console?: {
+    enabled: boolean // Enable/disable console output
+    colorize?: boolean // Enable/disable ANSI colors
+    timestamps?: boolean // Show timestamps in console
+  }
+
+  // File logging configuration
+  fileLogging?: {
+    enabled: boolean // Enable/disable file logging
+    outputDir?: string // Directory for log files
+    testFolder?: string // Default folder name for logs when no test context is available
+  }
+
+  // Worker ID configuration
+  workerID?: {
+    enabled: boolean // Enable/disable worker ID prefix (default: false)
+    format?: string // Format string (default: '[W{workerIndex}]')
+  }
+}
 ```
+
+### Logging Methods
+
+All logging methods follow the same signature pattern:
+
+```typescript
+async function logXXX(message: string, options?: LogOptions): Promise<void>
+```
+
+Example usage:
+
+```typescript
+// Basic usage
+await log.info('User logged in')
+
+// With options
+await log.warning('Unexpected response', {
+  format: { prefix: '[API]' }
+})
+
+// Debug with console output disabled
+await log.debug('Sensitive data', { console: false })
+
+// Enable worker ID just for this log message
+await log.info('Starting test in worker', {
+  workerID: true
+})
+
+// Customize worker ID format for this log only
+await log.info('Processing in worker', {
+  workerID: { format: '[Worker #{workerIndex}]' }
+})
+```
+
+### LogOptions Interface
+
+The logging options that can be passed per individual log call:
+
+```typescript
+interface LogOptions {
+  /** Enable/disable console output for this log (default: true) */
+  console?: boolean
+
+  /** Enable/disable worker ID for this log (overrides global setting) */
+  workerID?:
+    | boolean
+    | {
+        enabled?: boolean
+        format?: string
+      }
+
+  /** Enable/disable file logging for this log (default: based on global config) */
+  fileLogging?: boolean
+
+  /** Formatting options */
+  format?: {
+    /** Add a prefix to the message (perfect for worker IDs) */
+    prefix?: string
+    /** Add a new line after the message */
+    addNewLine?: boolean
+  }
+
+  /** Additional metadata for structured logging */
+  context?: Record<string, unknown>
+
+  /** Test file path (usually set automatically) */
+  testFile?: string
+
+  /** Test name (usually set automatically) */
+  testName?: string
+}
+```
+
+Examples for each property:
+
+```typescript
+// Basic usage - just logs the message
+await log.info('User logged in')
+
+// console: Enable/disable console output for this specific log
+await log.debug('Sensitive data', {
+  console: false // Only log to file, not to console
+})
+
+// fileLogging: Enable/disable file logging for this specific log
+await log.info('Temporary debug info', {
+  fileLogging: false // Only log to console, don't persist to file
+})
+
+// format.prefix: Add custom prefix to this log message (e.g., worker ID)
+await log.info('Starting test', {
+  format: { prefix: `[W${test.info().workerIndex}]` }
+})
+
+// format.addNewLine: Add a blank line after this message for better readability
+await log.step('Major test section', {
+  format: { addNewLine: true }
+})
+
+// context: Include structured data for machine parsing
+await log.info('API response received', {
+  context: {
+    statusCode: 200,
+    responseTime: 345,
+    endpoint: '/api/users'
+  }
+})
+
+// testFile and testName: Override context for specific logs (rarely needed)
+await log.error('Test initialization failed', {
+  testFile: 'custom-file.spec.ts', // Usually set automatically
+  testName: 'Initial setup' // Usually set automatically
+})
+
+// Combining multiple options
+await log.warning('Connection unstable', {
+  console: true,
+  fileLogging: true,
+  format: {
+    prefix: '[NETWORK]',
+    addNewLine: true
+  },
+  context: { retryCount: 3 }
+})
+```
+
+**Note:** The timestamps and colorization are controlled via the global configuration, not per-call options.
 
 ### Using With Playwright Test Steps
 
-The logging utility automatically integrates with Playwright's test step API when used in a test context. This improves test reporting by creating steps in the Playwright reports & PW UI.
+The logging utility automatically integrates with Playwright's test step API when used in a test context, creating steps in Playwright reports and UI:
 
 ```typescript
 import { test } from '@playwright/test'
@@ -130,6 +355,203 @@ test('demonstrates test step integration', async ({ page }) => {
 
   await log.success('Test completed')
 })
+```
+
+## Log Organization and Test Context
+
+Logs are automatically organized by test file and test name when test context is captured. This provides a clean separation of logs for each test run.
+
+### How Test Context Capture Works
+
+#### Option 1: Global Configuration (Recommended)
+
+The simplest way to enable log organization is at the project configuration level. This requires zero changes to your test files:
+
+```typescript
+// In your playwright.config.ts or similar configuration file
+import { defineConfig } from '@playwright/test'
+import { log, setupTestContextCapture } from '@seon/playwright-utils'
+
+// 1. Configure logging
+log.configure({
+  fileLogging: {
+    enabled: true
+  }
+})
+
+// 2. Enable automatic test context capture for organized logs
+const testContextProject = setupTestContextCapture()
+
+export default defineConfig({
+  // Your other config options here
+  
+  // 3. Add the special project to your config
+  projects: [
+    // Your existing projects
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    // Add the context capture project
+    testContextProject
+  ]
+})
+```
+
+#### Option 2: Per-Test-File Setup
+
+If you can't modify your global configuration, you can still enable log organization in individual test files:
+
+```typescript
+// Option A: Import a test object that automatically captures context
+import { test, expect } from '@seon/playwright-utils/log/fixtures'
+
+// Option B: Use the captureTestContext utility in beforeEach
+import { test, expect } from '@playwright/test'
+import { captureTestContext } from '@seon/playwright-utils'
+
+test.beforeEach(async ({}, testInfo) => {
+  captureTestContext(testInfo)
+})
+```
+
+### Log File Structure
+
+When test context is captured, logs are organized into directories like this:
+
+```text
+playwright-logs/
+  2025-04-03/
+    login-tests.spec/
+      should-login-with-valid-credentials-worker-0.log
+      should-fail-with-invalid-password-worker-1.log
+    checkout-tests.spec/
+      should-complete-purchase-worker-0.log
+```
+
+Without test context, logs go to a default folder specified by the `testFolder` option.
+
+## Worker ID Logging
+
+Parallel tests need worker IDs for debugging multi-worker runs. Worker ID logging is **enabled by default** for convenience, but can be customized as needed:
+
+```typescript
+// playwright/config/base.config.ts
+import { defineConfig } from '@playwright/test'
+import { log } from '@seon/playwright-utils'
+
+// Default configuration (worker IDs enabled automatically)
+// log.configure({
+//   console: {
+//     enabled: true,
+//     colorize: true
+//   }
+// workerID: { enabled: true } <- This is on by default, no need to specify
+// })
+
+// If you need to customize the worker ID format:
+log.configure({
+  workerID: {
+    // enabled: false,           // Uncomment to disable worker IDs
+    format: '[Worker-{workerIndex}]' // Change the format from default '[W{workerIndex}]'
+  }
+})
+
+export const baseConfig = defineConfig({
+  // ... your configuration
+})
+```
+
+### Sample Output
+
+```bash
+[10:45:32] [W0] ℹ Starting test
+[10:45:33] [W0] Starting a new step
+[10:45:34] [W1] ℹ Different worker running another test
+```
+
+### Per-Test Worker ID Override
+
+For specific test files, you can override the worker ID format if needed. When called inside a test context, local scope is automatically detected - no need to specify 'local':
+
+```typescript
+import { test } from '@playwright/test'
+import { log } from '@seon/playwright-utils'
+
+test.beforeAll(() => {
+  // Override worker ID format just for this test file
+  log.configure({
+    workerID: {
+      format: '[Worker-{workerIndex}]'
+    }
+  })
+})
+
+test('example with custom worker ID', async () => {
+  await log.info('Starting test')
+  // Output: [10:45:32] [Worker-1] ℹ Starting test
+
+  // Or disable worker ID for just one log message
+  await log.info('Special message', { workerID: false })
+  // Output: [10:45:32] ℹ Special message
+})
+```
+
+## Source File Tracking
+
+The logging utility can automatically track the source file location of log calls, which is particularly useful when debugging complex test scenarios or when using decorators and function wrappers.
+
+### Source Tracking Configuration
+
+Source file tracking is enabled by default but not shown in logs to reduce noise. You can control this behavior using global configuration:
+
+```typescript
+// Global configuration - in your playwright config
+import { log } from '@seon/playwright-utils'
+
+log.configure({
+  sourceFileTracking: {
+    enabled: true, // Whether to track source file paths (default: true)
+    showInLogs: false // Whether to display path in log messages (default: false)
+  }
+})
+```
+
+To temporarily show source files in logs for debugging:
+
+```typescript
+// Enable source file display for a specific test
+test.beforeEach(() => {
+  log.configure({
+    sourceFileTracking: { showInLogs: true }
+  })
+})
+
+// Output format with source file showing:
+// [10:45:32] [W0] ℹ Starting test [src/tests/login.spec.ts]
+```
+
+### How It Works
+
+Source file tracking works by analyzing the stack trace to extract the file path of the original call site. This information is stored in the test context and can be used for enhanced logging and debugging.
+
+```typescript
+// This happens automatically with decorators and function wrappers
+// but can also be used directly if needed
+const sourceFilePath = extractSourceFilePath()
+log.setTestContext({ sourceFilePath })
+```
+
+### Benefits
+
+- **Easier Debugging**: Quickly identify which file originated a log message or test failure
+- **Better Traceability**: Follow the execution path through multiple files and components
+- **Automatic with Decorators**: When using the `@methodTestStep()` decorator, source file information is automatically captured
+
+### Custom Exclusions
+
+You can customize which files are excluded from the source path extraction:
+
+```typescript
+// Exclude specific files from being identified as the source
+const sourcePath = extractSourceFilePath(['test-step.ts', 'my-utility.ts'])
 ```
 
 ## Test Step Decorators / Function Wrappers
@@ -257,54 +679,32 @@ The decorated / function wrapped approach:
 
 ### Raw test.step Usage (default Playwright API - Not Recommended)
 
-While we strongly recommend using our decorators/wrappers, there may be situations where you need to use Playwright's raw `test.step()` API directly in your test blocks. The main challenge is passing variables between multiple test steps. If you must use raw test steps, here are your options:
+#### Working with raw test.step (click to expand)
+
+> 📌 **Note:** This section covers advanced scenarios only. We strongly recommend using our decorators instead of raw `test.step()` API.
+
+The main challenge with raw `test.step()` is passing variables between steps.
 
 ```typescript
 import { test } from '@playwright/test'
 import { log } from '@seon/playwright-utils'
 
 test('demonstrates passing variables between test steps', async ({ page }) => {
-  // Challenge: We need to create an order in one step and verify it in another
-
-  // ⚠️ PROBLEMATIC APPROACH: Using closures to pass data
+  // ⚠️ PROBLEMATIC: Using closures to pass data
   let orderId // Variable declared in outer scope
-
   await test.step('Create new order', async () => {
-    await page.goto('/orders/new')
-    await page.fill('#product', 'Laptop')
-    await page.fill('#quantity', '1')
-    await page.click('#submit-order')
-    // Assign to outer scope variable
-    orderId = await page.textContent('.order-confirmation-id')
-    console.log(`Created order: ${orderId}`) // Manual logging
+    // Implementation...
+    orderId = await page.textContent('.order-id')
+    console.log(`Created order: ${orderId}`) // Manual logging needed
   })
 
-  await test.step('Verify order details', async () => {
-    // Using the variable from outer scope
-    await page.goto(`/orders/${orderId}`)
-
-    // If this fails, the error message won't show which orderId was used
-    await expect(page.locator('.status')).toHaveText('Processing')
-    console.log(`Verified order: ${orderId}`) // Manual logging
-  })
-
-  // 👍 SLIGHTLY BETTER APPROACH: Return values from steps and use log helpers
+  // 👍 BETTER: Return values from steps and use log helpers
   const createOrder = async () => {
-    log.step('Creating new order') // Add logging
-    await page.goto('/orders/new')
-    await page.fill('#product', 'Headphones')
-    await page.fill('#quantity', '2')
-    await page.click('#submit-order')
-    const newOrderId = await page.textContent('.order-confirmation-id')
-    log.success(`Created order: ${newOrderId}`) // Log the result
+    log.step('Creating new order')
+    // Implementation...
+    const newOrderId = await page.textContent('.order-id')
+    log.success(`Created order: ${newOrderId}`)
     return newOrderId
-  }
-
-  const verifyOrder = async (id: string) => {
-    log.step(`Verifying order: ${id}`) // Add logging with context
-    await page.goto(`/orders/${id}`)
-    await expect(page.locator('.status')).toHaveText('Processing')
-    log.info(`Order ${id} verified successfully`) // Log the success
   }
 
   // Use test.step with functions that return values
@@ -313,13 +713,7 @@ test('demonstrates passing variables between test steps', async ({ page }) => {
 })
 ```
 
-> **Note:** Using raw `test.step()` with outer scope variables (closures) leads to:
->
-> - Hard-to-trace data flows between steps
-> - Poor error messages that don't include variable values
-> - Manual logging requirements
-> - Potential race conditions with parallel tests
->
+> **Note:** Using raw `test.step()` with closures leads to hard-to-trace data flows, poor error messages, and manual logging requirements.
 > While you can use our log helpers with either approach (e.g., `log.step()`, `log.info()`, etc.), the decorators solve all these issues more elegantly by providing a structured approach with proper logging and error handling built-in.
 >
 > ```typescript
@@ -334,6 +728,8 @@ test('demonstrates passing variables between test steps', async ({ page }) => {
 > ```
 
 ### Available Decorators
+
+> **Note on TypeScript Decorators:** These use TypeScript's experimental decorator feature. Ensure you have `"experimentalDecorators": true` in your `tsconfig.json`.
 
 | Decorator          | Purpose                    | Usage                                |
 | ------------------ | -------------------------- | ------------------------------------ |
