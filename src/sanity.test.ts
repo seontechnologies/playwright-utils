@@ -10,8 +10,11 @@ import { apiRequest, recurse, log } from './index'
 
 // Import modules directly to verify they're the same instance
 import * as apiUtils from './api-request'
+import * as apiFixtures from './api-request/fixtures'
 import * as recurseUtils from './recurse'
-import * as logUtils from './log'
+import * as recurseFixtures from './recurse/fixtures'
+import * as logUtils from './log/index'
+import * as logFixtures from './log/fixtures'
 
 describe('sanity tests', () => {
   describe('API exports', () => {
@@ -23,12 +26,24 @@ describe('sanity tests', () => {
       expect(apiRequest).toBe(apiUtils.apiRequest)
     })
 
+    it('should properly export api-request fixtures', () => {
+      // Verify fixtures are exported
+      expect(apiFixtures).toBeDefined()
+      expect(apiFixtures.test).toBeDefined()
+    })
+
     it('should properly export recurse utilities', () => {
       // Test main export function exists
       expect(typeof recurse).toBe('function')
 
       // Verify same instance as direct import
       expect(recurse).toBe(recurseUtils.recurse)
+    })
+
+    it('should properly export recurse fixtures', () => {
+      // Verify fixtures are exported
+      expect(recurseFixtures).toBeDefined()
+      expect(recurseFixtures.test).toBeDefined()
     })
 
     it('should properly export log utilities', () => {
@@ -45,6 +60,11 @@ describe('sanity tests', () => {
 
       // Verify same instance as direct import
       expect(log).toBe(logUtils.log)
+    })
+    it('should properly export log fixtures', () => {
+      // Verify fixtures are exported
+      expect(logFixtures).toBeDefined()
+      expect(logFixtures.test).toBeDefined()
     })
   })
 

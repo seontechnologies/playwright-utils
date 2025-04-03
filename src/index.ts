@@ -8,7 +8,7 @@
 // Export core API request functionality (plain functions only)
 export * from './api-request'
 export * from './recurse'
-export * from './log'
+export * from './log/index'
 
 // Future function exports can be added here
 // export * from './auth';
@@ -19,7 +19,7 @@ export * from './log'
 ///////////////////////
 
 import { configureLogger } from './internal'
-import { log } from './log'
+import { log } from './log/index'
 
 // Shared logger interface for internal use
 configureLogger({
