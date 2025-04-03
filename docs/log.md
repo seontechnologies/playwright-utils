@@ -53,10 +53,11 @@ npm install @seon/playwright-utils
 ## Quick Start
 
 ```typescript
-// Import the logging utility
-import { log } from '@seon/playwright-utils'
+// From base.config.ts
+import { defineConfig } from '@playwright/test'
+import { log, setupTestContextCapture } from '@seon/playwright-utils'
 
-// Configure once in your project setup
+// Configure logging
 log.configure({
   console: { enabled: true, colorize: true },
   workerID: { enabled: true }, // Auto-prefix logs with worker ID
@@ -65,28 +66,36 @@ log.configure({
   }
 })
 
-// Use in your tests
-test('my first test with enhanced logging', async ({ page }) => {
-  await log.info('Starting test')
-  await log.step('Navigating to homepage')
-  await page.goto('https://example.com')
-  await log.success('Test completed successfully')
+// Enable automatic test context capture for organized logs
+const testContextProject = setupTestContextCapture()
+
+export default defineConfig({
+  // Your other config settings...
+  projects: [
+    // Your existing projects...
+    testContextProject
+  ]
 })
 ```
 
 ## Basic Usage
 
 ```typescript
+// From todo-app-organized-log.spec.ts
 import { log } from '@seon/playwright-utils'
 
-// Simple logging with different levels
-await log.info('User data loaded')
-await log.step('Starting checkout process')
-await log.success('Order completed successfully')
-await log.warning('Low inventory alert')
-await log.error('Payment processing failed')
-await log.debug('API response payload:', {
-  /* data */
+// Simple logging with different levels in a test
+test('should allow me to add todo items', async ({ page }) => {
+  await log.info('Starting todo creation test')
+  await log.step('Adding new todo items')
+  
+  // Test code...
+  
+  await log.success('Successfully added all todo items')
+  await log.warning('Some items might be duplicates')
+  
+  // You can also log objects
+  await log.debug('Current todo items:', { items: ['item1', 'item2'] })
 })
 ```
 
@@ -118,53 +127,56 @@ const defaults = {
 We use a single `log.configure()` function for all configuration needs with a clear priority order of **base config < fixture files < test files**. Each level inherits from the previous while allowing specific overrides.
 
 ```typescript
-// -- In SEON Project --
+// -- Real configuration examples --
 
-// 1. GLOBAL: In your base.config.ts (lowest priority)
+// 1. GLOBAL: In your playwright/config/base.config.ts
 import { defineConfig } from '@playwright/test'
 import { log } from '@seon/playwright-utils'
 
 log.configure({
-  console: {
-    enabled: true,
-    colorize: true,
-    timestamps: true
-  },
-  fileLogging: {
-    enabled: true,
-    outputDir: './playwright-logs' // Logs are grouped by test run automatically
-  }
+  console: false,
+  fileLogging: true
 })
 
 export const baseConfig = defineConfig({
-  // ... base configuration
+  testDir: './playwright/tests',
+  // ... other configuration
 })
 
-// 2. SHARED: In your fixtures/base.ts (middle priority)
-import { test as baseTest } from '@playwright/test'
-import { log } from '@seon/playwright-utils'
+// 2. PROJECT: In your playwright/config/dev.config.ts
+import merge from 'lodash/merge'
+import { defineConfig } from '@playwright/test'
+import { baseConfig } from './base.config'
+import { log, setupTestContextCapture } from '@seon/playwright-utils'
 
+// Configure additional logging options
 log.configure({
-  console: {
-    colorize: false // Override specific setting from base config
+  fileLogging: {
+    enabled: true
   }
 })
 
-export const test = baseTest.extend({
-  // your fixtures...
+// Enable automatic test context capture for organized logs
+const testContextProject = setupTestContextCapture()
+
+export default defineConfig(
+  merge({}, baseConfig, { 
+    // Add the test context project to enable organization
+    projects: [...(baseConfig.projects || []), testContextProject]
+  })
+)
+
+// 3. LOCAL: In your test files (if needed)
+import { test } from '@playwright/test'
+import { log, captureTestContext } from '@seon/playwright-utils'
+
+// Only needed if not using setupTestContextCapture() in config
+test.beforeEach(async ({}, testInfo) => {
+  captureTestContext(testInfo)
 })
 
-// 3. LOCAL: In individual test files (highest priority)
-import { test } from '../fixtures/base'
-import { log } from '@seon/playwright-utils'
-
 test('example test', async () => {
-  // Test-specific overrides (local scope is automatically detected)
-  log.configure({
-    format: { prefix: 'Test:' }
-  })
-
-  await log.info('This log will use the merged configuration')
+  await log.info('This log will be organized by test file and name')
 })
 ```
 
@@ -368,8 +380,10 @@ Logs are automatically organized by test file and test name when test context is
 The simplest way to enable log organization is at the project configuration level. This requires zero changes to your test files:
 
 ```typescript
-// In your playwright.config.ts or similar configuration file
+// From playwright/config/dev.config.ts
+import merge from 'lodash/merge'
 import { defineConfig } from '@playwright/test'
+import { baseConfig } from './base.config'
 import { log, setupTestContextCapture } from '@seon/playwright-utils'
 
 // 1. Configure logging
@@ -380,19 +394,18 @@ log.configure({
 })
 
 // 2. Enable automatic test context capture for organized logs
+// This is all you need to add to get logs organized by test file and name
 const testContextProject = setupTestContextCapture()
 
-export default defineConfig({
-  // Your other config options here
-  
-  // 3. Add the special project to your config
-  projects: [
-    // Your existing projects
-    { name: 'chromium', use: { browserName: 'chromium' } },
-    // Add the context capture project
-    testContextProject
-  ]
-})
+export default defineConfig(
+  merge({}, baseConfig, { 
+    // Your other config options here
+    use: { baseURL: 'https://test-api.k6.io' },
+    
+    // 3. Add the special project to your config
+    projects: [...(baseConfig.projects || []), testContextProject]
+  })
+)
 ```
 
 #### Option 2: Per-Test-File Setup
@@ -400,16 +413,32 @@ export default defineConfig({
 If you can't modify your global configuration, you can still enable log organization in individual test files:
 
 ```typescript
-// Option A: Import a test object that automatically captures context
-import { test, expect } from '@seon/playwright-utils/log/fixtures'
-
-// Option B: Use the captureTestContext utility in beforeEach
+// From todo-app-organized-log.spec.ts - Using captureTestContext
 import { test, expect } from '@playwright/test'
-import { captureTestContext } from '@seon/playwright-utils'
+import { log, captureTestContext } from '@seon/playwright-utils'
 
+// Add a hook to capture test context when using the standard test object
+// This enables proper log organization without requiring a special test import
 test.beforeEach(async ({}, testInfo) => {
   captureTestContext(testInfo)
 })
+
+// Example fixture file approach (would go in a separate fixtures.ts file)
+// import { test as baseTest, expect } from '@playwright/test'
+// import { captureTestContext } from '@seon/playwright-utils'
+//
+// export const test = baseTest.extend({
+//   // Auto-capture test context for all tests using this fixture
+//   _captureContext: [
+//     async ({}, use, testInfo) => {
+//       captureTestContext(testInfo)
+//       await use()
+//     },
+//     { auto: true }
+//   ]
+// })
+// 
+// export { expect }
 ```
 
 ### Log File Structure
