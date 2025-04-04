@@ -8,7 +8,6 @@ module.exports = {
     'plugin:@typescript-eslint/recommended',
     'plugin:import/typescript',
     'plugin:import/recommended',
-    'plugin:cypress/recommended',
     'plugin:prettier/recommended'
   ],
   parser: '@typescript-eslint/parser',
@@ -25,10 +24,12 @@ module.exports = {
   ],
   settings: {
     'import/resolver': {
-      typescript: {}
+      typescript: {
+        alwaysTryTypes: true // Always try to resolve types under `@types` directory even if it's not in `package.json`
+      }
     }
   },
-  ignorePatterns: ['dist', 'node_modules', 'scripts'],
+  ignorePatterns: ['dist', 'node_modules', 'scripts', 'coverage'],
   root: true,
   rules: {
     '@typescript-eslint/consistent-type-imports': 'error',
@@ -43,6 +44,8 @@ module.exports = {
     'linebreak-style': ['error', 'unix'],
     quotes: ['error', 'single'],
     semi: ['error', 'never'],
-    'import/default': 'off'
+    'import/default': 'off',
+    '@typescript-eslint/no-require-imports': 'off',
+    'no-empty-pattern': 'off'
   }
 }

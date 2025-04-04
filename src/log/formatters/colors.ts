@@ -1,6 +1,4 @@
-/**
- * Color utilities for terminal output
- */
+/** Color utilities for terminal output */
 
 /** ANSI color codes for terminal output */
 export const colors = {
@@ -14,18 +12,14 @@ export const colors = {
   bold: '\x1b[1m'
 }
 
-/**
- * Applies ANSI color formatting to text
- */
+/** Applies ANSI color formatting to text */
 export const colorizeText = (
   text: string,
   color: string,
   useColor: boolean
 ): string => (useColor ? `${colors.bold}${color}${text}${colors.reset}` : text)
 
-/**
- * Adds prefix and suffix delimiters to text
- */
+/** Adds prefix and suffix delimiters to text */
 export const addDelimiters = (
   text: string,
   config: { prefix: string; suffix: string }

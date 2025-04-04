@@ -10,9 +10,11 @@ let testObj:
 // Try to load Playwright test, but handle gracefully if unavailable
 try {
   // This will succeed in test files but might fail in utility files
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { test } = require('@playwright/test')
   testObj = test
-} catch (error) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+} catch (_error) {
   // We'll handle this gracefully - testObj will remain undefined
   console.info(
     'Note: Running in non-test context, Playwright test API is not available'

@@ -20,7 +20,8 @@ export interface LoggingConfig {
     outputDir?: string
     // Default folder name for logs when no test context is available
     testFolder?: string
-    // Whether to organize logs by test file and name when test context is available
+    // NOTE: This doesn't actually control test organization fully
+    // See README - proper test organization requires test context capture
     organizeByTest?: boolean
   }
 
@@ -108,8 +109,13 @@ function ensureLogDirectory(config: LoggingConfig) {
   return config
 }
 
-/** Get the current logging configuration */
-export const getLoggingConfig = () => ({ ...currentConfig })
+/**
+ * Get the current logging configuration
+ * @returns The current logging configuration
+ */
+export function getLoggingConfig(): LoggingConfig {
+  return currentConfig
+}
 
 /** Reset the logging configuration to defaults */
 export const resetLoggingConfig = () => {

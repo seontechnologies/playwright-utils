@@ -1,45 +1,8 @@
-/**
- * Step decorators for logging and Playwright test steps
- *
- * Provides decorators that can be used to wrap methods or functions in test steps
- * with proper logging integration.
- *
- * Enhanced with worker ID, file logging, and source file information.
- */
+/** Test step decorator and function wrapper for logging
+ * Provides decorators that can be used to wrap methods or functions in test steps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from '@playwright/test'
 import { log } from '../log'
-
-/**
- * Extract source file path from stack trace, excluding specific files
- *
- * @param excludeFiles - Array of filenames to exclude from the stack trace
- * @returns The source file path or undefined if not found
- */
-const extractSourceFilePath = (
-  excludeFiles: string[] = ['test-step.ts']
-): string | undefined =>
-  new Error().stack
-    ?.split('\n')
-    // Filter out lines that don't include .ts files or contain excluded files
-    .find(
-      (line) =>
-        line.includes('.ts:') &&
-        !excludeFiles.some((file) => line.includes(file))
-    )
-    ?.trim()
-    .split(' ')
-    .pop()
-    ?.split(':')[0]
-
-/**
- * Set source file information in the test context if available
- */
-// Source file context setting has been removed as it's no longer needed
-const setSourceFileContext = (): void => {
-  // Previously set the source file path in test context, now deprecated
-  // Just extract the path for potential future use if needed
-  extractSourceFilePath()
-}
 
 /**
  * Method decorator for class methods to wrap them in a test.step with logging
@@ -75,7 +38,7 @@ export function methodTestStep(stepName?: string) {
 
     // This is the function that will replace the original method
     // It wraps the original method with our logging and test.step functionality
-    return function replacementMethod(this: any, ...args: any[]) {
+    return async function replacementMethod(this: any, ...args: any[]) {
       // 'this' is the class instance (e.g., TodoPage) when the method is called
       // We need to preserve this context for the original method to work properly
 
@@ -87,12 +50,9 @@ export function methodTestStep(stepName?: string) {
       // Combine them for a descriptive step name in test reports
       const fullStepName = `${name} (${className})`
 
-      // Get file information for source tracking and set context
-      setSourceFileContext()
-
       // Log the step to our custom logger before Playwright's test.step
       // This allows for consistent logging across all our test utilities
-      log.step(fullStepName)
+      await log.step(fullStepName)
 
       // Wrap execution in Playwright's test.step for proper test reporting
       // This makes steps appear in Playwright's HTML reporter with timing info
@@ -106,7 +66,7 @@ export function methodTestStep(stepName?: string) {
         } catch (error) {
           // Enhanced error handling - we log the error before re-throwing it
           // This creates a clean error trace in both our logs and test reports
-          log.error(`Step failed: ${fullStepName} - ${error}`)
+          await log.error(`Step failed: ${fullStepName} - ${error}`)
           throw error // Re-throw to maintain normal test failure behavior
         }
       })
@@ -133,20 +93,14 @@ export function functionTestStep<T extends any[], R>(
   stepName: string, // Unlike methodTestStep, this is required (no method name to fall back to)
   fn: (...args: T) => Promise<R> | R // The function to wrap (instead of decorating a method)
 ): (...args: T) => Promise<R> {
-  // We use TypeScript generics (T, R) to preserve the exact function signature
-  // This ensures proper type checking for arguments and return values
-
   // Return a new function with the same signature as the original function
   // But enhanced with step logging and error handling
   return async function (...args: T): Promise<R> {
     // Unlike methodTestStep, we don't need to handle 'this' context
     // Because we're working with standalone functions, not class methods
 
-    // Get file information for source tracking and set context
-    setSourceFileContext()
-
     // Log the step to our custom logger for consistent output
-    log.step(stepName)
+    await log.step(stepName)
 
     // Wrap execution in Playwright's test.step for proper test reporting
     return test.step(stepName, async () => {
@@ -156,7 +110,7 @@ export function functionTestStep<T extends any[], R>(
         return await fn(...args)
       } catch (error) {
         // Enhanced error handling with consistent logging
-        log.error(`Step failed: ${stepName} - ${error}`)
+        await log.error(`Step failed: ${stepName} - ${error}`)
         throw error // Re-throw to maintain normal test failure behavior
       }
     })

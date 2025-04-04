@@ -20,14 +20,15 @@ A functional logging utility for Playwright tests with enhanced features for tes
     - [How Test Context Capture Works](#how-test-context-capture-works)
       - [Option 1: Global Configuration (Recommended)](#option-1-global-configuration-recommended)
       - [Option 2: Per-Test-File Setup](#option-2-per-test-file-setup)
+      - [Option 3: Custom Test Fixture Approach](#option-3-custom-test-fixture-approach)
     - [Log File Structure](#log-file-structure)
   - [Worker ID Logging](#worker-id-logging)
     - [Sample Output](#sample-output)
-    - [Per-Test Worker ID Override](#per-test-worker-id-override)
-  - [Source File Tracking](#source-file-tracking)
-    - [Source Tracking Configuration](#source-tracking-configuration)
-    - [How It Works](#how-it-works)
-    - [Benefits](#benefits)
+    - [Per-Message Worker ID Options](#per-message-worker-id-options)
+  - [Source File Tracking for Decorators](#source-file-tracking-for-decorators)
+    - [Source Tracking Configuration for Decorators](#source-tracking-configuration-for-decorators)
+    - [How Decorator Source Tracking Works](#how-decorator-source-tracking-works)
+    - [Benefits of Decorator Source Tracking](#benefits-of-decorator-source-tracking)
     - [Custom Exclusions](#custom-exclusions)
   - [Test Step Decorators / Function Wrappers](#test-step-decorators--function-wrappers)
     - [Why Use Decorators / Function Wrappers?](#why-use-decorators--function-wrappers)
@@ -128,33 +129,70 @@ const defaults = {
 
 We use a single `log.configure()` function for all configuration needs with a clear priority order of **base config < fixture files < test files**. Each level inherits from the previous while allowing specific overrides.
 
+> **Note**: `log.configure()` always applies settings globally by default. This ensures consistent behavior regardless of where you call it.
+
 ```typescript
-// -- Real configuration examples --
+// -- RECOMMENDED APPROACHES: Choose ONE location for logging configuration --
 
-// 1. GLOBAL: In your playwright/config/base.config.ts
+// OPTION 1: Configure only in base.config.ts (OK)
+// -------------------------------------------------------
+// In your playwright/config/base.config.ts
 import { defineConfig } from '@playwright/test'
-import { log } from '@seon/playwright-utils'
+import { log, setupTestContextCapture } from '@seon/playwright-utils'
 
+// ALL logging configuration in base config
 log.configure({
-  console: false,
-  fileLogging: true
+  console: { enabled: true, colorize: true },
+  fileLogging: {
+    enabled: true,
+    outputDir: 'playwright-logs'
+  }
 })
+
+// Enable automatic test context capture for organized logs
+const testContextProject = setupTestContextCapture()
+
+export const baseConfig = defineConfig({
+  testDir: './playwright/tests',
+  projects: [
+    // Your other projects
+    testContextProject
+  ]
+})
+
+// In your playwright/config/dev.config.ts - NO logging configuration here
+import merge from 'lodash/merge'
+import { defineConfig } from '@playwright/test'
+import { baseConfig } from './base.config'
+
+export default defineConfig(
+  merge({}, baseConfig, {
+    use: { baseUrl: 'https://test-api.k6.io' }
+  })
+)
+
+// OPTION 2: Configure only in environment configs (OK)
+// -------------------------------------------------------
+// In your playwright/config/base.config.ts - NO logging configuration
+import { defineConfig } from '@playwright/test'
 
 export const baseConfig = defineConfig({
   testDir: './playwright/tests'
-  // ... other configuration
+  // No logging configuration here
 })
 
-// 2. PROJECT: In your playwright/config/dev.config.ts
+// In your playwright/config/dev.config.ts
 import merge from 'lodash/merge'
 import { defineConfig } from '@playwright/test'
 import { baseConfig } from './base.config'
 import { log, setupTestContextCapture } from '@seon/playwright-utils'
 
-// Configure additional logging options
+// ALL logging configuration in environment config
 log.configure({
+  console: { enabled: true, colorize: true },
   fileLogging: {
-    enabled: true
+    enabled: true, 
+    outputDir: 'playwright-logs'
   }
 })
 
@@ -163,10 +201,13 @@ const testContextProject = setupTestContextCapture()
 
 export default defineConfig(
   merge({}, baseConfig, {
-    // Add the test context project to enable organization
+    use: { baseUrl: 'https://test-api.k6.io' },
     projects: [...(baseConfig.projects || []), testContextProject]
   })
 )
+
+// ❌ INCORRECT: Configuration split between base and environment (NOT OK)
+// This makes configuration harder to track and reason about
 
 // 3. LOCAL: In your test files (if needed)
 import { test } from '@playwright/test'
@@ -532,11 +573,11 @@ test('example with custom worker ID', async () => {
   // Disable worker ID for just one log message
   await log.info('Special message', { workerID: false })
   // Output: [10:45:32] ℹ Special message
-  
+
   // Custom format for just one log message
-  await log.info('Custom format message', { 
-    workerID: { 
-      format: '[Worker-{workerIndex}]' 
+  await log.info('Custom format message', {
+    workerID: {
+      format: '[Worker-{workerIndex}]'
     }
   })
   // Output: [10:45:32] [Worker-0] ℹ Custom format message

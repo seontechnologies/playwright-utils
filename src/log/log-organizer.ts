@@ -9,8 +9,9 @@
  * - Import { test, expect } from 'playwright-utils' to get organized logs
  * - Configure with log.configure({ fileLogging: { organizeByTest: { enabled: true } } })
  */
-import { setTestContextInfo, getLoggingConfig } from './config'
-import { test as base, TestInfo } from '@playwright/test'
+import { setTestContextInfo } from './config'
+import type { TestInfo } from '@playwright/test'
+import { test as base } from '@playwright/test'
 import * as path from 'path'
 
 /**
@@ -19,8 +20,6 @@ import * as path from 'path'
  */
 const setContext = (testInfo: TestInfo): void => {
   // Always capture worker index regardless of other settings
-  const config = getLoggingConfig()
-  const fileLoggingEnabled = config.fileLogging?.enabled || false
 
   // Use file path relative to project root for better organization
   const projectRoot = process.cwd()
@@ -38,13 +37,6 @@ const setContext = (testInfo: TestInfo): void => {
     testName: testInfo.title,
     workerIndex: testInfo.workerIndex
   })
-
-  // Add debug logging only for the first test to avoid spamming the console
-  if (testInfo.title.includes('add todo items')) {
-    console.debug(
-      `[Log Organizer] Setting test context - File: ${testFile}, Test: ${testInfo.title}, Worker: ${testInfo.workerIndex}`
-    )
-  }
 }
 
 /**
