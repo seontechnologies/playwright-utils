@@ -5,9 +5,6 @@
  * capture test metadata for organized logging. When tests import the test object from this module,
  * logs will be organized by test file and test name in separate folders.
  *
- * Usage:
- * - Import { test, expect } from 'playwright-utils' to get organized logs
- * - Configure with log.configure({ fileLogging: { organizeByTest: { enabled: true } } })
  */
 import { setTestContextInfo } from './config'
 import type { TestInfo } from '@playwright/test'

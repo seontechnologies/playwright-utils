@@ -20,9 +20,6 @@ export interface LoggingConfig {
     outputDir?: string
     // Default folder name for logs when no test context is available
     testFolder?: string
-    // NOTE: This doesn't actually control test organization fully
-    // See README - proper test organization requires test context capture
-    organizeByTest?: boolean
   }
 
   // Worker ID configuration
@@ -50,8 +47,7 @@ const defaultConfig: LoggingConfig = {
   fileLogging: {
     enabled: false,
     outputDir: 'playwright-logs',
-    testFolder: 'default-test-folder', // Fallback folder when no test context is available
-    organizeByTest: true // Organize logs by test file and name by default when context is available
+    testFolder: 'default-test-folder' // Fallback folder when no test context is available
   },
   workerID: {
     enabled: true, // Enabled by default for better debugging
@@ -163,4 +159,22 @@ export function setTestContextInfo(info: Partial<TestContextInfo>): void {
  */
 export function getTestContextInfo(): TestContextInfo {
   return { ...testContextInfo }
+}
+
+/**
+ * Get test name from a spec file path
+ * Useful for log formatting when test context isn't captured
+ */
+export function getTestNameFromFilePath(filePath: string | undefined): string {
+  if (!filePath) return 'Unknown Test'
+
+  // Extract filename without extension
+  const filename =
+    filePath
+      .split('/')
+      .pop()
+      ?.replace(/\.spec\.ts$|\.test\.ts$/, '') || ''
+
+  // Convert kebab-case to readable format
+  return filename.replace(/-/g, ' ')
 }
