@@ -20,4 +20,4 @@ if (!Object.keys(envConfigMap).includes(environment)) {
   process.exit(1)
 }
 
-export default envConfigMap[environment]
+export default envConfigMap[environment as keyof typeof envConfigMap]

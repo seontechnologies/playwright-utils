@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // utilities for polling and retrying operations using Playwright's expect.poll mechanism
 import { expect } from '@playwright/test'
 import { getLogger } from '../internal'

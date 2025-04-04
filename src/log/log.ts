@@ -1,11 +1,76 @@
 /** Centralized logging system for Playwright tests */
-import { getLoggingConfig, getTestContextInfo } from './config'
 import { formatMessage } from './formatters/message'
-import { logToConsole } from './outputs/console'
-import { logToFile } from './outputs/file'
+import { getTestContextInfo, getLoggingConfig } from './config'
+import type { LoggingConfig, TestContextInfo } from './config'
 import { tryPlaywrightStep } from './utils/playwright'
-import { mergeOptions, configure } from './utils/options'
+import { logToConsole } from './outputs/console'
 import type { LogLevel, LogOptions } from './types'
+import { mergeOptions, configure } from './utils/options'
+import { logToFile } from './outputs/file'
+
+/**
+ * Base logging function that handles common logging logic
+ */
+/**
+ * Get formatting options by merging defaults with provided options
+ */
+const getFormattingOptions = (options: LogOptions) => ({
+  timestamps: true,
+  colorize: true,
+  maxLineLength: 120, // Default value
+  ...options.format
+})
+
+/**
+ * Determine worker ID configuration from options and global config
+ */
+const getWorkerIdConfig = (options: LogOptions, config: LoggingConfig) => ({
+  enabled:
+    typeof options.workerID === 'boolean'
+      ? options.workerID
+      : (options.workerID?.enabled ?? config.workerID?.enabled ?? true),
+  format:
+    typeof options.workerID === 'object' && options.workerID?.format
+      ? options.workerID.format
+      : (config.workerID?.format ?? '[W{workerIndex}]')
+})
+
+/**
+ * Handle console logging if enabled
+ */
+const handleConsoleLogging = async (
+  formattedMessage: string,
+  level: LogLevel,
+  options: LogOptions,
+  config: LoggingConfig
+): Promise<void> => {
+  if (options.console && (config.console?.enabled ?? true)) {
+    await logToConsole(formattedMessage, level)
+  }
+}
+
+/**
+ * Handle file logging if enabled
+ */
+const handleFileLogging = async (
+  formattedMessage: string,
+  level: LogLevel,
+  options: LogOptions,
+  config: LoggingConfig,
+  testContext: TestContextInfo
+): Promise<void> => {
+  const shouldLogToFile =
+    options.fileLogging !== undefined
+      ? options.fileLogging
+      : config.fileLogging?.enabled
+
+  if (shouldLogToFile) {
+    await logToFile(formattedMessage, level, {
+      testFile: options.testFile || testContext.testFile,
+      testName: options.testName || testContext.testName
+    })
+  }
+}
 
 /**
  * Base logging function that handles common logging logic
@@ -15,36 +80,16 @@ const logBase = async (
   level: LogLevel,
   options: LogOptions = {}
 ): Promise<void> => {
-  // Get logging configuration
+  // Get configuration and context
   const config = getLoggingConfig()
-
-  // Get test context information
   const testContext = getTestContextInfo()
-
-  // Ensure we have a message to log
   const displayMessage = message || '(empty message)'
 
-  // Basic formatting options
-  const formattingOptions = {
-    timestamps: true,
-    colorize: true,
-    maxLineLength: 120, // Default value
-    ...options.format
-  }
+  // Get configurations
+  const formattingOptions = getFormattingOptions(options)
+  const workerIdConfig = getWorkerIdConfig(options, config)
 
-  // Determine worker ID settings
-  const workerIdConfig = {
-    enabled:
-      typeof options.workerID === 'boolean'
-        ? options.workerID
-        : (options.workerID?.enabled ?? config.workerID?.enabled ?? true),
-    format:
-      typeof options.workerID === 'object' && options.workerID?.format
-        ? options.workerID.format
-        : (config.workerID?.format ?? '[W{workerIndex}]')
-  }
-
-  // Format message for display based on log level
+  // Format message
   const formattedMessage = formatMessage(
     displayMessage,
     level,
@@ -52,25 +97,9 @@ const logBase = async (
     workerIdConfig
   )
 
-  // Handle console output if requested and enabled
-  if (options.console && (config.console?.enabled ?? true)) {
-    await logToConsole(formattedMessage, level)
-  }
-
-  // Determine if we should log to file
-  const shouldLogToFile =
-    options.fileLogging !== undefined
-      ? options.fileLogging
-      : config.fileLogging?.enabled
-
-  // Handle file logging if enabled
-  if (shouldLogToFile) {
-    await logToFile(formattedMessage, {
-      testFile: options.testFile || testContext.testFile,
-      testName: options.testName || testContext.testName,
-      outputDir: config.fileLogging?.outputDir
-    })
-  }
+  // Handle different output destinations
+  await handleConsoleLogging(formattedMessage, level, options, config)
+  await handleFileLogging(formattedMessage, level, options, config, testContext)
 
   // Try to use Playwright step (only for 'step' level)
   if (level === 'step') {

@@ -1,7 +1,5 @@
-/**
- * Message formatting utilities
- */
-import { colorizeText, addDelimiters } from './colors'
+/** Message formatting utilities  */
+import { colorizeText, addDelimiters, colors } from './colors'
 import type { LogLevel, FormatOptions, FormatConfigMap } from '../types'
 import { getTestContextInfo } from '../config'
 import type { TestContextInfo } from '../config'
@@ -11,44 +9,40 @@ export const formatConfig: FormatConfigMap = {
   step: {
     prefix: '==== ',
     suffix: ' ====',
-    color: '\x1b[36m' // Cyan
+    color: colors.cyan
   },
   success: {
     prefix: '✓ ',
     suffix: '',
-    color: '\x1b[32m' // Green
+    color: colors.green
   },
   warning: {
     prefix: '⚠ ',
     suffix: '',
-    color: '\x1b[33m' // Yellow
+    color: colors.yellow
   },
   error: {
     prefix: '✖ ',
     suffix: '',
-    color: '\x1b[31m' // Red
+    color: colors.red
   },
   debug: {
     prefix: '🔍 ',
     suffix: '',
-    color: '\x1b[90m' // Gray
+    color: colors.gray
   },
   info: {
     prefix: '',
     suffix: '',
-    color: '\x1b[37m' // White
+    color: colors.white
   }
 }
 
-/**
- * Generates a timestamp string for log messages
- */
+/** Generates a timestamp string for log messages */
 export const getTimestamp = (showTimestamp: boolean): string =>
   showTimestamp ? `[${new Date().toISOString().slice(11, 23)}]` : ''
 
-/**
- * Formats a worker ID string based on the provided format and test context
- */
+/** Formats a worker ID string based on the provided format and test context */
 export const getWorkerID = (
   format: string,
   testContext: TestContextInfo
@@ -66,9 +60,7 @@ export const getWorkerID = (
   })
 }
 
-/**
- * Format a message for logging with appropriate formatting based on log level
- */
+/** Formats a message for logging with appropriate formatting based on log level */
 export const formatMessage = (
   message: string,
   level: LogLevel = 'info',

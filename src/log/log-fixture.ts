@@ -1,6 +1,6 @@
 import { test as base } from '@playwright/test'
 import { log as logObject } from './log'
-import { LogParams } from './types'
+import type { LogParams } from './types'
 
 export const test = base.extend<{
   log: (params: LogParams) => Promise<void>

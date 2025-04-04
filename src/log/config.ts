@@ -20,8 +20,12 @@ export interface LoggingConfig {
     outputDir?: string
     // Default folder name for logs when no test context is available
     testFolder?: string
-    // Whether to organize logs by test file and name when test context is available
-    organizeByTest?: boolean
+    // Strip ANSI color codes from log output
+    stripAnsiCodes?: boolean
+    // Include timestamps in log entries
+    timestamp?: boolean
+    // Prepend test file name to log entries
+    prependTestFile?: boolean
   }
 
   // Worker ID configuration
@@ -49,8 +53,7 @@ const defaultConfig: LoggingConfig = {
   fileLogging: {
     enabled: false,
     outputDir: 'playwright-logs',
-    testFolder: 'default-test-folder', // Fallback folder when no test context is available
-    organizeByTest: true // Organize logs by test file and name by default when context is available
+    testFolder: 'default-test-folder' // Fallback folder when no test context is available
   },
   workerID: {
     enabled: true, // Enabled by default for better debugging
@@ -108,8 +111,13 @@ function ensureLogDirectory(config: LoggingConfig) {
   return config
 }
 
-/** Get the current logging configuration */
-export const getLoggingConfig = () => ({ ...currentConfig })
+/**
+ * Get the current logging configuration
+ * @returns The current logging configuration
+ */
+export function getLoggingConfig(): LoggingConfig {
+  return currentConfig
+}
 
 /** Reset the logging configuration to defaults */
 export const resetLoggingConfig = () => {
@@ -157,4 +165,22 @@ export function setTestContextInfo(info: Partial<TestContextInfo>): void {
  */
 export function getTestContextInfo(): TestContextInfo {
   return { ...testContextInfo }
+}
+
+/**
+ * Get test name from a spec file path
+ * Useful for log formatting when test context isn't captured
+ */
+export function getTestNameFromFilePath(filePath: string | undefined): string {
+  if (!filePath) return 'Unknown Test'
+
+  // Extract filename without extension
+  const filename =
+    filePath
+      .split('/')
+      .pop()
+      ?.replace(/\.spec\.ts$|\.test\.ts$/, '') || ''
+
+  // Convert kebab-case to readable format
+  return filename.replace(/-/g, ' ')
 }

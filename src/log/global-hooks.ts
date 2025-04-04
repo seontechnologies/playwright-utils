@@ -4,7 +4,8 @@
  * This file provides a global hook that users can add to their Playwright config
  * to enable test context capture for log organization without changes to test files.
  */
-import { test, TestInfo } from '@playwright/test'
+import type { TestInfo } from '@playwright/test'
+import { test } from '@playwright/test'
 import { captureTestContext } from './log-organizer'
 
 // Create global beforeEach hook to capture test context automatically

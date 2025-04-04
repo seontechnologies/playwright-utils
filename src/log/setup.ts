@@ -4,6 +4,7 @@
  * This provides an easy way to capture test context for log organization
  * at the global config level instead of in individual test files.
  */
+import type { TestInfo } from '@playwright/test'
 import { captureTestContext } from './log-organizer'
 
 /**
@@ -22,7 +23,7 @@ export function setupTestContextCapture() {
       // Use Playwright fixture mechanism to capture test context
       // This runs automatically for each test without needing beforeEach
       _captureTestContext: [
-        async ({}, use: Function, testInfo: any) => {
+        async ({}, use: () => Promise<void>, testInfo: TestInfo) => {
           captureTestContext(testInfo)
           await use()
         },

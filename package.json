@@ -67,7 +67,7 @@
     "test": "jest --detectOpenHandles --verbose --silent --config jest.config.ts",
     "test:watch": "jest --watch --config jest.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint --ext=.js,.ts,.tsx --fix",
+    "lint": "eslint . --cache-location node_modules/.cache/eslint --fix",
     "test:pw": "TEST_ENV=dev npx playwright test",
     "test:pw-ui": "TEST_ENV=dev npx playwright test --ui"
   },

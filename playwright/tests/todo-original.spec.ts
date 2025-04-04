@@ -18,7 +18,7 @@ const TODO_ITEMS = [
 
 test.describe('New Todo - original', () => {
   test('should allow me to add todo items - original', async ({ page }) => {
-    log.step('sanity for console log')
+    await log.step('sanity for console log')
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -493,6 +493,7 @@ async function checkNumberOfCompletedTodosInLocalStorage(
   return await page.waitForFunction((e) => {
     return (
       JSON.parse(localStorage['react-todos']).filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (todo: any) => todo.completed
       ).length === e
     )
@@ -501,8 +502,11 @@ async function checkNumberOfCompletedTodosInLocalStorage(
 
 async function checkTodosInLocalStorage(page: Page, title: string) {
   return await page.waitForFunction((t) => {
-    return JSON.parse(localStorage['react-todos'])
-      .map((todo: any) => todo.title)
-      .includes(t)
+    return (
+      JSON.parse(localStorage['react-todos'])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((todo: any) => todo.title)
+        .includes(t)
+    )
   }, title)
 }
