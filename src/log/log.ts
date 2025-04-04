@@ -4,9 +4,9 @@ import { getTestContextInfo, getLoggingConfig } from './config'
 import type { LoggingConfig, TestContextInfo } from './config'
 import { tryPlaywrightStep } from './utils/playwright'
 import { logToConsole } from './outputs/console'
-import { logToFile } from './outputs/file'
 import type { LogLevel, LogOptions } from './types'
 import { mergeOptions, configure } from './utils/options'
+import { logToFile } from './outputs/file'
 
 /**
  * Base logging function that handles common logging logic
@@ -67,8 +67,7 @@ const handleFileLogging = async (
   if (shouldLogToFile) {
     await logToFile(formattedMessage, level, {
       testFile: options.testFile || testContext.testFile,
-      testName: options.testName || testContext.testName,
-      outputDir: config.fileLogging?.outputDir
+      testName: options.testName || testContext.testName
     })
   }
 }

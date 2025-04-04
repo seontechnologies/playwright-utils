@@ -20,6 +20,12 @@ export interface LoggingConfig {
     outputDir?: string
     // Default folder name for logs when no test context is available
     testFolder?: string
+    // Strip ANSI color codes from log output
+    stripAnsiCodes?: boolean
+    // Include timestamps in log entries
+    timestamp?: boolean
+    // Prepend test file name to log entries
+    prependTestFile?: boolean
   }
 
   // Worker ID configuration
