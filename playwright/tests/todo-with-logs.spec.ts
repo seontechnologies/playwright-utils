@@ -1,12 +1,49 @@
 import type { Page } from '@playwright/test'
-import { test, expect } from '@playwright/test'
-import { log, methodTestStep, functionTestStep } from '../../src'
+import { test, expect } from '../support/fixtures'
+import {
+  log,
+  methodTestStep,
+  functionTestStep
+  // captureTestContext
+} from '../../src'
 
-// not using captureTestContext will put all tests in 1 file
+// IMPORTANT:we can even overwrite fileLogging in the the test file,
+// BUT, this setting needs to be uniform between test files
+// SO, the best place to configure fileLogging is in a config file
+// see playwright/config/dev.config.ts
+
+// SINGLE LOG FILE
+// log.configure({
+//   fileLogging: {
+//     enabled: true,
+//     // Force all tests to use this specific folder regardless of test context
+//     testFolder: 'all-tests-in-one',
+//     forceConsolidated: true,
+//     outputDir: 'playwright-logs/consolidated-logs'
+//   }
+// })
+// ORGANIZED LOGS
+// log.configure({
+//   fileLogging: {
+//     enabled: true,
+//     testFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
+//     forceConsolidated: false, // Explicitly disable consolidation
+//     outputDir: 'playwright-logs/organized-logs'
+//   }
+// })
+
+// in order to log to files neatly, we need to capture test context
+// this can be done here per test file, or we can do with a global hook, at fixture level
+// see playwright/support/fixtures.ts
+// see playwright/config/dev.config.ts
+// test.beforeEach(async ({}, testInfo) => {
+//   captureTestContext(testInfo)
+// })
+
+// we can overwrite log config in test files
+// since we setup file logging at dev.config, let's turn off console in this test
 log.configure({
-  fileLogging: {
-    enabled: true
-  }
+  console: false
 })
 
 const TODO_ITEMS = [
@@ -25,7 +62,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe('New Todo', () => {
-  test('should allow me to add todo items - 1-log-file', async ({ page }) => {
+  test('should allow me to add todo items', async ({ page }) => {
     await log.step('Testing adding todo items')
 
     // create a new todo locator
@@ -55,7 +92,7 @@ test.describe('New Todo', () => {
     await checkNumberOfTodosInLocalStorage(page, 2)
   })
 
-  test('should allow me to add todo items (using Page Object) - 1-log-file', async ({
+  test('should allow me to add todo items (using Page Object)', async ({
     page
   }) => {
     await log.step('Testing adding todo items with Page Object')
@@ -83,7 +120,7 @@ test.describe('New Todo', () => {
     await checkNumberOfTodosInLocalStorage(page, 2)
   })
 
-  test('should clear text input field when an item is added - 1-log-file', async ({
+  test('should clear text input field when an item is added', async ({
     page
   }) => {
     // create a new todo locator
@@ -98,7 +135,7 @@ test.describe('New Todo', () => {
     await checkNumberOfTodosInLocalStorage(page, 1)
   })
 
-  test('should append new items to the bottom of the list - 1-log-file', async ({
+  test('should append new items to the bottom of the list', async ({
     page
   }) => {
     // Create 3 items.
@@ -129,9 +166,7 @@ test.describe('Mark all as completed', () => {
     await checkNumberOfTodosInLocalStorage(page, 3)
   })
 
-  test('should allow me to mark all items as completed - 1-log-file', async ({
-    page
-  }) => {
+  test('should allow me to mark all items as completed', async ({ page }) => {
     await log.step('Testing marking all todos as completed')
 
     // Toggle all items as completed
@@ -148,7 +183,7 @@ test.describe('Mark all as completed', () => {
     await checkNumberOfCompletedTodosInLocalStorage(page, 3)
   })
 
-  test('should allow me to mark all items as completed (using Page Object) - 1-log-file', async ({
+  test('should allow me to mark all items as completed (using Page Object)', async ({
     page
   }) => {
     await log.step('Testing marking all todos as completed with Page Object')
@@ -171,7 +206,7 @@ test.describe('Mark all as completed', () => {
     await checkNumberOfCompletedTodosInLocalStorage(page, 3)
   })
 
-  test('should allow me to clear the complete state of all items - 1-log-file', async ({
+  test('should allow me to clear the complete state of all items', async ({
     page
   }) => {
     const toggleAll = page.getByLabel('Mark all as complete')
@@ -183,7 +218,7 @@ test.describe('Mark all as completed', () => {
     await expect(page.getByTestId('todo-item')).toHaveClass(['', '', ''])
   })
 
-  test('complete all checkbox should update state when items are completed / cleared - 1-log-file', async ({
+  test('complete all checkbox should update state when items are completed / cleared', async ({
     page
   }) => {
     const toggleAll = page.getByLabel('Mark all as complete')
@@ -207,9 +242,7 @@ test.describe('Mark all as completed', () => {
 })
 
 test.describe('Item', () => {
-  test('should allow me to mark items as complete - 1-log-file', async ({
-    page
-  }) => {
+  test('should allow me to mark items as complete', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -234,9 +267,7 @@ test.describe('Item', () => {
     await expect(secondTodo).toHaveClass('completed')
   })
 
-  test('should allow me to un-mark items as complete - 1-log-file', async ({
-    page
-  }) => {
+  test('should allow me to un-mark items as complete', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -261,7 +292,7 @@ test.describe('Item', () => {
     await checkNumberOfCompletedTodosInLocalStorage(page, 0)
   })
 
-  test('should allow me to edit an item - 1-log-file', async ({ page }) => {
+  test('should allow me to edit an item', async ({ page }) => {
     await createDefaultTodos(page)
 
     const todoItems = page.getByTestId('todo-item')
@@ -291,9 +322,7 @@ test.describe('Editing', () => {
     await checkNumberOfTodosInLocalStorage(page, 3)
   })
 
-  test('should hide other controls when editing - 1-log-file', async ({
-    page
-  }) => {
+  test('should hide other controls when editing', async ({ page }) => {
     const todoItem = page.getByTestId('todo-item').nth(1)
     await todoItem.dblclick()
     await expect(todoItem.getByRole('checkbox')).not.toBeVisible()
@@ -305,7 +334,7 @@ test.describe('Editing', () => {
     await checkNumberOfTodosInLocalStorage(page, 3)
   })
 
-  test('should save edits on blur - 1-log-file', async ({ page }) => {
+  test('should save edits on blur', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).dblclick()
     await todoItems
@@ -325,7 +354,7 @@ test.describe('Editing', () => {
     await checkTodosInLocalStorage(page, 'buy some sausages')
   })
 
-  test('should trim entered text - 1-log-file', async ({ page }) => {
+  test('should trim entered text', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).dblclick()
     await todoItems
@@ -342,7 +371,7 @@ test.describe('Editing', () => {
     await checkTodosInLocalStorage(page, 'buy some sausages')
   })
 
-  test('should remove the item if an empty text string was entered - 1-log-file', async ({
+  test('should remove the item if an empty text string was entered', async ({
     page
   }) => {
     const todoItems = page.getByTestId('todo-item')
@@ -353,7 +382,7 @@ test.describe('Editing', () => {
     await expect(todoItems).toHaveText([TODO_ITEMS[0], TODO_ITEMS[2]])
   })
 
-  test('should cancel edits on escape - 1-log-file', async ({ page }) => {
+  test('should cancel edits on escape', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).dblclick()
     await todoItems
@@ -369,9 +398,7 @@ test.describe('Editing', () => {
 })
 
 test.describe('Counter', () => {
-  test('should display the current number of todo items - 1-log-file', async ({
-    page
-  }) => {
+  test('should display the current number of todo items', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -396,16 +423,14 @@ test.describe('Clear completed button', () => {
     await createDefaultTodos(page)
   })
 
-  test('should display the correct text - 1-log-file', async ({ page }) => {
+  test('should display the correct text', async ({ page }) => {
     await page.locator('.todo-list li .toggle').first().check()
     await expect(
       page.getByRole('button', { name: 'Clear completed' })
     ).toBeVisible()
   })
 
-  test('should remove completed items when clicked - 1-log-file', async ({
-    page
-  }) => {
+  test('should remove completed items when clicked', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).getByRole('checkbox').check()
     await page.getByRole('button', { name: 'Clear completed' }).click()
@@ -413,7 +438,7 @@ test.describe('Clear completed button', () => {
     await expect(todoItems).toHaveText([TODO_ITEMS[0], TODO_ITEMS[2]])
   })
 
-  test('should be hidden when there are no items that are completed - 1-log-file', async ({
+  test('should be hidden when there are no items that are completed', async ({
     page
   }) => {
     await page.locator('.todo-list li .toggle').first().check()
@@ -425,7 +450,7 @@ test.describe('Clear completed button', () => {
 })
 
 test.describe('Persistence', () => {
-  test('should persist its data - 1-log-file', async ({ page }) => {
+  test('should persist its data', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -461,9 +486,7 @@ test.describe('Routing', () => {
     await checkTodosInLocalStorage(page, TODO_ITEMS[0])
   })
 
-  test('should allow me to display active items - 1-log-file', async ({
-    page
-  }) => {
+  test('should allow me to display active items', async ({ page }) => {
     const todoItem = page.getByTestId('todo-item')
     await page.getByTestId('todo-item').nth(1).getByRole('checkbox').check()
 
@@ -473,22 +496,22 @@ test.describe('Routing', () => {
     await expect(todoItem).toHaveText([TODO_ITEMS[0], TODO_ITEMS[2]])
   })
 
-  test('should respect the back button - 1-log-file', async ({ page }) => {
+  test('should respect the back button', async ({ page }) => {
     const todoItem = page.getByTestId('todo-item')
     await page.getByTestId('todo-item').nth(1).getByRole('checkbox').check()
 
     await checkNumberOfCompletedTodosInLocalStorage(page, 1)
 
-    await test.step('Showing all items - 1-log-file', async () => {
+    await test.step('Showing all items', async () => {
       await page.getByRole('link', { name: 'All' }).click()
       await expect(todoItem).toHaveCount(3)
     })
 
-    await test.step('Showing active items - 1-log-file', async () => {
+    await test.step('Showing active items', async () => {
       await page.getByRole('link', { name: 'Active' }).click()
     })
 
-    await test.step('Showing completed items - 1-log-file', async () => {
+    await test.step('Showing completed items', async () => {
       await page.getByRole('link', { name: 'Completed' }).click()
     })
 
@@ -499,18 +522,14 @@ test.describe('Routing', () => {
     await expect(todoItem).toHaveCount(3)
   })
 
-  test('should allow me to display completed items - 1-log-file', async ({
-    page
-  }) => {
+  test('should allow me to display completed items', async ({ page }) => {
     await page.getByTestId('todo-item').nth(1).getByRole('checkbox').check()
     await checkNumberOfCompletedTodosInLocalStorage(page, 1)
     await page.getByRole('link', { name: 'Completed' }).click()
     await expect(page.getByTestId('todo-item')).toHaveCount(1)
   })
 
-  test('should allow me to display all items - 1-log-file', async ({
-    page
-  }) => {
+  test('should allow me to display all items', async ({ page }) => {
     await page.getByTestId('todo-item').nth(1).getByRole('checkbox').check()
     await checkNumberOfCompletedTodosInLocalStorage(page, 1)
     await page.getByRole('link', { name: 'Active' }).click()
@@ -519,9 +538,7 @@ test.describe('Routing', () => {
     await expect(page.getByTestId('todo-item')).toHaveCount(3)
   })
 
-  test('should highlight the currently applied filter - 1-log-file', async ({
-    page
-  }) => {
+  test('should highlight the currently applied filter', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'All' })).toHaveClass(
       'selected'
     )

@@ -58,8 +58,12 @@ export function createLogFilePath(context: LogContext): string {
   // Get date string for daily folders
   const dateString = getFormattedDate()
 
+  // Check if forceConsolidated flag is set in the config
+  const forceConsolidated = config.fileLogging?.forceConsolidated === true
+
   // Determine if we should organize by test
-  const hasTestContext = Boolean(testFile || testName)
+  // If forceConsolidated is true, we'll ignore test context
+  const hasTestContext = !forceConsolidated && Boolean(testFile || testName)
 
   let subDir: string
   let fileName: string

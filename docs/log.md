@@ -8,8 +8,7 @@ A functional logging utility for Playwright tests with enhanced features for tes
   - [Quick Start](#quick-start)
   - [Basic Usage](#basic-usage)
   - [Configuration](#configuration)
-    - [Default Settings](#default-settings)
-    - [Unified Configuration API](#unified-configuration-api)
+    - [Default Settings \& Configuration API](#default-settings--configuration-api)
   - [API Reference](#api-reference)
     - [Log Levels](#log-levels)
     - [Global Configuration Interface](#global-configuration-interface)
@@ -17,10 +16,9 @@ A functional logging utility for Playwright tests with enhanced features for tes
     - [LogOptions Interface](#logoptions-interface)
     - [Using With Playwright Test Steps](#using-with-playwright-test-steps)
   - [Log Organization and Test Context](#log-organization-and-test-context)
-    - [How Test Context Capture Works](#how-test-context-capture-works)
-      - [Option 1: Global Configuration (Recommended)](#option-1-global-configuration-recommended)
+    - [Test Context Capture](#test-context-capture)
+      - [Option 1: Shared Test Fixture (Recommended)](#option-1-shared-test-fixture-recommended)
       - [Option 2: Per-Test-File Setup](#option-2-per-test-file-setup)
-      - [Option 3: Custom Test Fixture Approach](#option-3-custom-test-fixture-approach)
     - [Log File Structure](#log-file-structure)
   - [Worker ID Logging](#worker-id-logging)
     - [Sample Output](#sample-output)
@@ -31,11 +29,10 @@ A functional logging utility for Playwright tests with enhanced features for tes
     - [Benefits of Decorator Source Tracking](#benefits-of-decorator-source-tracking)
     - [Custom Exclusions](#custom-exclusions)
   - [Test Step Decorators / Function Wrappers](#test-step-decorators--function-wrappers)
-    - [Why Use Decorators / Function Wrappers?](#why-use-decorators--function-wrappers)
-      - [Without Decorators (Using raw `test.step`)](#without-decorators-using-raw-teststep)
-      - [With Decorators (Using our library)](#with-decorators-using-our-library)
-    - [Raw test.step Usage (default Playwright API - Not Recommended)](#raw-teststep-usage-default-playwright-api---not-recommended)
-      - [Working with raw test.step (click to expand)](#working-with-raw-teststep-click-to-expand)
+    - [Test Step Decorators: Benefits and Usage](#test-step-decorators-benefits-and-usage)
+      - [Example Comparison](#example-comparison)
+        - [With raw test.step (verbose and error-prone)](#with-raw-teststep-verbose-and-error-prone)
+        - [With our decorators (clean and maintainable)](#with-our-decorators-clean-and-maintainable)
     - [Available Decorators](#available-decorators)
     - [Using Method Decorators in Page Objects](#using-method-decorators-in-page-objects)
     - [Using Function Decorators for Utility Functions / Functional Helpers](#using-function-decorators-for-utility-functions--functional-helpers)
@@ -56,36 +53,56 @@ npm install @seon/playwright-utils
 ## Quick Start
 
 ```typescript
-// From base.config.ts
+// From actual dev.config.ts
+import merge from 'lodash/merge'
 import { defineConfig } from '@playwright/test'
-import { log, setupTestContextCapture } from '@seon/playwright-utils'
+import { baseConfig } from './base.config'
+import { log } from '@seon/playwright-utils'
 
-// Configure logging
+// IMPORTANT: the setup for logging to files needs to be uniform between test files
+// best place to put it is in a config file
+
+// ORGANIZED LOGS
 log.configure({
-  console: { enabled: true, colorize: true },
-  workerID: { enabled: true }, // Auto-prefix logs with worker ID
   fileLogging: {
-    enabled: true // Logs will be grouped by test run in playwright-logs
+    enabled: true,
+    testFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
+    forceConsolidated: false, // Explicitly disable consolidation
+    outputDir: 'playwright-logs/organized-logs'
   }
 })
 
-// Enable automatic test context capture for organized logs
-const testContextProject = setupTestContextCapture()
+export default defineConfig(
+  merge({}, baseConfig, {
+    use: { baseUrl: 'https://test-api.k6.io' },
+    projects: [...(baseConfig.projects || [])]
+  })
+)
 
-export default defineConfig({
-  // Your other config settings...
-  projects: [
-    // Your existing projects...
-    testContextProject
-  ]
+// From actual support/fixtures.ts
+import { test as base } from '@playwright/test'
+import { captureTestContext } from '@seon/playwright-utils'
+
+// a hook that will run before each test in the suite
+// this is like having the below code in each test file
+// test.beforeEach(async ({}, testInfo) => {
+//   captureTestContext(testInfo)
+// })
+base.beforeEach(async ({}, testInfo) => {
+  captureTestContext(testInfo)
 })
+
+export const test = base
+export const expect = base.expect
 ```
 
 ## Basic Usage
 
 ```typescript
-// From todo-app-organized-log.spec.ts
-import { log } from '@seon/playwright-utils'
+// From actual todo-with-logs.spec.ts
+import type { Page } from '@playwright/test'
+import { test, expect } from '../support/fixtures'
+import { log, methodTestStep, functionTestStep } from '@seon/playwright-utils'
 
 // Simple logging with different levels in a test
 test('should allow me to add todo items', async ({ page }) => {
@@ -104,28 +121,24 @@ test('should allow me to add todo items', async ({ page }) => {
 
 ## Configuration
 
-### Default Settings
+### Default Settings & Configuration API
 
-The logging system comes with these default settings:
+The logging system comes with sensible defaults and uses a unified configuration approach:
 
 ```typescript
-// These are the internal defaults - you don't need to set these
+// These are the internal defaults - you don't need to set these explicitly
 const defaults = {
   // Console output is enabled
   console: true,
   // File logging is enabled and writes to playwright-logs directory
   fileLogging: true,
   // Files are grouped by test run for better organization
-  // Format settings
+  // Format settings for prefixes (ℹ, ✓, ⚠), timestamps, and colors
   format: {
-    // Each log level has its own prefix (ℹ, ✓, ⚠, etc.)
-    // Log timestamps are enabled
-    // Output is colorized
+    /* ... */
   }
 }
 ```
-
-### Unified Configuration API
 
 We use a single `log.configure()` function for all configuration needs with a clear priority order of **base config < fixture files < test files**. Each level inherits from the previous while allowing specific overrides.
 
@@ -137,10 +150,14 @@ We use a single `log.configure()` function for all configuration needs with a cl
 // OPTION 1: Configure only in base.config.ts (OK)
 // -------------------------------------------------------
 // In your playwright/config/base.config.ts
-import { defineConfig } from '@playwright/test'
-import { log, setupTestContextCapture } from '@seon/playwright-utils'
+// Actual code from base.config.ts
+import { defineConfig, devices } from '@playwright/test'
+import { config as dotenvConfig } from 'dotenv'
+import path from 'path'
+import { log } from '@seon/playwright-utils'
 
-// ALL logging configuration in base config
+// the default settings turn on console logging
+// Configure all logging in base config
 log.configure({
   console: { enabled: true, colorize: true },
   fileLogging: {
@@ -149,15 +166,11 @@ log.configure({
   }
 })
 
-// Enable automatic test context capture for organized logs
-const testContextProject = setupTestContextCapture()
-
 export const baseConfig = defineConfig({
   testDir: './playwright/tests',
-  projects: [
-    // Your other projects
-    testContextProject
-  ]
+  testMatch: '**/*.spec.ts',
+  fullyParallel: true
+  // Other configuration options
 })
 
 // In your playwright/config/dev.config.ts - NO logging configuration here
@@ -171,49 +184,63 @@ export default defineConfig(
   })
 )
 
-// OPTION 2: Configure only in environment configs (OK)
+// OPTION 2: Configure only in environment configs (ACTUAL IMPLEMENTATION)
 // -------------------------------------------------------
-// In your playwright/config/base.config.ts - NO logging configuration
-import { defineConfig } from '@playwright/test'
-
-export const baseConfig = defineConfig({
-  testDir: './playwright/tests'
-  // No logging configuration here
-})
-
-// In your playwright/config/dev.config.ts
+// From actual dev.config.ts
 import merge from 'lodash/merge'
 import { defineConfig } from '@playwright/test'
 import { baseConfig } from './base.config'
-import { log, setupTestContextCapture } from '@seon/playwright-utils'
+import { log } from '@seon/playwright-utils'
 
 // ALL logging configuration in environment config
 log.configure({
-  console: { enabled: true, colorize: true },
   fileLogging: {
-    enabled: true, 
-    outputDir: 'playwright-logs'
+    enabled: true,
+    testFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
+    forceConsolidated: false, // Explicitly disable consolidation
+    outputDir: 'playwright-logs/organized-logs'
   }
 })
-
-// Enable automatic test context capture for organized logs
-const testContextProject = setupTestContextCapture()
 
 export default defineConfig(
   merge({}, baseConfig, {
     use: { baseUrl: 'https://test-api.k6.io' },
-    projects: [...(baseConfig.projects || []), testContextProject]
+    projects: [...(baseConfig.projects || [])]
   })
 )
 
 // ❌ INCORRECT: Configuration split between base and environment (NOT OK)
 // This makes configuration harder to track and reason about
 
-// 3. LOCAL: In your test files (if needed)
+// CAPTURING TEST CONTEXT FOR FILE ORGANIZATION
+// There are two recommended approaches:
+
+// OPTION 1: Create a shared fixture with beforeEach hook (RECOMMENDED)
+// In playwright/support/fixtures.ts
+import { test as base } from '@playwright/test'
+import { captureTestContext } from '@seon/playwright-utils'
+
+// Capture test context in a beforeEach hook
+base.beforeEach(async ({}, testInfo) => {
+  captureTestContext(testInfo)
+})
+
+// Export test and expect for your test files to use
+export const test = base
+export const expect = base.expect
+
+// Then in your test files, simply import from this fixture:
+import { test, expect } from '../support/fixtures'
+
+test('example test', async () => {
+  await log.info('This log will be organized by test file and name')
+})
+
+// OPTION 2: Add the hook in each test file individually
 import { test } from '@playwright/test'
 import { log, captureTestContext } from '@seon/playwright-utils'
 
-// Only needed if not using setupTestContextCapture() in config
+// Add the context capture in each test file's beforeEach hook
 test.beforeEach(async ({}, testInfo) => {
   captureTestContext(testInfo)
 })
@@ -416,84 +443,62 @@ test('demonstrates test step integration', async ({ page }) => {
 
 By default, when file logging is enabled, all logs go to a single file. However, when test context is captured, logs are automatically organized by test file and test name, providing a clean separation of logs for each test run.
 
-### How Test Context Capture Works
+### Test Context Capture
 
-There are three ways to set up test context capture, listed in order of preference:
+For structured log files, you need to capture test context. There are two ways to do this:
 
-#### Option 1: Global Configuration (Recommended)
+#### Option 1: Shared Test Fixture (Recommended)
 
-The simplest way to enable log organization is at the project configuration level. This requires zero changes to your test files:
+Create a shared fixture that captures context for all tests in one place:
 
 ```typescript
-// From playwright/config/dev.config.ts
-import merge from 'lodash/merge'
-import { defineConfig } from '@playwright/test'
-import { baseConfig } from './base.config'
-import { log, setupTestContextCapture } from '@seon/playwright-utils'
+// 1. Create fixtures.ts file
+import { test as base } from '@playwright/test'
+import { captureTestContext } from '@seon/playwright-utils'
 
-// 1. Configure logging
-log.configure({
-  fileLogging: {
-    enabled: true
-  }
+base.beforeEach(async ({}, testInfo) => {
+  captureTestContext(testInfo)
 })
 
-// 2. Enable automatic test context capture for organized logs
-// This is all you need to add to get logs organized by test file and name
-const testContextProject = setupTestContextCapture()
+export const test = base
+export const expect = base.expect
+```
 
-export default defineConfig(
-  merge({}, baseConfig, {
-    // Your other config options here
-    use: { baseURL: 'https://test-api.k6.io' },
+Then import this fixture in your tests:
 
-    // 3. Add the special project to your config
-    projects: [...(baseConfig.projects || []), testContextProject]
-  })
-)
+```typescript
+// 2. Use fixture in test files
+import { test, expect } from '../support/fixtures'
+import { log } from '@seon/playwright-utils'
+
+// No need to capture context - it's handled by the fixture!
+
+test('my test', async ({ page }) => {
+  await log.info('Log is automatically organized by test!')
+})
 ```
 
 #### Option 2: Per-Test-File Setup
 
-If you can't modify your global configuration, you can still enable log organization in individual test files:
+Alternatively, you can add context capture to each test file individually:
 
 ```typescript
-// From todo-app-organized-log.spec.ts - Using captureTestContext
 import { test, expect } from '@playwright/test'
 import { log, captureTestContext } from '@seon/playwright-utils'
 
-// Add a hook to capture test context when using the standard test object
-// This enables proper log organization without requiring a special test import
+// Add this to each test file
 test.beforeEach(async ({}, testInfo) => {
   captureTestContext(testInfo)
 })
-```
 
-#### Option 3: Custom Test Fixture Approach
-
-You can also create a custom test fixture that automatically captures context for all tests:
-
-```typescript
-// In a separate fixtures.ts file
-import { test as baseTest, expect } from '@playwright/test'
-import { captureTestContext } from '@seon/playwright-utils'
-
-export const test = baseTest.extend({
-  // Auto-capture test context for all tests using this fixture
-  _captureContext: [
-    async ({}, use, testInfo) => {
-      captureTestContext(testInfo)
-      await use()
-    },
-    { auto: true }
-  ]
+test('my test', async ({ page }) => {
+  await log.info('Log is organized by test context!')
 })
-
-export { expect }
-
-// Then in your test files:
-// import { test, expect } from './fixtures'
 ```
+
+</details>
+
+> **Recommendation**: Use Option 1 (shared fixture) to follow DRY principles and ensure consistent setup across all tests.
 
 ### Log File Structure
 
@@ -661,176 +666,58 @@ const sourcePath = extractSourceFilePath(['test-step.ts', 'my-utility.ts'])
 
 ## Test Step Decorators / Function Wrappers
 
-The library provides powerful decorators for organizing tests into logical steps with integrated logging. These decorators enhance both your code organization and test reporting by automatically wrapping methods and functions in Playwright's `test.step()` with proper logging and visibility in both reports & PW UI.
+The library provides powerful decorators for organizing tests into logical steps with integrated logging. These decorators enhance both your code organization and test reporting by automatically wrapping methods and functions in Playwright's `test.step()` with proper logging and visibility in reports.
 
-### Why Use Decorators / Function Wrappers?
+### Test Step Decorators: Benefits and Usage
 
-Playwright's built-in `test.step()` function is useful but can make your code verbose and harder to maintain. Consider these examples:
+Playwright has a built-in `test.step()` API, but our decorators provide several critical advantages:
 
-#### Without Decorators (Using raw `test.step`)
+| Feature          | Raw `test.step()`        | Our Decorators             |
+| ---------------- | ------------------------ | -------------------------- |
+| Boilerplate code | Requires manual wrapping | Eliminated                 |
+| Error handling   | Manual in each method    | Automatic                  |
+| Logging          | Must add manually        | Built-in with rich details |
+| Code readability | Nested callbacks         | Clean, flat structure      |
+| Step naming      | Manual string literals   | Auto-derived from methods  |
+
+#### Example Comparison
+
+##### With raw test.step (verbose and error-prone)
 
 ```typescript
-// Page Object implementation without decorators
 class LoginPage {
-  constructor(private page) {}
-
-  async navigateTo() {
-    // Need to manually wrap in test.step
-    return test.step('Navigate to login page', async () => {
-      await this.page.goto('/login')
-      // No automatic error handling
-    })
-  }
-
-  async login(username: string, password: string) {
-    return test.step('Perform login', async () => {
+  async login(username, password) {
+    return await test.step('Login', async () => {
       try {
-        // Need to manually add logging
         console.log(`Logging in as ${username}`)
-
         await this.page.fill('#username', username)
         await this.page.fill('#password', password)
         await this.page.click('button[type="submit"]')
-
-        // Need to manually log success
         console.log('Login successful')
       } catch (error) {
-        // Need to manually log errors
         console.error(`Login failed: ${error}`)
         throw error
       }
     })
   }
 }
-
-// Utility function without decorators
-async function checkElementCount(page, selector, expectedCount) {
-  return test.step('Check element count', async () => {
-    try {
-      console.log(`Checking count of ${selector} elements`)
-      const elements = await page.$$(selector)
-
-      if (elements.length !== expectedCount) {
-        throw new Error(
-          `Expected ${expectedCount} elements, found ${elements.length}`
-        )
-      }
-
-      console.log(`Found expected count: ${elements.length}`)
-      return elements
-    } catch (error) {
-      console.error(`Check failed: ${error}`)
-      throw error
-    }
-  })
-}
 ```
 
-The above approach:
-
-- Requires manual wrapping in `test.step()`
-- Needs explicit error handling in each method
-- Requires manual logging at the start and end of each step
-- Results in deeply nested code that's harder to read
-- Produces duplicated boilerplate across similar methods
-
-#### With Decorators (Using our library)
+##### With our decorators (clean and maintainable)
 
 ```typescript
-import { methodTestStep, functionTestStep } from '@seon/playwright-utils'
-
-// Page Object with decorators
 class LoginPage {
-  constructor(private page) {}
-
-  @methodTestStep()
-  async navigateTo() {
-    // Clean, focused implementation
-    await this.page.goto('/login')
-  }
-
   @methodTestStep('Perform login')
-  async login(username: string, password: string) {
-    // Automatic logging and error handling
+  async login(username, password) {
+    // Clean implementation with automatic logging and error handling
     await this.page.fill('#username', username)
     await this.page.fill('#password', password)
     await this.page.click('button[type="submit"]')
   }
 }
-
-// Utility function with function wrapper
-const checkElementCount = functionTestStep(
-  'Check element count',
-  async (page, selector: string, expectedCount: number) => {
-    // Clean, focused implementation
-    const elements = await page.$$(selector)
-    if (elements.length !== expectedCount) {
-      throw new Error(
-        `Expected ${expectedCount} elements, found ${elements.length}`
-      )
-    }
-    return elements
-  }
-)
 ```
 
-The decorated / function wrapped approach:
-
-- Eliminates boilerplate code
-- Provides automatic logging and error handling
-- Keeps method implementations clean and focused on business logic
-- Makes code more maintainable and readable
-- Consistently formats step names in test reports & PW UI
-
-### Raw test.step Usage (default Playwright API - Not Recommended)
-
-#### Working with raw test.step (click to expand)
-
-> 📌 **Note:** This section covers advanced scenarios only. We strongly recommend using our decorators instead of raw `test.step()` API.
-
-The main challenge with raw `test.step()` is passing variables between steps.
-
-```typescript
-import { test } from '@playwright/test'
-import { log } from '@seon/playwright-utils'
-
-test('demonstrates passing variables between test steps', async ({ page }) => {
-  // ⚠️ PROBLEMATIC: Using closures to pass data
-  let orderId // Variable declared in outer scope
-  await test.step('Create new order', async () => {
-    // Implementation...
-    orderId = await page.textContent('.order-id')
-    console.log(`Created order: ${orderId}`) // Manual logging needed
-  })
-
-  // 👍 BETTER: Return values from steps and use log helpers
-  const createOrder = async () => {
-    log.step('Creating new order')
-    // Implementation...
-    const newOrderId = await page.textContent('.order-id')
-    log.success(`Created order: ${newOrderId}`)
-    return newOrderId
-  }
-
-  // Use test.step with functions that return values
-  const newOrderId = await test.step('Create order', createOrder)
-  await test.step('Verify order', () => verifyOrder(newOrderId))
-})
-```
-
-> **Note:** Using raw `test.step()` with closures leads to hard-to-trace data flows, poor error messages, and manual logging requirements.
-> While you can use our log helpers with either approach (e.g., `log.step()`, `log.info()`, etc.), the decorators solve all these issues more elegantly by providing a structured approach with proper logging and error handling built-in.
->
-> ```typescript
-> // You can add log helpers to either approach
-> const createOrder = async () => {
->   log.step('Creating a new order') // Add logging
->   await page.goto('/orders/new')
->   //...
->   log.success(`Created order: ${newOrderId}`) // Add result logging
->   return newOrderId
-> }
-> ```
+> **Key benefit**: Our decorators follow functional programming principles by keeping your test code focused on what it does, not how it's logged or reported.
 
 ### Available Decorators
 

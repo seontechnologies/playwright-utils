@@ -6,7 +6,7 @@ import * as path from 'node:path'
 import deepmerge from 'deepmerge'
 
 /** Configuration options for the logging utility */
-export interface LoggingConfig {
+export type LoggingConfig = {
   // Console output configuration
   console?: {
     enabled: boolean
@@ -26,6 +26,8 @@ export interface LoggingConfig {
     timestamp?: boolean
     // Prepend test file name to log entries
     prependTestFile?: boolean
+    // Force all logs into a single consolidated file, even with test context
+    forceConsolidated?: boolean
   }
 
   // Worker ID configuration
@@ -41,9 +43,7 @@ export interface LoggingConfig {
   }
 }
 
-/**
- * Default configuration for the logging utility
- */
+/** Default configuration for the logging utility */
 const defaultConfig: LoggingConfig = {
   console: {
     enabled: true,
@@ -72,10 +72,8 @@ const defaultConfig: LoggingConfig = {
 // Singleton instance of configuration, with default fallback
 let currentConfig: LoggingConfig = { ...defaultConfig }
 
-/**
- * Configure the logging utility
- * @param config - Configuration options to apply
- */
+/** Configure the logging utility
+ * @param config - Configuration options to apply */
 export function configureLogging(config: Partial<LoggingConfig>) {
   // deep merge the new config with the current config in a single step
   currentConfig = deepmerge(currentConfig, config)
@@ -83,10 +81,8 @@ export function configureLogging(config: Partial<LoggingConfig>) {
   return ensureLogDirectory(currentConfig)
 }
 
-/**
- * Function to ensure log directory exists if needed
- * @param config - The logging configuration
- */
+/** Function to ensure log directory exists if needed
+ * @param config - The logging configuration */
 function ensureLogDirectory(config: LoggingConfig) {
   if (!config.fileLogging?.enabled) return config
 
@@ -111,27 +107,17 @@ function ensureLogDirectory(config: LoggingConfig) {
   return config
 }
 
-/**
- * Get the current logging configuration
- * @returns The current logging configuration
- */
+/**  @returns The current logging configuration */
 export function getLoggingConfig(): LoggingConfig {
   return currentConfig
-}
-
-/** Reset the logging configuration to defaults */
-export const resetLoggingConfig = () => {
-  currentConfig = { ...defaultConfig }
 }
 
 /////////////////////////
 // Test Context Management
 /////////////////////////
 
-/**
- * Information about the current test context
- * Used for both logging and worker ID support
- */
+/** Information about the current test context
+ * Used for both logging and worker ID support */
 export type TestContextInfo = {
   /** Worker ID for parallel execution */
   workerIndex?: number
@@ -150,8 +136,7 @@ let testContextInfo: TestContextInfo = {}
 
 /**
  * Set the current test context information
- * @param info - Object containing test context details
- */
+ * @param info - Object containing test context details */
 export function setTestContextInfo(info: Partial<TestContextInfo>): void {
   testContextInfo = {
     ...testContextInfo,
@@ -159,28 +144,7 @@ export function setTestContextInfo(info: Partial<TestContextInfo>): void {
   }
 }
 
-/**
- * Get the current test context information
- * @returns Current test context information
- */
+/** Get the current test context information */
 export function getTestContextInfo(): TestContextInfo {
   return { ...testContextInfo }
-}
-
-/**
- * Get test name from a spec file path
- * Useful for log formatting when test context isn't captured
- */
-export function getTestNameFromFilePath(filePath: string | undefined): string {
-  if (!filePath) return 'Unknown Test'
-
-  // Extract filename without extension
-  const filename =
-    filePath
-      .split('/')
-      .pop()
-      ?.replace(/\.spec\.ts$|\.test\.ts$/, '') || ''
-
-  // Convert kebab-case to readable format
-  return filename.replace(/-/g, ' ')
 }

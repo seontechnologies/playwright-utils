@@ -6,7 +6,7 @@ import { configureLogging } from '../config'
 // Default logging options that apply to all log calls
 export const defaultLogOptions: LogOptions = {
   console: true,
-  fileLogging: true
+  fileLogging: false
 }
 
 /**
@@ -53,11 +53,12 @@ export const configure = (
   // Always use global scope by default, can be overridden with explicit 'local'
   const effectiveScope = scope
 
+  // Update defaultLogOptions regardless of scope
+  // This ensures that mergeOptions() will use the updated defaults
+  Object.assign(defaultLogOptions, options)
+
   if (effectiveScope === 'global') {
-    // For global config, use the configureLogging function
+    // For global config, use the configureLogging function as well
     configureLogging(options as Partial<any>)
-  } else {
-    // For local config, update defaultLogOptions directly
-    Object.assign(defaultLogOptions, options)
   }
 }

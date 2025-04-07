@@ -1,10 +1,6 @@
 /** Log context and test tracking */
 import type { LoggingConfig } from '../config'
-import {
-  getTestContextInfo,
-  getLoggingConfig,
-  getTestNameFromFilePath
-} from '../config'
+import { getTestContextInfo, getLoggingConfig } from '../config'
 
 // Types
 export type LogOptions = {
@@ -104,11 +100,11 @@ export function extractTestInfoIfNeeded(
 /**
  * Track the last test details to add headers for consolidated logs
  */
-export class TestTracker {
-  lastTestName = ''
-  lastTestFile = ''
-  lastInferredFile = ''
-  lastInferredTestName = ''
+type TestTracker = {
+  lastTestName: string
+  lastTestFile: string
+  lastInferredFile: string
+  lastInferredTestName: string
 }
 
 /**
@@ -119,6 +115,22 @@ export const testHeaderTracker: TestTracker = {
   lastTestFile: '',
   lastInferredFile: '',
   lastInferredTestName: ''
+}
+
+/** Get test name from a spec file path
+ * Useful for log formatting when test context isn't captured */
+function getTestNameFromFilePath(filePath: string | undefined): string {
+  if (!filePath) return 'Unknown Test'
+
+  // Extract filename without extension
+  const filename =
+    filePath
+      .split('/')
+      .pop()
+      ?.replace(/\.spec\.ts$|\.test\.ts$/, '') || ''
+
+  // Convert kebab-case to readable format
+  return filename.replace(/-/g, ' ')
 }
 
 /** Populate the test options with context information */

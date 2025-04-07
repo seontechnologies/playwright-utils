@@ -41,58 +41,63 @@ function formatWorkerID(context: LogContext): string | null {
 export function formatLogMessage(message: string, context: LogContext): string {
   const { testName, testFile } = context
 
-  // Check if the message already has a timestamp
-  const timestampRegex = /^\[(\d{2}:\d{2}:\d{2})\]/
-  const hasTimestamp = timestampRegex.test(message)
+  // First, extract any existing timestamp and worker ID from the message
+  // Define regex patterns
+  const timestampRegex = /\[(\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\]/g
+  const workerRegex = /\[W(\d+)\]/g
 
-  // Start building the formatted log message
-  let formattedMessage = hasTimestamp ? '' : getLogTimestamp()
+  // Clean the message by removing all timestamps and worker IDs
+  let cleanMessage = message
 
-  // Add worker ID if enabled
-  const workerID = formatWorkerID(context)
-  if (workerID) {
-    formattedMessage += formattedMessage ? ` ${workerID}` : workerID
+  // Extract the first worker ID if it exists (to preserve it)
+  const workerMatch = workerRegex.exec(cleanMessage)
+  const extractedWorkerIndex = workerMatch ? workerMatch[1] : null
+
+  // Remove all worker IDs from the message
+  cleanMessage = cleanMessage.replace(workerRegex, '')
+
+  // Remove all timestamps from the message
+  cleanMessage = cleanMessage.replace(timestampRegex, '')
+
+  // Clean up extra spaces and trim
+  cleanMessage = cleanMessage.replace(/\s+/g, ' ').trim()
+
+  // Build the formatted message with only one set of metadata
+  let formattedMessage = getLogTimestamp()
+
+  // Add worker ID - use extracted one if found, otherwise from context
+  if (extractedWorkerIndex) {
+    formattedMessage += ` [W${extractedWorkerIndex}]`
+  } else {
+    const workerID = formatWorkerID(context)
+    if (workerID) {
+      formattedMessage += ` ${workerID}`
+    }
   }
 
   // Check if this is organized by test (each test has its own log file)
   const isOrganizedByTest =
     context.config.fileLogging?.enabled &&
-    typeof context.config.fileLogging?.testFolder === 'string' &&
-    context.config.fileLogging?.testFolder.length > 0
+    !context.config.fileLogging?.forceConsolidated &&
+    context.config.fileLogging?.testFolder !== 'all-tests-in-one'
 
-  // Only add test name and file info for non-organized logs
-  // This prevents redundancy in test-specific log files
+  // Only add test name and file info for consolidated logs
+  // Skip redundant info for organized logs since it's already in the folder/filename
   if (!isOrganizedByTest) {
     // Add test name if available
     if (testName) {
-      formattedMessage += formattedMessage ? ` [${testName}]` : `[${testName}]`
+      formattedMessage += ` [${testName}]`
     }
 
     // Add file info if available
     if (testFile) {
       const shortFileName = path.basename(testFile)
-      formattedMessage += formattedMessage
-        ? ` [File: ${shortFileName}]`
-        : `[File: ${shortFileName}]`
+      formattedMessage += ` [File: ${shortFileName}]`
     }
   }
 
-  // Process the message to avoid duplicating information
-  let cleanMessage = message
-  if (hasTimestamp) {
-    // If message already has timestamp, remove it
-    cleanMessage = message.replace(timestampRegex, '')
-
-    // Also check for and remove worker ID to avoid duplication
-    const workerRegex = /\[W\d+\]/
-    cleanMessage = cleanMessage.replace(workerRegex, '')
-
-    // Clean up extra spaces
-    cleanMessage = cleanMessage.trim()
-  }
-
-  // Add the message with proper spacing
-  return formattedMessage ? `${formattedMessage} ${cleanMessage}` : cleanMessage
+  // Combine formatted prefix with cleaned message
+  return `${formattedMessage} ${cleanMessage}`
 }
 
 /** Format section header for consolidated logs */

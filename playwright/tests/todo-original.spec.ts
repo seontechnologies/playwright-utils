@@ -1,11 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { log } from '../../src'
 
-// just for this file, turning on console
-log.configure({
-  console: true
-})
-
 test.beforeEach(async ({ page }) => {
   await page.goto('https://demo.playwright.dev/todomvc')
 })
