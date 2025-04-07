@@ -10,9 +10,6 @@ export * from './api-request'
 export * from './recurse'
 export * from './log/index'
 
-// Future function exports can be added here
-// export * from './auth';
-
 ///////////////////////
 // Internal logger to use our log implementation instead of console.log
 // This avoids circular dependencies between modules
