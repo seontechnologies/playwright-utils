@@ -1,6 +1,5 @@
-/**
- * Playwright integration utilities
- */
+/** The main purpose is to make it possible to use Playwright's step reporting
+ * in both test and non-test contexts without causing errors. */
 
 // Store reference to the test object if available
 let testObj:
@@ -24,14 +23,10 @@ try {
 /**
  * Checks if the Playwright test step API is available in the current context
  */
-export const isPlaywrightStepAvailable = (): boolean => !!testObj?.step
+const isPlaywrightStepAvailable = (): boolean => !!testObj?.step
 
-/**
- * Executes a Playwright test step with error handling
- */
-export const executePlaywrightStep = async (
-  stepMessage: string
-): Promise<void> => {
+/** Executes a Playwright test step with error handling */
+const executePlaywrightStep = async (stepMessage: string): Promise<void> => {
   if (!testObj) return
 
   try {
@@ -47,9 +42,7 @@ export const executePlaywrightStep = async (
   }
 }
 
-/**
- * Attempts to execute a Playwright test step if the test API is available
- */
+/** Attempts to execute a Playwright test step if the test API is available */
 export const tryPlaywrightStep = async (stepMessage: string): Promise<void> => {
   if (isPlaywrightStepAvailable()) {
     await executePlaywrightStep(stepMessage)

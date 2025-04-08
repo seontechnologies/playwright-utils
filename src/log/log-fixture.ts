@@ -3,7 +3,7 @@ import { log as logObject } from './log'
 import type { LogParams } from './types'
 
 // function to build log options
-const buildLogOptions = ({
+const buildLoggingConfig = ({
   console,
   testFile,
   testName,
@@ -23,7 +23,7 @@ export const test = base.extend<{
       const { level = 'info', message } = params
 
       // ex: log.step('Testing adding todo items', { console: false }))
-      return logObject[level](message, buildLogOptions(params))
+      return logObject[level](message, buildLoggingConfig(params))
     }
 
     await use(log)

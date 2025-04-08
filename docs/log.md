@@ -13,7 +13,7 @@ A functional logging utility for Playwright tests with enhanced features for tes
     - [Log Levels](#log-levels)
     - [Global Configuration Interface](#global-configuration-interface)
     - [Logging Methods](#logging-methods)
-    - [LogOptions Interface](#logoptions-interface)
+    - [LoggingConfig Type](#loggingconfig-type)
     - [Using With Playwright Test Steps](#using-with-playwright-test-steps)
   - [Log Organization and Test Context](#log-organization-and-test-context)
     - [Test Context Capture](#test-context-capture)
@@ -298,7 +298,7 @@ interface LoggingConfig {
 All logging methods follow the same signature pattern:
 
 ```typescript
-async function logXXX(message: string, options?: LogOptions): Promise<void>
+async function logXXX(message: string, options?: LoggingConfig): Promise<void>
 ```
 
 Example usage:
@@ -326,67 +326,109 @@ await log.info('Processing in worker', {
 })
 ```
 
-### LogOptions Interface
+### LoggingConfig Type
 
-The logging options that can be passed per individual log call:
+The unified type for logging configuration that can be used both for global settings and individual log calls. This type supports both simple boolean values and detailed configuration objects:
 
 ```typescript
-interface LogOptions {
-  /** Enable/disable console output for this log (default: true) */
-  console?: boolean
+type LoggingConfig = {
+  /** Enable/disable console output (accepts boolean or detailed config) */
+  console?:
+    | boolean
+    | {
+        enabled: boolean
+        colorize?: boolean
+        timestamps?: boolean
+      }
 
-  /** Enable/disable worker ID for this log (overrides global setting) */
+  /** Enable/disable worker ID for this log (accepts boolean or detailed config) */
   workerID?:
     | boolean
     | {
-        enabled?: boolean
+        enabled: boolean
         format?: string
       }
 
-  /** Enable/disable file logging for this log (default: based on global config) */
-  fileLogging?: boolean
+  /** Enable/disable file logging (accepts boolean or detailed config) */
+  fileLogging?:
+    | boolean
+    | {
+        enabled: boolean
+        outputDir?: string
+        testFolder?: string
+        stripAnsiCodes?: boolean
+        timestamp?: boolean
+        prependTestFile?: boolean
+        forceConsolidated?: boolean
+      }
+
+  /** Source file tracking for decorators (accepts boolean or detailed config) */
+  sourceFileTracking?:
+    | boolean
+    | {
+        enabled: boolean
+        exclude?: RegExp[]
+      }
 
   /** Formatting options */
   format?: {
-    /** Add a prefix to the message (perfect for worker IDs) */
+    /** Add a prefix to the message */
     prefix?: string
-    /** Add a new line after the message */
-    addNewLine?: boolean
+
+    /** Add a suffix to the message */
+    suffix?: string
+
+    /** Show timestamps in console output */
+    timestamps?: boolean
+
+    /** Use colorized output in console logs */
+    colorize?: boolean
+
+    /** Max line length for console messages */
+    maxLineLength?: number
   }
 
-  /** Additional metadata for structured logging */
-  context?: Record<string, unknown>
-
-  /** Test file path (usually set automatically) */
+  /** Capture test details (usually auto-captured) */
   testFile?: string
-
-  /** Test name (usually set automatically) */
   testName?: string
+
+  /** Custom context data to include in logs */
+  context?: Record<string, unknown>
 }
-```
 
-Examples for each property:
+// Individual log messages can override global settings
+// You can use either boolean values or detailed configurations
 
-```typescript
-// Basic usage - just logs the message
-await log.info('User logged in')
-
-// console: Enable/disable console output for this specific log
-await log.debug('Sensitive data', {
-  console: false // Only log to file, not to console
+// Using simple boolean values
+await log.info('Simple configuration', {
+  console: true,      // Enable console output with default settings
+  fileLogging: false  // Disable file logging for this message
 })
 
-// fileLogging: Enable/disable file logging for this specific log
-await log.info('Temporary debug info', {
-  fileLogging: false // Only log to console, don't persist to file
+// Using detailed configuration objects
+await log.info('Detailed configuration', {
+  console: {
+    enabled: true,
+    colorize: false,  // Disable colors
+    timestamps: false // Disable timestamps
+  },
+  fileLogging: {
+    enabled: true,
+    outputDir: 'custom-logs' // Use custom output directory
+  }
 })
 
-// format.prefix: Add custom prefix to this log message (e.g., worker ID)
-await log.info('Starting test', {
-  format: { prefix: `[W${test.info().workerIndex}]` }
+// Mixing styles
+await log.debug('Mixed configuration styles', {
+  console: true,           // Simple boolean
+  fileLogging: {           // Detailed object
+    enabled: true,
+    forceConsolidated: true
+  },
+  format: {
+    prefix: '[DEBUG] '     // Add a prefix
+  }
 })
-
-// format.addNewLine: Add a blank line after this message for better readability
 await log.step('Major test section', {
   format: { addNewLine: true }
 })

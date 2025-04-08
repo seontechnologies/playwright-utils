@@ -17,37 +17,67 @@ export type FormatOptions = {
   addNewLine?: boolean
 }
 
-/** Options for log calls */
-export type LogOptions = {
-  /** Enable/disable console output for this log (default: true) */
-  console?: boolean
+/** Global Configuration options for the logging utility
+ * Supports both simple boolean values and detailed configuration objects */
+export type LoggingConfig = {
+  // Console output configuration - either boolean or object with settings
+  console?:
+    | boolean
+    | {
+        enabled: boolean
+        colorize?: boolean
+        timestamps?: boolean
+      }
 
-  /** Enable/disable worker ID for this log (overrides global setting) */
+  // File logging configuration - either boolean or object with settings
+  fileLogging?:
+    | boolean
+    | {
+        enabled: boolean
+        outputDir?: string
+        // Default folder name for logs when no test context is available
+        testFolder?: string
+        // Strip ANSI color codes from log output
+        stripAnsiCodes?: boolean
+        // Include timestamps in log entries
+        timestamp?: boolean
+        // Prepend test file name to log entries
+        prependTestFile?: boolean
+        // Force all logs into a single consolidated file, even with test context
+        forceConsolidated?: boolean
+      }
+
+  // Worker ID configuration - either boolean or object with settings
   workerID?:
     | boolean
     | {
-        enabled?: boolean
+        enabled: boolean
         format?: string
       }
 
-  /** Enable/disable file logging for this log (default: based on global config) */
-  fileLogging?: boolean
+  // Source file tracking configuration - either boolean or object with settings
+  sourceFileTracking?:
+    | boolean
+    | {
+        enabled: boolean
+        showInLogs?: boolean
+      }
 
-  /** Formatting options */
+  // Formatting options
   format?: {
-    /** Add a prefix to the message (perfect for worker IDs) */
+    // Add a prefix to the message (perfect for worker IDs)
     prefix?: string
-    /** Add a new line after the message */
+    // Add a new line after the message
     addNewLine?: boolean
   }
 
-  /** Additional metadata for structured logging */
+  // Additional metadata for structured logging
   context?: Record<string, unknown>
 
-  /** Test file path (usually set automatically) */
+  // Test file path (usually set automatically)
   testFile?: string
 
-  /** Test name (usually set automatically) */
+  // Test name (usually set automatically)
   testName?: string
 }
 
@@ -60,7 +90,7 @@ export type LogParams = {
   /** Whether to log to console (simplified boolean option for backward compatibility) */
   console?: boolean
   /** Additional options for more complex logging configuration */
-  options?: Partial<LogOptions>
+  options?: Partial<LoggingConfig>
   /** Test file name for file logging context */
   testFile?: string
   /** Test name for file logging context */

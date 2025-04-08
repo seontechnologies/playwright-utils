@@ -1,6 +1,6 @@
 /** File output handler for logging */
 import * as fs from 'node:fs'
-import type { LogLevel, LogOptions } from '../types'
+import type { LogLevel, LoggingConfig } from '../types'
 import type { LogContext } from './context'
 import { getLogContext, populateTestOptions } from './context'
 import {
@@ -58,8 +58,8 @@ async function writeToLogFile(
  */
 export async function logToFile(
   message: string,
-  _level: LogLevel = 'info',
-  options: LogOptions = {}
+  _level: LogLevel = 'info', // not being used at the moment, but for consistent api with console and future proofing
+  options: LoggingConfig = {}
 ): Promise<boolean> {
   // Strip ANSI color codes from message
   message = stripAnsiCodes(message)
@@ -72,7 +72,12 @@ export async function logToFile(
 
   // Skip file logging if not enabled
   const config = getLoggingConfig()
-  if (!config.fileLogging?.enabled) {
+  // Check if fileLogging is false or if it's an object with enabled=false
+  if (
+    config.fileLogging === false ||
+    (typeof config.fileLogging === 'object' &&
+      config.fileLogging.enabled === false)
+  ) {
     return false
   }
 

@@ -42,6 +42,12 @@ import {
 
 // we can overwrite log config in test files
 // since we setup file logging at dev.config, let's turn off console in this test
+
+// This works with both the old boolean format or the new object format
+// Boolean format (still supported via unified config type):
+// log.configure({ console: false })
+
+// Object format (preferred for new code):
 log.configure({
   console: false
 })

@@ -1,7 +1,8 @@
 /** Message formatting and header management for logging */
 import * as path from 'node:path'
 import * as fs from 'node:fs'
-import type { LogContext, LogOptions } from './context'
+import type { LogContext } from './context'
+import type { LoggingConfig } from '../types'
 import { testHeaderTracker, extractTestInfoIfNeeded } from './context'
 import { trackFirstWrite } from './file-utils'
 
@@ -30,8 +31,12 @@ function formatWorkerID(context: LogContext): string | null {
   }
 
   // Get the worker index from the options or use a default
+  // In LogContext, options may include workerIndex from LoggingContextOptions
+  const logContextOptions = options as { workerIndex?: number }
   const workerIndex =
-    typeof options.workerIndex === 'number' ? options.workerIndex : 0
+    typeof logContextOptions.workerIndex === 'number'
+      ? logContextOptions.workerIndex
+      : 0
 
   // Replace {workerIndex} with the actual worker index
   return workerIDFormat.replace('{workerIndex}', String(workerIndex))
@@ -76,10 +81,22 @@ export function formatLogMessage(message: string, context: LogContext): string {
   }
 
   // Check if this is organized by test (each test has its own log file)
+  const fileLoggingObj = context.config.fileLogging
+  const isEnabled =
+    typeof fileLoggingObj === 'boolean'
+      ? fileLoggingObj
+      : typeof fileLoggingObj === 'object' && fileLoggingObj?.enabled !== false
+
+  const isForceConsolidated =
+    typeof fileLoggingObj === 'object' &&
+    fileLoggingObj?.forceConsolidated === true
+
+  const isAllTestsInOne =
+    typeof fileLoggingObj === 'object' &&
+    fileLoggingObj?.testFolder === 'all-tests-in-one'
+
   const isOrganizedByTest =
-    context.config.fileLogging?.enabled &&
-    !context.config.fileLogging?.forceConsolidated &&
-    context.config.fileLogging?.testFolder !== 'all-tests-in-one'
+    isEnabled && !isForceConsolidated && !isAllTestsInOne
 
   // Only add test name and file info for consolidated logs
   // Skip redundant info for organized logs since it's already in the folder/filename
@@ -129,7 +146,7 @@ function updateTestHeaderTracker(
 /** Format test header and return the updated message */
 export function formatTestHeader(
   message: string,
-  options: LogOptions,
+  options: LoggingConfig,
   isConsolidatedLog: boolean,
   sectionInfo: {
     sectionTitle?: string
@@ -316,7 +333,7 @@ function processSectionHeaders(
 /** Add test header to message when needed */
 export function addTestHeader(
   message: string,
-  options: LogOptions,
+  options: LoggingConfig,
   testFile?: string
 ): {
   message: string
