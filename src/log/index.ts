@@ -1,7 +1,11 @@
 // Export the main log object
 export { log } from './log'
 
-export type { LogLevel, LogOptions, LogParams } from './types'
+export type {
+  LogLevel,
+  LoggingConfig as LoggingConfig,
+  LogParams
+} from './types'
 
 // decorator and function wrapper
 export { methodTestStep, functionTestStep } from './decorators/test-step'

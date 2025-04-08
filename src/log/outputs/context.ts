@@ -1,18 +1,15 @@
 /** Log context and test tracking */
-import type { LoggingConfig } from '../config'
+import type { LoggingConfig } from '../types'
 import { getTestContextInfo, getLoggingConfig } from '../config'
 
-// Types
-export type LogOptions = {
-  testFile?: string
-  testName?: string
-  outputDir?: string
+// Additional properties used in context tracking
+type LoggingContextOptions = LoggingConfig & {
   workerIndex?: number
 }
 
 export type LogContext = {
   config: LoggingConfig
-  options: LogOptions
+  options: LoggingConfig
   testFile?: string
   testName?: string
   workerIDEnabled: boolean
@@ -22,25 +19,30 @@ export type LogContext = {
 const DEFAULT_WORKER_FORMAT = '[W{workerIndex}]'
 
 /** Gets the log context for organizing logs */
-export function getLogContext(options: LogOptions): LogContext {
+export function getLogContext(options: LoggingConfig): LogContext {
   const config = getLoggingConfig()
   const testContext = getTestContextInfo()
 
   // Create a new options object with test context information
-  const enrichedOptions: LogOptions = {
+  const enrichedOptions = {
     ...options,
     // Use options values or fallback to test context values
     testFile: options.testFile || testContext?.testFile,
     testName: options.testName || testContext?.testName,
-    workerIndex:
-      options.workerIndex !== undefined
-        ? options.workerIndex
-        : testContext?.workerIndex
-  }
+    // Worker index is stored in test context but not part of LoggingConfig
+    workerIndex: testContext?.workerIndex
+  } as LoggingContextOptions
 
   // Determine if worker IDs are enabled (default to true unless explicitly disabled)
-  const workerIDEnabled = config.workerID?.enabled !== false
-  const workerIDFormat = config.workerID?.format || DEFAULT_WORKER_FORMAT
+  const workerIDEnabled =
+    typeof config.workerID === 'boolean'
+      ? config.workerID
+      : config.workerID?.enabled !== false
+
+  const workerIDFormat =
+    typeof config.workerID === 'object' && config.workerID?.format
+      ? config.workerID.format
+      : DEFAULT_WORKER_FORMAT
 
   return {
     config,
@@ -76,7 +78,7 @@ export function extractTestInfoFromMessage(message: string): {
  */
 export function extractTestInfoIfNeeded(
   message: string,
-  options: LogOptions,
+  options: LoggingConfig,
   detectedFile?: string
 ): string | undefined {
   // If no test name in options, see if we can extract it from the message
@@ -134,7 +136,7 @@ function getTestNameFromFilePath(filePath: string | undefined): string {
 }
 
 /** Populate the test options with context information */
-export function populateTestOptions(options: LogOptions): {
+export function populateTestOptions(options: LoggingContextOptions): {
   testFile: string | undefined
   hasTestContext: boolean
 } {

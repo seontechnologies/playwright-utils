@@ -4,8 +4,20 @@ import path from 'path'
 
 // the default settings turn on console logging
 // this is just to show that we can set things here
+// Both configuration styles are supported:
+
+// Boolean style (simple):
 // log.configure({
 //   console: false
+// })
+
+// Object style (with additional options):
+// log.configure({
+//   console: {
+//     enabled: false,
+//     colorize: true,
+//     timestamps: true
+//   }
 // })
 
 dotenvConfig({

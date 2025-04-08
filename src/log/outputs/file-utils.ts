@@ -52,14 +52,19 @@ export function createLogFilePath(context: LogContext): string {
   const { config, testFile, testName, options } = context
 
   // Determine the base output directory for logs
-  const outputDir = config.fileLogging?.outputDir || 'playwright-logs'
+  const outputDir =
+    typeof config.fileLogging === 'object' && config.fileLogging?.outputDir
+      ? config.fileLogging.outputDir
+      : 'playwright-logs'
   ensureDirectoryExists(outputDir)
 
   // Get date string for daily folders
   const dateString = getFormattedDate()
 
   // Check if forceConsolidated flag is set in the config
-  const forceConsolidated = config.fileLogging?.forceConsolidated === true
+  const forceConsolidated =
+    typeof config.fileLogging === 'object' &&
+    config.fileLogging.forceConsolidated === true
 
   // Determine if we should organize by test
   // If forceConsolidated is true, we'll ignore test context
@@ -76,13 +81,21 @@ export function createLogFilePath(context: LogContext): string {
 
     subDir = path.join(outputDir, dateString, testFileName)
 
-    const workerIndex =
-      typeof options?.workerIndex === 'number' ? options.workerIndex : 'unknown'
+    // Use the worker info from context options - note that workerIndex is extended in LoggingContextOptions
+    // but not part of the standard LoggingConfig
+    const logContextOptions = options as { workerIndex?: number }
+    const workerString =
+      typeof logContextOptions?.workerIndex === 'number'
+        ? logContextOptions.workerIndex
+        : 'unknown'
 
-    fileName = createTestBasedFileName(testName, workerIndex)
+    fileName = createTestBasedFileName(testName, workerString)
   } else {
     // Consolidated logs - use simple pattern
-    const defaultFolder = config.fileLogging?.testFolder || 'consolidated'
+    const defaultFolder =
+      typeof config.fileLogging === 'object' && config.fileLogging?.testFolder
+        ? config.fileLogging.testFolder
+        : 'consolidated'
     subDir = path.join(outputDir, dateString, defaultFolder)
     fileName = 'test-logs.log'
   }
