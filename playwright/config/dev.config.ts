@@ -7,24 +7,24 @@ import { log } from '../../src'
 // best place to put it is in a config file
 
 // SINGLE LOG FILE
-// log.configure({
-//   fileLogging: {
-//     enabled: true,
-//     // Force all tests to use this specific folder regardless of test context
-//     testFolder: 'all-tests-in-one',
-//     forceConsolidated: true,
-//     outputDir: 'playwright-logs/consolidated-logs'
-//   }
-// })
-// ORGANIZED LOGS
 log.configure({
   fileLogging: {
     enabled: true,
-    testFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
-    forceConsolidated: false, // Explicitly disable consolidation
-    outputDir: 'playwright-logs/organized-logs'
+    // Force all tests to use this specific folder regardless of test context
+    testFolder: 'all-tests-in-one',
+    forceConsolidated: true,
+    outputDir: 'playwright-logs/consolidated-logs'
   }
 })
+// ORGANIZED LOGS
+// log.configure({
+//   fileLogging: {
+//     enabled: true,
+//     testFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
+//     forceConsolidated: false, // Explicitly disable consolidation
+//     outputDir: 'playwright-logs/organized-logs'
+//   }
+// })
 
 export default defineConfig(
   merge({}, baseConfig, {

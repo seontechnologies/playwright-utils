@@ -2,24 +2,23 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { LogContext } from './context'
+import type { LoggingConfig } from '../types'
 
 // Tracks which files have been written to in the current test run
 const writtenFiles = new Set<string>()
 
-/**
- * Tracks which files have been written to in the current test run
- * Returns true if this is the first write to this file in the current run
- */
-export function trackFirstWrite(filePath: string): boolean {
-  if (writtenFiles.has(filePath)) {
-    return false
-  }
+/** Tracks which files have been written to in the current test run
+ * Returns true if this is the first write to this file in the current run */
+export const trackFirstWrite = (filePath: string): boolean => {
+  if (writtenFiles.has(filePath)) return false
+
   writtenFiles.add(filePath)
+
   return true
 }
 
 /** Ensures a directory exists, creating it if necessary */
-export function ensureDirectoryExists(directory: string): void {
+const ensureDirectoryExists = (directory: string): void => {
   if (!fs.existsSync(directory)) {
     try {
       fs.mkdirSync(directory, { recursive: true })
@@ -30,183 +29,113 @@ export function ensureDirectoryExists(directory: string): void {
 }
 
 /** Gets current date formatted as YYYY-MM-DD */
-export const getFormattedDate = (): string => {
+const getFormattedDate = (): string => {
   const date = new Date()
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 /** Creates a file name for test-organized logs */
-export const createTestBasedFileName = (
+const createTestBasedFileName = (
   testName: string | undefined,
   workerIndex: number | string
 ): string => {
   const safeName = testName
-    ? testName.replace(/[^a-zA-Z0-9]/g, '-')
+    ? testName.replace(/[^a-zA-Z0-9]/g, '-') // replace non-alphanumeric characters with hyphens
     : 'unnamed-test'
 
   return `${safeName}-worker-${workerIndex}.log`
 }
 
-/** Creates a file path for logs based on test context */
+/* PURE HELPERS */
+
+/** Extracts a safe test file name from the provided file path. */
+const getTestFileName = (testFile?: string): string =>
+  testFile
+    ? path.basename(testFile, path.extname(testFile))
+    : 'unknown-test-file'
+
+/** Extracts the worker information from the options. */
+const getWorkerString = (options: unknown): string => {
+  const logContextOptions = options as { workerIndex?: number }
+  return typeof logContextOptions?.workerIndex === 'number'
+    ? logContextOptions.workerIndex.toString()
+    : 'unknown'
+}
+
+/** Computes the subdirectory and file name for test-organized logs. */
+const getSubDirAndFileNameForTestContext = (
+  outputDir: string,
+  dateString: string,
+  testFile: string | undefined,
+  testName: string | undefined,
+  options: unknown
+): { subDir: string; fileName: string } => {
+  const testFileName = getTestFileName(testFile)
+  const subDir = path.join(outputDir, dateString, testFileName)
+  const workerString = getWorkerString(options)
+  const fileName = createTestBasedFileName(testName, workerString)
+  return { subDir, fileName }
+}
+
+/** Returns the folder name used for consolidated logs. */
+const getConsolidatedFolderName = (config: LoggingConfig): string =>
+  (typeof config.fileLogging === 'object' && config.fileLogging?.testFolder) ||
+  'consolidated'
+
+/** * Computes the subdirectory and file name for consolidated logs. */
+const getSubDirAndFileNameForConsolidated = (
+  outputDir: string,
+  dateString: string,
+  config: LoggingConfig
+): { subDir: string; fileName: string } => {
+  const defaultFolder = getConsolidatedFolderName(config)
+  const subDir = path.join(outputDir, dateString, defaultFolder)
+  const fileName = 'test-logs.log'
+  return { subDir, fileName }
+}
+
+/** Determines the base output directory for logs using the config,
+ * or falls back to 'playwright-logs'. */
+const getOutputDir = (config: LoggingConfig): string =>
+  (typeof config.fileLogging === 'object' && config.fileLogging?.outputDir) ||
+  'playwright-logs'
+
+/** Determines if log consolidation is forced by config. */
+const isForceConsolidated = (config: LoggingConfig): boolean =>
+  typeof config.fileLogging === 'object' &&
+  config.fileLogging.forceConsolidated === true
+
+/** Determines if test context (test file or test name) is available
+ * and should be used to organize logs. */
+const hasTestContext = (
+  config: LoggingConfig,
+  testFile?: string,
+  testName?: string
+): boolean => !isForceConsolidated(config) && Boolean(testFile || testName)
+
+/* FINAL IMPURE FUNCTION */
+
+/** Creates a file path for logs based on test context.
+ * This function uses pure helper functions for decision logic,
+ * while managing side effects (directory creation) as needed. */
 export function createLogFilePath(context: LogContext): string {
   const { config, testFile, testName, options } = context
 
-  // Determine the base output directory for logs
-  const outputDir =
-    typeof config.fileLogging === 'object' && config.fileLogging?.outputDir
-      ? config.fileLogging.outputDir
-      : 'playwright-logs'
+  const outputDir = getOutputDir(config)
   ensureDirectoryExists(outputDir)
 
-  // Get date string for daily folders
   const dateString = getFormattedDate()
 
-  // Check if forceConsolidated flag is set in the config
-  const forceConsolidated =
-    typeof config.fileLogging === 'object' &&
-    config.fileLogging.forceConsolidated === true
+  const { subDir, fileName } = hasTestContext(config, testFile, testName)
+    ? getSubDirAndFileNameForTestContext(
+        outputDir,
+        dateString,
+        testFile,
+        testName,
+        options
+      )
+    : getSubDirAndFileNameForConsolidated(outputDir, dateString, config)
 
-  // Determine if we should organize by test
-  // If forceConsolidated is true, we'll ignore test context
-  const hasTestContext = !forceConsolidated && Boolean(testFile || testName)
-
-  let subDir: string
-  let fileName: string
-
-  if (hasTestContext) {
-    // Organize by test - use test file/name pattern
-    const testFileName = testFile
-      ? path.basename(testFile, path.extname(testFile))
-      : 'unknown-test-file'
-
-    subDir = path.join(outputDir, dateString, testFileName)
-
-    // Use the worker info from context options - note that workerIndex is extended in LoggingContextOptions
-    // but not part of the standard LoggingConfig
-    const logContextOptions = options as { workerIndex?: number }
-    const workerString =
-      typeof logContextOptions?.workerIndex === 'number'
-        ? logContextOptions.workerIndex
-        : 'unknown'
-
-    fileName = createTestBasedFileName(testName, workerString)
-  } else {
-    // Consolidated logs - use simple pattern
-    const defaultFolder =
-      typeof config.fileLogging === 'object' && config.fileLogging?.testFolder
-        ? config.fileLogging.testFolder
-        : 'consolidated'
-    subDir = path.join(outputDir, dateString, defaultFolder)
-    fileName = 'test-logs.log'
-  }
-
-  // Ensure the subdirectory exists
   ensureDirectoryExists(subDir)
-
-  // Return the full path to the log file
   return path.join(subDir, fileName)
-}
-
-/** Write content to a file */
-export async function writeToFile(
-  filePath: string,
-  content: string
-): Promise<boolean> {
-  try {
-    await fs.promises.appendFile(filePath, content)
-    return true
-  } catch (error) {
-    console.error(`Error writing to log file: ${filePath}`, error)
-    return false
-  }
-}
-
-/** Create a header for a new log file */
-export async function writeLogFileHeader(
-  filePath: string,
-  context: LogContext
-): Promise<boolean> {
-  const { testName, testFile } = context
-  const isDefaultFolder = !testFile && !testName
-
-  // For default folder logs using the consolidated file, we only want to add the
-  // header when the file is first created, not for every test run
-  const isFirstWrite = trackFirstWrite(filePath)
-
-  // If this is a regular test log, we always add a header on first write
-  // If this is the default consolidated log, only add header on very first write to file
-  if (!isFirstWrite) {
-    // For consolidated logs in default folder, add a session divider on each new test run
-    if (isDefaultFolder) {
-      const divider = [
-        '',
-        '-'.repeat(80),
-        `New Test Session Started: ${new Date().toISOString()}`,
-        '-'.repeat(80),
-        ''
-      ].join('\n')
-
-      try {
-        await fs.promises.appendFile(filePath, divider)
-      } catch (error) {
-        console.error(`Error writing to log file: ${filePath}`, error)
-        return false
-      }
-    }
-    return true
-  }
-
-  // First time writing to this file, add the main header
-  const header = [
-    '='.repeat(80),
-    `Test Log: ${testName || 'Consolidated Test Log'}`,
-    `Test File: ${testFile || (isDefaultFolder ? 'Multiple Files' : 'Unknown')}`,
-    `Started: ${new Date().toISOString()}`,
-    '='.repeat(80),
-    ''
-  ].join('\n')
-
-  try {
-    await fs.promises.writeFile(filePath, header)
-    return true
-  } catch (error) {
-    console.error(`Error writing header to log file: ${filePath}`, error)
-    return false
-  }
-}
-
-/** Write formatted log message to file with proper headers */
-export async function writeToLogFile(
-  filePath: string,
-  message: string,
-  context: LogContext
-): Promise<boolean> {
-  // Ensure directory exists
-  const directory = path.dirname(filePath)
-  ensureDirectoryExists(directory)
-
-  // Add header on first write to this file
-  if (trackFirstWrite(filePath)) {
-    const headerSuccess = await writeLogFileHeader(filePath, context)
-    if (!headerSuccess) return false
-
-    // Add a newline after the header if the message doesn't start with one
-    if (message && !message.startsWith('\n')) {
-      try {
-        await fs.promises.appendFile(filePath, '\n')
-      } catch (error) {
-        console.error(`Error writing newline to log file: ${filePath}`, error)
-        return false
-      }
-    }
-  }
-
-  // Write the message to the file
-  try {
-    await fs.promises.appendFile(filePath, message + '\n')
-    return true
-  } catch (error) {
-    console.error(`Error writing to log file: ${filePath}`, error)
-    return false
-  }
 }

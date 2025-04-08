@@ -3,12 +3,28 @@ import * as path from 'node:path'
 import * as fs from 'node:fs'
 import type { LogContext } from './context'
 import type { LoggingConfig } from '../types'
-import { testHeaderTracker, extractTestInfoIfNeeded } from './context'
+import { extractTestInfoIfNeeded } from './context'
 import { trackFirstWrite } from './file-utils'
 
 // ANSI color escape sequence regex pattern
 // eslint-disable-next-line no-control-regex
 const ANSI_REGEX = /\u001b\[(?:\d*;)*\d*m/g
+
+/** Track the last test details to add headers for consolidated logs */
+type TestTracker = {
+  lastTestName: string
+  lastTestFile: string
+  lastInferredFile: string
+  lastInferredTestName: string
+}
+
+/** Track test headers to avoid repeating the same headers */
+const testHeaderTracker: TestTracker = {
+  lastTestName: '',
+  lastTestFile: '',
+  lastInferredFile: '',
+  lastInferredTestName: ''
+}
 
 /** Strip ANSI color codes from a string */
 export const stripAnsiCodes = (str: string): string =>

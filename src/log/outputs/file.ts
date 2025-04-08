@@ -9,37 +9,47 @@ import {
   stripAnsiCodes,
   writeLogFileHeader
 } from './formatter'
-import { trackFirstWrite, createLogFilePath } from './file-utils'
+import { createLogFilePath, trackFirstWrite } from './file-utils'
 import { getLoggingConfig } from '../config'
 
-async function writeToLogFile(
+/** Appends a newline to the file if the message doesn't already start with one */
+const appendNewlineIfNeeded = async (
   filePath: string,
-  message: string,
-  context: LogContext
-): Promise<boolean> {
-  // Clean the message for file logging
-  const cleanMessage = stripAnsiCodes(message)
+  message: string
+): Promise<boolean> => {
+  if (message && !message.startsWith('\n')) {
+    try {
+      await fs.promises.appendFile(filePath, '\n')
+      return true
+    } catch (error) {
+      console.error(`Error writing newline to log file: ${filePath}`, error)
+      return false
+    }
+  }
+  return true
+}
 
-  // Add header on first write to this file
+/** Writes the header if this is the first write to the file */
+const writeHeaderIfNecessary = async (
+  filePath: string,
+  context: LogContext,
+  cleanMessage: string
+): Promise<boolean> => {
   if (trackFirstWrite(filePath)) {
     const headerSuccess = await writeLogFileHeader(filePath, context)
     if (!headerSuccess) return false
 
-    // Add a newline after the header if the message doesn't start with one
-    if (cleanMessage && !cleanMessage.startsWith('\n')) {
-      try {
-        await fs.promises.appendFile(filePath, '\n')
-      } catch (error) {
-        console.error(`Error writing newline to log file: ${filePath}`, error)
-        return false
-      }
-    }
+    // Append a newline after the header if needed
+    return await appendNewlineIfNeeded(filePath, cleanMessage)
   }
+  return true
+}
 
-  // Format the message with timestamp, worker ID, etc.
-  const formattedMessage = formatLogMessage(cleanMessage, context)
-
-  // Write the message to the file
+/** Appends the fully formatted message to the file */
+const appendFormattedMessage = async (
+  filePath: string,
+  formattedMessage: string
+): Promise<boolean> => {
   try {
     await fs.promises.appendFile(filePath, formattedMessage + '\n')
     return true
@@ -50,11 +60,55 @@ async function writeToLogFile(
 }
 
 /**
- * Log a message to a file
- * @param message - The message to log
- * @param _level - The log level
- * @param options - Optional configuration including test file and name
- * @returns Promise resolving to true if log was successful
+ * Writes a message to a log file.
+ * This function decomposes the process into small steps:
+ * 1. Clean the message.
+ * 2. Write the header if necessary.
+ * 3. Format the message.
+ * 4. Append the formatted message to the file.
+ *
+ * @param filePath - The path to the log file.
+ * @param message - The raw log message.
+ * @param context - The logging context.
+ * @returns A promise that resolves to true if the operation was successful.
+ */
+const writeToLogFile = async (
+  filePath: string,
+  message: string,
+  context: LogContext
+): Promise<boolean> => {
+  // Step 1: Clean the message.
+  const cleanMessage = stripAnsiCodes(message)
+
+  // Step 2: Write header if this is the first write.
+  const headerOk = await writeHeaderIfNecessary(filePath, context, cleanMessage)
+  if (!headerOk) return false
+
+  // Step 3: Format the message. (formatLogMessage is assumed pure)
+  const formattedMessage = formatLogMessage(cleanMessage, context)
+
+  // Step 4: Append the formatted message.
+  return await appendFormattedMessage(filePath, formattedMessage)
+}
+
+/**
+ * Logs a message to the file system, handling both organized and consolidated logging modes.
+ *
+ * This function manages the complete file logging process:
+ * 1. Prepares the message by stripping ANSI codes
+ * 2. Resolves test context information and adds appropriate headers
+ * 3. Determines the proper file path based on logging configuration
+ *    - For organized logs: Creates test-specific log files in dated folders
+ *    - For consolidated logs: Writes to a single shared log file
+ * 4. Formats and writes the message with proper timestamps and context
+ *
+ * The behavior is controlled by the global logging configuration and per-call options.
+ *
+ * @param message - The message content to log to the file
+ * @param _level - The log level (info, debug, etc.) - reserved for future filtering capabilities
+ * @param options - Configuration options that can override global settings:
+ *                  Can use boolean or detailed object configuration for flexibility
+ * @returns Promise<boolean> - Resolves to true if logging was successful, false otherwise
  */
 export async function logToFile(
   message: string,

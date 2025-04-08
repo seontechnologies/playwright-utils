@@ -8,8 +8,8 @@ type LoggingContextOptions = LoggingConfig & {
 }
 
 export type LogContext = {
-  config: LoggingConfig
-  options: LoggingConfig
+  config: LoggingConfig // Global configuration from getLoggingConfig()
+  options: LoggingConfig // Per-call options with context enrichment
   testFile?: string
   testName?: string
   workerIDEnabled: boolean
@@ -18,7 +18,32 @@ export type LogContext = {
 
 const DEFAULT_WORKER_FORMAT = '[W{workerIndex}]'
 
-/** Gets the log context for organizing logs */
+/**
+ * Creates a unified context object for organizing and formatting logs.
+ *
+ * This function serves several important purposes in the logging system:
+ *
+ * 1. Combines global configuration with per-call options to enable flexibility
+ *    in how logs are formatted and stored
+ *
+ * 2. Enriches logging context with test information (test name, file, worker index)
+ *    which is used for properly organizing logs by test
+ *
+ * 3. Normalizes worker ID settings by determining if worker IDs are enabled
+ *    and what format they should use
+ *
+ * 4. Provides a consistent interface for other logging components (file, console)
+ *    to access all context information needed for their operations
+ *
+ * The returned LogContext is used throughout the logging system to:
+ * - Create proper file paths for log files
+ * - Format messages with appropriate test headers
+ * - Add worker identification to logs
+ * - Apply formatting rules consistently
+ *
+ * @param options - Per-call logging options passed to the log method
+ * @returns LogContext - A complete context object with both global and call-specific settings
+ */
 export function getLogContext(options: LoggingConfig): LogContext {
   const config = getLoggingConfig()
   const testContext = getTestContextInfo()
@@ -54,15 +79,19 @@ export function getLogContext(options: LoggingConfig): LogContext {
   }
 }
 
-/** Extract test information from a log message */
-export function extractTestInfoFromMessage(message: string): {
+/** Extract test information from formatted messages
+ * like [TestName] [File: filename.spec.ts] */
+const extractTestInfoFromMessage = (
+  message: string
+): {
   testName?: string
   testFile?: string
-} {
-  // Extract test info from formatted messages like [TestName] [File: filename.spec.ts]
+} => {
+  // [TestName] [File: filename.spec.ts]
   const testInfoPattern = /\[([^\]]+)\]\s*\[File:\s*([^\]]+)\]/
   const testNameMatch = message.match(testInfoPattern)
 
+  // If we have a match (3 capture groups), extract the test name and file
   if (testNameMatch && testNameMatch.length >= 3) {
     return {
       testName: testNameMatch[1] ? testNameMatch[1].trim() : undefined,
@@ -74,7 +103,18 @@ export function extractTestInfoFromMessage(message: string): {
 }
 
 /**
- * Extract test info from message and update options if needed
+ * Extracts test information from log messages and updates options object with this data.
+ *
+ * Used specifically for consolidated logging mode to ensure test context is maintained
+ * when multiple tests write to the same log file. This function:
+ *
+ * 1. Checks if the message contains test info in the [TestName] [File: path] format
+ * 2. Updates the options object directly by adding the extracted test name
+ * 3. If needed, also updates the test file path in the options object
+ * 4. Returns the detected test file path for caller's reference
+ *
+ * Note: This function intentionally mutates the options parameter as a side effect
+ * to ensure test context is properly maintained across the logging system.
  */
 export function extractTestInfoIfNeeded(
   message: string,
@@ -99,26 +139,6 @@ export function extractTestInfoIfNeeded(
   return detectedFile
 }
 
-/**
- * Track the last test details to add headers for consolidated logs
- */
-type TestTracker = {
-  lastTestName: string
-  lastTestFile: string
-  lastInferredFile: string
-  lastInferredTestName: string
-}
-
-/**
- * Track test headers to avoid repeating the same headers
- */
-export const testHeaderTracker: TestTracker = {
-  lastTestName: '',
-  lastTestFile: '',
-  lastInferredFile: '',
-  lastInferredTestName: ''
-}
-
 /** Get test name from a spec file path
  * Useful for log formatting when test context isn't captured */
 function getTestNameFromFilePath(filePath: string | undefined): string {
@@ -135,7 +155,26 @@ function getTestNameFromFilePath(filePath: string | undefined): string {
   return filename.replace(/-/g, ' ')
 }
 
-/** Populate the test options with context information */
+/**
+ * Populates test options with context information for both logging modes.
+ *
+ * This function enriches logging options with test context information,
+ * supporting both organized and consolidated logging modes:
+ *
+ * For organized logging:
+ * - Ensures each test log file has the correct test name in its path
+ * - Provides proper file organization based on test information
+ *
+ * For consolidated logging:
+ * - Ensures test identification headers contain accurate test names
+ * - Provides fallback test names based on file paths when needed
+ *
+ * The function mutates the options object by adding test context,
+ * and returns additional metadata about the context enrichment.
+ *
+ * @param options - The logging options to enrich with test context
+ * @returns Object containing the resolved test file and whether context was found
+ */
 export function populateTestOptions(options: LoggingContextOptions): {
   testFile: string | undefined
   hasTestContext: boolean
