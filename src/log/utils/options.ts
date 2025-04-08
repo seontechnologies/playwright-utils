@@ -43,10 +43,8 @@ export const mergeOptions = (
   }
 }
 
-/**
- * Convert a unified configuration to LoggingConfig format
- * This ensures we can still use the simple LoggingConfig interface internally
- */
+/** Convert a unified configuration to LoggingConfig format
+ * This ensures we can still use the simple LoggingConfig interface with booleans */
 export const toLoggingConfig = (
   config: Partial<LoggingConfig>
 ): Partial<LoggingConfig> => {
