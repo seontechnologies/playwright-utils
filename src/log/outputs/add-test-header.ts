@@ -1,4 +1,3 @@
-/** Message formatting and header management for logging */
 import * as path from 'node:path'
 import type { LoggingConfig } from '../types'
 import { extractTestInfoIfNeeded } from './context'

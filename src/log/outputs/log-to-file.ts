@@ -1,4 +1,3 @@
-/** File output handler for logging */
 import * as fs from 'node:fs'
 import type { LogLevel, LoggingConfig } from '../types'
 import type { LogContext } from './context'

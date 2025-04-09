@@ -1,6 +1,3 @@
-/**
- * Console output handler for logging
- */
 import { asPromise } from '../utils/async'
 import type { LogLevel } from '../types'
 

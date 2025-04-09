@@ -1,4 +1,3 @@
-/** File system utilities for file logging */
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { LogContext } from './context'
