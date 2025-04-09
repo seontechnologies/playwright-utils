@@ -5,7 +5,7 @@ import { asPromise } from '../utils/async'
 import type { LogLevel } from '../types'
 
 /** Maps log levels to appropriate console methods */
-export const getConsoleMethodForLevel = (
+const getConsoleMethodForLevel = (
   level: LogLevel
 ): ((message: string) => void) => {
   // Map log levels to console methods using a functional approach

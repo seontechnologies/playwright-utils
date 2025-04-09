@@ -4,10 +4,23 @@ import type { LogLevel, LoggingConfig } from '../types'
 import type { LogContext } from './context'
 import { getLogContext, populateTestOptions } from './context'
 import { addTestHeader } from './add-test-header'
-import { createLogFilePath, trackFirstWrite } from './file-utils'
+import { createLogFilePath } from './file-utils'
 import { getLoggingConfig } from '../config'
 import { formatLogMessage } from '../formatters/format-message'
 import path from 'node:path'
+
+// Tracks which files have been written to in the current test run
+const writtenFiles = new Set<string>()
+
+/** Tracks which files have been written to in the current test run
+ * Returns true if this is the first write to this file in the current run */
+const trackFirstWrite = (filePath: string): boolean => {
+  if (writtenFiles.has(filePath)) return false
+
+  writtenFiles.add(filePath)
+
+  return true
+}
 
 /** Strip ANSI color codes from a string, for better readability in a text file */
 const stripAnsiCodes = (str: string): string => {
