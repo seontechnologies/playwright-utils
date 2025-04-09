@@ -41,7 +41,7 @@ const formatConfig: FormatConfigMap = {
 }
 
 /** Formats a message for logging with appropriate formatting based on log level */
-export const formatMessage = (
+export function formatMessage(
   message: string,
   level: LogLevel = 'info',
   options: FormatOptions = {
@@ -50,7 +50,7 @@ export const formatMessage = (
     maxLineLength: 120
   },
   workerIdConfig?: { enabled: boolean; format: string }
-): string => {
+): string {
   // Get configuration for this log level
   const config = formatConfig[level]
 
