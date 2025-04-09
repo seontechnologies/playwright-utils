@@ -20,7 +20,7 @@ log.configure({
 // log.configure({
 //   fileLogging: {
 //     enabled: true,
-//     testFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
+//     testFolder: 'before-hooks', // Set explicitly different from 'consolidated-logs'
 //     forceConsolidated: false, // Explicitly disable consolidation
 //     outputDir: 'playwright-logs/organized-logs'
 //   }
