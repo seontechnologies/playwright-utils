@@ -1,6 +1,5 @@
 import * as fs from 'node:fs'
-import type { LogLevel, LoggingConfig } from '../types'
-import type { LogContext } from './context'
+import type { LogContext, LogLevel, LoggingConfig } from '../types'
 import { getLogContext, populateTestOptions } from './context'
 import { addTestHeader } from './add-test-header'
 import { createLogFilePath } from './create-log-file-path'

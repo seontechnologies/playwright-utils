@@ -1,8 +1,12 @@
 /** Message formatting utilities  */
 
 import { colors } from './colors'
-import type { LogLevel, FormatOptions, FormatConfigMap } from '../types'
-import type { LogContext } from '../outputs/context'
+import type {
+  LogLevel,
+  FormatOptions,
+  FormatConfigMap,
+  LogContext
+} from '../types'
 import { getTestContextInfo } from '../config'
 import { formatMessageBase } from './format-message-base'
 
@@ -98,7 +102,7 @@ export function formatLogMessage(message: string, context: LogContext): string {
 
   const isAllTestsInOne =
     typeof fileLoggingObj === 'object' &&
-    fileLoggingObj?.testFolder === 'all-tests-in-one'
+    fileLoggingObj?.defaultTestFolder === 'all-tests-in-one'
 
   const isOrganizedByTest =
     isEnabled && !isForceConsolidated && !isAllTestsInOne

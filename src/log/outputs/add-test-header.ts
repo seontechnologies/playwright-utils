@@ -1,4 +1,4 @@
-import * as path from 'node:path'
+// import * as path from 'node:path' - Not needed after simplifying headers
 import type { LoggingConfig } from '../types'
 import { extractTestInfoIfNeeded } from './context'
 
@@ -6,183 +6,119 @@ import { extractTestInfoIfNeeded } from './context'
 type TestTracker = {
   readonly lastTestName: string
   readonly lastTestFile: string
-  readonly lastInferredFile: string
-  readonly lastInferredTestName: string
 }
 
 /** Initial empty tracker state */
 const initialTracker: TestTracker = {
   lastTestName: '',
-  lastTestFile: '',
-  lastInferredFile: '',
-  lastInferredTestName: ''
+  lastTestFile: ''
 }
 
-/** Update tracker with new data in a pure functional way */
-const updateTracker = (
-  current: TestTracker,
-  updates: Partial<TestTracker>
-): TestTracker => ({ ...current, ...updates })
-
-/** Format section header for consolidated logs: ex: =================== */
-const formatSectionHeader = (testName: string, fileName: string): string =>
-  `\n${'='.repeat(30)} ${testName} - ${fileName} ${'='.repeat(30)}\n\n`
+/** For consolidated logs, format section header with a consistent divider */
+const formatSectionHeader = (): string =>
+  `\n${'='.repeat(40)} TEST SECTION ${'='.repeat(40)}\n\n`
 
 /** Pure function to generate updated tracker state */
 const createUpdatedTracker = (
   current: TestTracker,
   testName: string,
-  testFile?: string,
-  inferredFile?: string,
-  inferredTestName?: string
+  testFile?: string
 ): TestTracker => ({
   ...current,
   lastTestName: testName || '',
-  ...(testFile ? { lastTestFile: testFile } : {}),
-  ...(inferredFile ? { lastInferredFile: inferredFile } : {}),
-  ...(inferredTestName ? { lastInferredTestName: inferredTestName } : {})
+  ...(testFile ? { lastTestFile: testFile } : {})
 })
 
-/** Format test header and return the updated message and tracker state */
-const formatTestHeader = (
-  tracker: TestTracker,
-  message: string,
-  options: LoggingConfig,
-  isConsolidatedLog: boolean,
-  sectionInfo: {
-    sectionTitle?: string
-    inferredFile?: string
-    testName?: string
-  },
-  safeTestFile: string,
-  detectedTestFile: string | undefined
-): {
+/** Result of the test header formatting */
+type TestHeaderResult = {
   message: string
   testFile: string | undefined
   tracker: TestTracker
-} => {
-  const { sectionTitle } = sectionInfo
+}
 
-  // For test name, prioritize in this order:
-  // 1. Inferred test name from section (if in consolidated logs)
-  // 2. Actual test name from context (if available)
-  // 3. Section title as fallback (for nested sections)
-  // 4. 'Unknown Test' as last resort
-  const inferredTestName = sectionInfo?.testName || tracker.lastInferredTestName
-  const safeTestName =
-    isConsolidatedLog && inferredTestName
-      ? inferredTestName
-      : options.testName || (sectionTitle ? sectionTitle : 'Unknown Test')
+/** Input data for test header formatting */
+type TestHeaderInput = {
+  tracker: TestTracker
+  message: string
+  options: LoggingConfig
+  isConsolidatedLog: boolean
+}
 
-  // Get appropriate file name for display
-  const safeFileName = safeTestFile
-    ? path.basename(safeTestFile)
-    : 'Unknown File'
-
-  // Use inferred file name if available (for better log readability)
-  // For display purposes, prioritize stored inferred file name for consistency
-  const displayFileName =
-    sectionInfo?.inferredFile || tracker.lastInferredFile || safeFileName
-
-  // Create a nicely formatted header for new test sections
-  if (isConsolidatedLog) {
-    const header = formatSectionHeader(safeTestName, displayFileName)
-    message = `${header}${message}`
+/** Test information for display */
+type TestInfo = {
+  sectionInfo: {
+    sectionTitle?: string
   }
+  safeTestFile: string
+  detectedTestFile?: string
+}
+
+/** For consolidated logs, creates a formatted header for test logs
+ * If consolidated logging is disabled, the original message is returned unchanged.
+ * Generates a section header based on available test information and prepends it to the original message. */
+const createFormattedHeader = ({
+  message,
+  isConsolidatedLog
+}: TestHeaderInput &
+  Pick<TestInfo, 'sectionInfo' | 'safeTestFile'>): string => {
+  if (!isConsolidatedLog) return message
+
+  const header = formatSectionHeader()
+
+  return `${header}${message}`
+}
+
+/** Format test header and return the updated message and tracker state
+ * Works with both consolidated and non-consolidated logs, but only adds headers for consolidated logs */
+const formatTestHeader = (
+  input: TestHeaderInput,
+  testInfo: TestInfo
+): TestHeaderResult => {
+  const { tracker, message, options, isConsolidatedLog } = input
+  const { sectionInfo, safeTestFile, detectedTestFile } = testInfo
+
+  const formattedMessage = createFormattedHeader({
+    message,
+    isConsolidatedLog,
+    sectionInfo,
+    options,
+    tracker,
+    safeTestFile
+  })
 
   // Update the tracker using pure function
   const updatedTracker = createUpdatedTracker(
     tracker,
     options.testName || '',
-    safeTestFile,
-    sectionInfo?.inferredFile,
-    sectionInfo?.testName
+    safeTestFile
   )
 
-  return { message, testFile: detectedTestFile, tracker: updatedTracker }
-}
-
-/** Get section title and create inferred file name and test name from message */
-const getSectionInfo = (
-  tracker: TestTracker,
-  message: string
-):
-  | undefined
-  | {
-      title: string
-      inferredFile?: string
-      testName?: string
-      tracker: TestTracker
-    } => {
-  if (message.includes('==== ')) {
-    const sectionMatch = message.match(/====\s+(.+?)\s+====/)
-
-    if (sectionMatch && sectionMatch[1]) {
-      const title = sectionMatch[1].trim()
-      let updatedTracker = tracker
-
-      // For todo app and common test patterns, use a standardized file name
-      // This ensures consistent headers across all section titles
-      const inferredFile =
-        tracker.lastInferredFile || 'todo-app-organized-log.spec.ts'
-
-      // Keep track of the inferred file name for consistent headers
-      if (!tracker.lastInferredFile) {
-        // Update tracker in a pure way
-        updatedTracker = updateTracker(tracker, {
-          lastInferredFile: inferredFile
-        })
-      }
-
-      // Infer test name based on section patterns
-      // For todo app, we know the test name should be about adding todo items
-      let testName: string | undefined
-
-      if (title.toLowerCase().includes('todo')) {
-        testName = 'should allow me to add todo items'
-      } else if (title.startsWith('Add') || title.startsWith('Create')) {
-        testName = `should allow me to ${title.toLowerCase()}`
-      } else if (title.startsWith('Test') || title.startsWith('Testing')) {
-        testName = title
-      } else if (title.startsWith('Navigate')) {
-        testName = 'Navigation Test'
-      } else if (title.startsWith('Check') || title.startsWith('Verify')) {
-        testName = `should ${title.toLowerCase()}`
-      }
-
-      return { title, inferredFile, testName, tracker: updatedTracker }
-    }
+  return {
+    message: formattedMessage,
+    testFile: detectedTestFile,
+    tracker: updatedTracker
   }
-  return undefined
 }
 
-/** Process section headers to extract meaningful test info */
+/** Extract a section title from a log message using a regex */
+const extractSectionTitle = (message: string): string | undefined => {
+  if (!message.includes('==== ')) return undefined
+  const match = message.match(/====\s+(.+?)\s+====/)
+  return match && match[1] ? match[1].trim() : undefined
+}
+
+/** For consolidated logs, process section headers to extract meaningful test info */
 const processSectionHeaders = (
-  tracker: TestTracker,
   message: string,
   isConsolidatedLog: boolean
 ): {
   sectionTitle?: string
-  inferredFile?: string
-  testName?: string
 } => {
-  if (!message.includes('==== ')) {
-    return {}
-  }
+  if (!message.includes('==== ') || !isConsolidatedLog) return {}
 
-  // Only extract section info for consolidated logs
-  if (isConsolidatedLog) {
-    const info = getSectionInfo(tracker, message)
-    return info
-      ? {
-          sectionTitle: info.title,
-          inferredFile: info.inferredFile,
-          testName: info.testName
-        }
-      : {}
-  }
-
-  return {}
+  // Extract title from section header
+  const title = extractSectionTitle(message)
+  return title ? { sectionTitle: title } : {}
 }
 
 /** Add test header to message when needed */
@@ -215,19 +151,22 @@ export function addTestHeader(
   const isConsolidatedLog = !options.testFile && !testFile
 
   // Extract section info from message for consolidated logs
-  const sectionInfo = processSectionHeaders(tracker, message, isConsolidatedLog)
+  const sectionInfo = processSectionHeaders(message, isConsolidatedLog)
 
   // Special case: we're starting a new test, add a header regardless
   if (isConsolidatedLog && (newTest || newFile)) {
-    // Only use formatting for consolidated logs
     return formatTestHeader(
-      tracker,
-      message,
-      options,
-      isConsolidatedLog,
-      sectionInfo,
-      safeTestFile,
-      detectedTestFile
+      {
+        tracker,
+        message,
+        options,
+        isConsolidatedLog
+      },
+      {
+        sectionInfo,
+        safeTestFile,
+        detectedTestFile
+      }
     )
   }
 

@@ -1,7 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { LogContext } from './context'
-import type { LoggingConfig } from '../types'
+import type { LogContext, LoggingConfig } from '../types'
 
 /** Ensures a directory exists, creating it if necessary */
 const ensureDirectoryExists = (directory: string): void => {
@@ -65,7 +64,8 @@ const getSubDirAndFileNameForTestContext = (
 
 /** Returns the folder name used for consolidated logs. */
 const getConsolidatedFolderName = (config: LoggingConfig): string =>
-  (typeof config.fileLogging === 'object' && config.fileLogging?.testFolder) ||
+  (typeof config.fileLogging === 'object' &&
+    config.fileLogging?.defaultTestFolder) ||
   'consolidated'
 
 /** * Computes the subdirectory and file name for consolidated logs. */

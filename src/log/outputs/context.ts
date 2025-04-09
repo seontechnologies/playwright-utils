@@ -1,19 +1,10 @@
 /** Log context and test tracking */
-import type { LoggingConfig } from '../types'
+import type { LogContext, LoggingConfig } from '../types'
 import { getTestContextInfo, getLoggingConfig } from '../config'
 
 // Additional properties used in context tracking
 type LoggingContextOptions = LoggingConfig & {
   workerIndex?: number
-}
-
-export type LogContext = {
-  config: LoggingConfig // Global configuration from getLoggingConfig()
-  options: LoggingConfig // Per-call options with context enrichment
-  testFile?: string
-  testName?: string
-  workerIDEnabled: boolean
-  workerIDFormat: string
 }
 
 const DEFAULT_WORKER_FORMAT = '[W{workerIndex}]'

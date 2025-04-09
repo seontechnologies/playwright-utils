@@ -36,7 +36,7 @@ export type LoggingConfig = {
         enabled: boolean
         outputDir?: string
         // Default folder name for logs when no test context is available
-        testFolder?: string
+        defaultTestFolder?: string
         // Strip ANSI color codes from log output
         stripAnsiCodes?: boolean
         // Include timestamps in log entries
@@ -97,8 +97,17 @@ export type LogParams = {
   testName?: string
 }
 
+export type LogContext = {
+  config: LoggingConfig // Global configuration from getLoggingConfig()
+  options: LoggingConfig // Per-call options with context enrichment
+  testFile?: string
+  testName?: string
+  workerIDEnabled: boolean
+  workerIDFormat: string
+}
+
 /** Configuration for formatting messages based on log level */
-export type FormatConfig = {
+type FormatConfig = {
   prefix: string
   suffix: string
   color: string
