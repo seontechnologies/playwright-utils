@@ -1,21 +1,7 @@
-/** File system utilities for file logging */
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { LogContext } from './context'
 import type { LoggingConfig } from '../types'
-
-// Tracks which files have been written to in the current test run
-const writtenFiles = new Set<string>()
-
-/** Tracks which files have been written to in the current test run
- * Returns true if this is the first write to this file in the current run */
-export const trackFirstWrite = (filePath: string): boolean => {
-  if (writtenFiles.has(filePath)) return false
-
-  writtenFiles.add(filePath)
-
-  return true
-}
 
 /** Ensures a directory exists, creating it if necessary */
 const ensureDirectoryExists = (directory: string): void => {

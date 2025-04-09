@@ -1,12 +1,12 @@
 /** Centralized logging system for Playwright tests */
-import { formatMessage } from './formatters/message'
+import { formatMessage } from './formatters/format-message'
 import { getTestContextInfo, getLoggingConfig } from './config'
 import type { TestContextInfo } from './config'
 import { tryPlaywrightStep } from './utils/playwright-step-utils'
-import { logToConsole } from './outputs/console'
+import { logToConsole } from './outputs/log-to-console'
 import type { LogLevel, LoggingConfig } from './types'
 import { mergeOptions, configure } from './utils/options'
-import { logToFile } from './outputs/file'
+import { logToFile } from './outputs/log-to-file'
 
 /** Get formatting options by merging defaults with provided options */
 const getFormattingOptions = (options: LoggingConfig) => ({

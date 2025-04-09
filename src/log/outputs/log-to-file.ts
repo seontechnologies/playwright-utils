@@ -1,16 +1,31 @@
-/** File output handler for logging */
 import * as fs from 'node:fs'
 import type { LogLevel, LoggingConfig } from '../types'
 import type { LogContext } from './context'
 import { getLogContext, populateTestOptions } from './context'
-import {
-  addTestHeader,
-  formatLogMessage,
-  stripAnsiCodes,
-  writeLogFileHeader
-} from './formatter'
-import { createLogFilePath, trackFirstWrite } from './file-utils'
+import { addTestHeader } from './add-test-header'
+import { createLogFilePath } from './create-log-file-path'
 import { getLoggingConfig } from '../config'
+import { formatLogMessage } from '../formatters/format-message'
+import path from 'node:path'
+
+// Tracks which files have been written to in the current test run
+const writtenFiles = new Set<string>()
+
+/** Tracks which files have been written to in the current test run
+ * Returns true if this is the first write to this file in the current run */
+const trackFirstWrite = (filePath: string): boolean => {
+  if (writtenFiles.has(filePath)) return false
+
+  writtenFiles.add(filePath)
+
+  return true
+}
+
+/** Strip ANSI color codes from a string, for better readability in a text file */
+const stripAnsiCodes = (str: string): string => {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\u001b\[\d{1,2}m/g, '')
+}
 
 /** Appends a newline to the file if the message doesn't already start with one */
 const appendNewlineIfNeeded = async (
@@ -29,6 +44,28 @@ const appendNewlineIfNeeded = async (
   return true
 }
 
+/** Create a header for a new log file */
+const writeLogFileHeader = async (
+  filePath: string,
+  header: string
+): Promise<void> => {
+  try {
+    // Check if this is the first write to the file
+    if (trackFirstWrite(filePath)) {
+      // Create directory if it doesn't exist
+      const dir = path.dirname(filePath)
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true })
+      }
+
+      // Write header to the file
+      await fs.promises.writeFile(filePath, header)
+    }
+  } catch (error) {
+    console.error(`Error writing log header: ${error}`)
+  }
+}
+
 /** Writes the header if this is the first write to the file */
 const writeHeaderIfNecessary = async (
   filePath: string,
@@ -36,11 +73,25 @@ const writeHeaderIfNecessary = async (
   cleanMessage: string
 ): Promise<boolean> => {
   if (trackFirstWrite(filePath)) {
-    const headerSuccess = await writeLogFileHeader(filePath, context)
-    if (!headerSuccess) return false
+    try {
+      // Create header content
+      const header = [
+        '='.repeat(80),
+        `Test Log: ${context.testName || 'Consolidated Test Log'}`,
+        `Test File: ${context.testFile || 'Multiple Files'}`,
+        `Started: ${new Date().toISOString()}`,
+        '='.repeat(80),
+        ''
+      ].join('\n')
 
-    // Append a newline after the header if needed
-    return await appendNewlineIfNeeded(filePath, cleanMessage)
+      await writeLogFileHeader(filePath, header)
+
+      // Append a newline after the header if needed
+      return await appendNewlineIfNeeded(filePath, cleanMessage)
+    } catch (error) {
+      console.error(`Error writing header to log file: ${filePath}`, error)
+      return false
+    }
   }
   return true
 }
@@ -122,7 +173,12 @@ export async function logToFile(
   const { testFile } = populateTestOptions(options)
 
   // Add test headers when needed
-  const { message: updatedMessage } = addTestHeader(message, options, testFile)
+  const { message: updatedMessage } = addTestHeader(
+    undefined,
+    message,
+    options,
+    testFile
+  )
 
   // Skip file logging if not enabled
   const config = getLoggingConfig()
