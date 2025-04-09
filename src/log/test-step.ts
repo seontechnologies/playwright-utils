@@ -2,7 +2,7 @@
  * Provides decorators that can be used to wrap methods or functions in test steps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from '@playwright/test'
-import { log } from '../log'
+import { log } from './log'
 
 /**
  * Method decorator for class methods to wrap them in a test.step with logging

@@ -18,7 +18,7 @@ const defaultConfig: LoggingConfig = {
   fileLogging: {
     enabled: false,
     outputDir: 'playwright-logs',
-    testFolder: 'default-test-folder' // Fallback folder when no test context is available
+    defaultTestFolder: 'default-test-folder' // Fallback folder when no test context is available
   },
   workerID: {
     enabled: true, // Enabled by default for better debugging
@@ -42,7 +42,7 @@ let currentConfig: LoggingConfig = { ...defaultConfig }
  * @param config - Raw configuration with possible boolean values
  * @returns Normalized configuration with all settings in object form
  */
-export function normalizeConfig(
+function normalizeConfig(
   config: Partial<LoggingConfig>
 ): Partial<LoggingConfig> {
   const normalized: Partial<LoggingConfig> = { ...config }

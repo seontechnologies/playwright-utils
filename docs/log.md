@@ -66,7 +66,7 @@ import { log } from '@seon/playwright-utils'
 log.configure({
   fileLogging: {
     enabled: true,
-    testFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
+    defaultTestFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
     forceConsolidated: false, // Explicitly disable consolidation
     outputDir: 'playwright-logs/organized-logs'
   }
@@ -196,7 +196,7 @@ import { log } from '@seon/playwright-utils'
 log.configure({
   fileLogging: {
     enabled: true,
-    testFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
+    defaultTestFolder: 'organized-by-test', // Set explicitly different from 'consolidated-logs'
     forceConsolidated: false, // Explicitly disable consolidation
     outputDir: 'playwright-logs/organized-logs'
   }
@@ -282,7 +282,7 @@ interface LoggingConfig {
   fileLogging?: {
     enabled: boolean // Enable/disable file logging
     outputDir?: string // Directory for log files
-    testFolder?: string // Default folder name for logs when no test context is available
+    defaultTestFolder?: string // Default folder name for logs when no test context is available
   }
 
   // Worker ID configuration
@@ -355,7 +355,7 @@ type LoggingConfig = {
     | {
         enabled: boolean
         outputDir?: string
-        testFolder?: string
+        defaultTestFolder?: string
         stripAnsiCodes?: boolean
         timestamp?: boolean
         prependTestFile?: boolean
@@ -563,7 +563,7 @@ playwright-logs/
       playwright-combined-logs.log  # Single file for all logs
 ```
 
-Without test context, all logs go to a single file in a default folder specified by the `testFolder` option.
+Without test context, all logs go to a single file in a default folder specified by the `defaultTestFolder` option.
 
 ## Worker ID Logging
 
