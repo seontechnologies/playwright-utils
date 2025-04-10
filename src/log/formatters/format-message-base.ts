@@ -1,10 +1,15 @@
 import * as path from 'node:path'
+import type { FormatOptions, LoggingConfig } from '../types'
 
-/** Format options for the base message formatter */
+/**
+ * Format options for the base message formatter
+ * Leverages shared types from types.ts where possible while adding
+ * formatter-specific options
+ */
 type BaseFormatOptions = {
-  /** Whether to add timestamp to the formatted message */
+  /** Whether to add timestamp to the formatted message (maps to FormatOptions.timestamps) */
   addTimestamp?: boolean
-  /** Worker ID configuration */
+  /** Worker ID configuration - derived from LoggingConfig.workerID */
   workerIdConfig?: {
     /** Whether worker ID is enabled */
     enabled: boolean
@@ -19,18 +24,13 @@ type BaseFormatOptions = {
   }
   /** Whether to strip existing timestamps and worker IDs from the message */
   stripExistingFormatting?: boolean
-  /** Optional prefix to add before the formatted message */
+  /** Optional prefix to add before the formatted message (from FormatOptions.prefix) */
   prefix?: string
-  /** Test information to include in consolidated logs */
-  testInfo?: {
-    /** Test name to include */
-    testName?: string
-    /** Test file to include */
-    testFile?: string
-  }
+  /** Test information from LoggingConfig */
+  testInfo?: Pick<LoggingConfig, 'testName' | 'testFile'>
   /** Log organization mode */
   organizationMode?: 'consolidated' | 'organized'
-  /** Whether to apply colors to the message */
+  /** Whether to apply colors to the message (from FormatOptions.colorize) */
   colorize?: boolean
   /** Configuration for log level formatting */
   levelConfig?: {
@@ -41,9 +41,9 @@ type BaseFormatOptions = {
     /** Suffix to add after the message content */
     suffix?: string
   }
-  /** Maximum length for the formatted message */
+  /** Maximum length for the formatted message (maps to FormatOptions.maxLineLength) */
   maxLength?: number
-  /** Whether to add new line at the end */
+  /** Whether to add new line at the end (from FormatOptions.addNewLine) */
   addNewLine?: boolean
   /** Whether to include milliseconds in timestamp */
   includeMilliseconds?: boolean
@@ -51,11 +51,7 @@ type BaseFormatOptions = {
 
 /**
  * Generates a formatted timestamp string for log messages
- * @param {Object} options Configuration options
- * @param {boolean} [options.showTimestamp=true] Whether to show timestamp at all
- * @param {boolean} [options.includeMilliseconds=false] Whether to include milliseconds
- * @returns {string} Formatted timestamp string like "[05:30:02]" or "[05:30:02.123]"
- */
+ * @returns {string} Formatted timestamp string like "[05:30:02]" or "[05:30:02.123]" */
 const formatTimestamp = ({
   showTimestamp = true,
   includeMilliseconds = false
@@ -77,12 +73,7 @@ const formatTimestamp = ({
 
 /**
  * Formats a worker ID string based on the provided format and context
- * @param format Format string with placeholders like "{workerIndex}"
- * @param context Object containing values to replace in the format
- * @param options Additional formatting options
- * @param options.enabled Whether worker ID should be included (default: true)
- * @returns Formatted worker ID string or empty string if disabled
- * @example "[W{workerIndex}]" with context.workerIndex=3 becomes "[W3]"
+ " ex: [W{workerIndex}]" with context.workerIndex=3 becomes "[W3]"
  */
 const formatWorkerID = (
   format: string,
@@ -95,9 +86,8 @@ const formatWorkerID = (
   if (
     !enabled ||
     (context.workerIndex === undefined && context.workerIndex !== 0)
-  ) {
+  )
     return ''
-  }
 
   // Replace placeholders with actual values from context
   return format.replace(/\{(\w+)\}/g, (_, key) => {
@@ -120,49 +110,49 @@ const buildMessageComponents = (
     includeMilliseconds = false
   } = options
 
-  const components: string[] = []
+  // Create specialized component generators to improve readability
+  const getTimestampComponent = () =>
+    addTimestamp
+      ? [formatTimestamp({ showTimestamp: true, includeMilliseconds })]
+      : []
 
-  // Add timestamp if enabled
-  if (addTimestamp) {
-    components.push(
-      formatTimestamp({ showTimestamp: true, includeMilliseconds })
-    )
-  }
+  const getWorkerIdComponent = () => {
+    if (!workerIdConfig?.enabled) return []
 
-  // Add worker ID
-  if (workerIdConfig?.enabled) {
-    if (extractedWorkerIndex) {
-      components.push(`[W${extractedWorkerIndex}]`)
-    } else if (workerIdConfig.format && workerIdConfig.context) {
+    if (extractedWorkerIndex) return [`[W${extractedWorkerIndex}]`]
+
+    if (workerIdConfig.format && workerIdConfig.context) {
       const workerId = formatWorkerID(
         workerIdConfig.format,
         workerIdConfig.context,
         { enabled: true }
       )
-      if (workerId) {
-        components.push(workerId)
-      }
-    }
-  }
-
-  // Add prefix if specified
-  if (prefix) {
-    components.push(prefix)
-  }
-
-  // Add test information for consolidated logs
-  if (organizationMode === 'consolidated' && testInfo) {
-    if (testInfo.testName) {
-      components.push(`[${testInfo.testName}]`)
+      return workerId ? [workerId] : []
     }
 
-    if (testInfo.testFile) {
-      const shortFileName = path.basename(testInfo.testFile)
-      components.push(`[File: ${shortFileName}]`)
-    }
+    return []
   }
 
-  return components
+  const getPrefixComponent = () => (prefix ? [prefix] : [])
+
+  const getTestInfoComponent = () => {
+    if (organizationMode !== 'consolidated' || !testInfo) return []
+
+    return [
+      ...(testInfo.testName ? [`[${testInfo.testName}]`] : []),
+      ...(testInfo.testFile
+        ? [`[File: ${path.basename(testInfo.testFile)}]`]
+        : [])
+    ]
+  }
+
+  // Compose the final result from all component generators
+  return [
+    ...getTimestampComponent(),
+    ...getWorkerIdComponent(),
+    ...getPrefixComponent(),
+    ...getTestInfoComponent()
+  ]
 }
 
 /** Format message text based on level configuration */
@@ -170,31 +160,32 @@ const formatMessageText = (
   message: string,
   options: {
     levelConfig?: BaseFormatOptions['levelConfig']
-    colorize?: boolean
+    colorize?: FormatOptions['colorize']
   }
 ): string => {
   const { levelConfig, colorize = false } = options
-  let formattedText = message
 
-  if (levelConfig) {
-    // Add delimiters if provided
-    if (levelConfig.prefix || levelConfig.suffix) {
-      formattedText = `${levelConfig.prefix || ''}${formattedText}${levelConfig.suffix || ''}`
-    }
+  // No level config means return the original message
+  if (!levelConfig) return message
 
-    // Apply color if enabled
-    if (
-      colorize &&
-      levelConfig.color &&
-      typeof levelConfig.color === 'function'
-    ) {
-      formattedText = (levelConfig.color as (text: string) => string)(
-        formattedText
-      )
-    }
+  // Function to add delimiters (prefix/suffix) to text
+  const addDelimiters = (text: string) => {
+    if (!levelConfig.prefix && !levelConfig.suffix) return text
+    return `${levelConfig.prefix || ''}${text}${levelConfig.suffix || ''}`
   }
 
-  return formattedText
+  // Function to apply color if enabled and color function exists
+  const applyColor = (text: string) => {
+    const hasValidColorFn =
+      colorize && levelConfig.color && typeof levelConfig.color === 'function'
+
+    return hasValidColorFn
+      ? (levelConfig.color as (text: string) => string)(text)
+      : text
+  }
+
+  // Apply transformations in sequence
+  return applyColor(addDelimiters(message))
 }
 
 /** Clean a message by removing timestamps and worker IDs */
@@ -225,8 +216,12 @@ const cleanMessageFormatting = (
   return { processedMessage, extractedWorkerIndex }
 }
 
-/** Base function for formatting log messages
- * Handles common formatting operations used by different output formatters */
+/**
+ * Base function for formatting log messages
+ * @param message Raw message to format
+ * @param options Formatting options derived from FormatOptions and LoggingConfig
+ * @returns Formatted message string
+ */
 export const formatMessageBase = (
   message: string,
   options: BaseFormatOptions = {}
