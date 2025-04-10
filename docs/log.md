@@ -11,9 +11,14 @@ A functional logging utility for Playwright tests with enhanced features for tes
     - [Default Settings \& Configuration API](#default-settings--configuration-api)
   - [API Reference](#api-reference)
     - [Log Levels](#log-levels)
-    - [Global Configuration Interface](#global-configuration-interface)
+    - [Configuration Options](#configuration-options)
     - [Logging Methods](#logging-methods)
-    - [LoggingConfig Type](#loggingconfig-type)
+    - [Common Configuration Patterns](#common-configuration-patterns)
+      - [1. Consolidated Logs (Single File for All Tests)](#1-consolidated-logs-single-file-for-all-tests)
+      - [2. Organized Logs (Separate Files by Test)](#2-organized-logs-separate-files-by-test)
+      - [3. CI Environment Configuration](#3-ci-environment-configuration)
+      - [4. Development Environment with Debug Output](#4-development-environment-with-debug-output)
+    - [Configuration Type Reference](#configuration-type-reference)
     - [Using With Playwright Test Steps](#using-with-playwright-test-steps)
   - [Log Organization and Test Context](#log-organization-and-test-context)
     - [Test Context Capture](#test-context-capture)
@@ -131,8 +136,7 @@ const defaults = {
   // Console output is enabled
   console: true,
   // File logging is enabled and writes to playwright-logs directory
-  fileLogging: true,
-  // Files are grouped by test run for better organization
+  fileLogging: false,
   // Format settings for prefixes (ℹ, ✓, ⚠), timestamps, and colors
   format: {
     /* ... */
@@ -265,32 +269,49 @@ test('example test', async () => {
 | `error`   | Error messages      | console.error  | ✖               |
 | `debug`   | Debug information   | console.debug  | 🔍               |
 
-### Global Configuration Interface
+### Configuration Options
 
-Used with `log.configure()` for system-wide settings:
+The logger can be configured globally using `log.configure()`. Here are the key configuration options with examples:
 
 ```typescript
-interface LoggingConfig {
+// Basic configuration with defaults
+log.configure({
+  // Console output is enabled by default with colors
+  console: true,
+
+  // File logging is disabled by default
+  fileLogging: false,
+
+  // Worker ID is shown by default
+  workerID: true
+})
+
+// Advanced configuration with detailed options
+log.configure({
   // Console output configuration
-  console?: {
-    enabled: boolean // Enable/disable console output
-    colorize?: boolean // Enable/disable ANSI colors
-    timestamps?: boolean // Show timestamps in console
-  }
+  console: {
+    enabled: true, // Enable console output
+    colorize: true, // Use ANSI colors in console (default)
+    timestamps: true // Show timestamps in console
+  },
 
   // File logging configuration
-  fileLogging?: {
-    enabled: boolean // Enable/disable file logging
-    outputDir?: string // Directory for log files
-    defaultTestFolder?: string // Default folder name for logs when no test context is available
-  }
+  fileLogging: {
+    enabled: true, // Enable file logging
+    outputDir: 'playwright-logs/', // Directory for log files
+    defaultTestFolder: 'all-tests-in-one', // Folder when no test context
+    forceConsolidated: true, // Force all logs to one folder
+    stripAnsiCodes: true, // Remove color codes in files
+    timestamp: true, // Include timestamps
+    prependTestFile: true // Include test file name in entries
+  },
 
   // Worker ID configuration
-  workerID?: {
-    enabled: boolean // Enable/disable worker ID prefix (default: false)
-    format?: string // Format string (default: '[W{workerIndex}]')
+  workerID: {
+    enabled: true, // Enable worker ID prefix
+    format: '[W{workerIndex}]' // Format string (default)
   }
-}
+})
 ```
 
 ### Logging Methods
@@ -326,90 +347,135 @@ await log.info('Processing in worker', {
 })
 ```
 
-### LoggingConfig Type
+### Common Configuration Patterns
 
-The unified type for logging configuration that can be used both for global settings and individual log calls. This type supports both simple boolean values and detailed configuration objects:
+Here are some common configuration patterns for different use cases:
+
+#### 1. Consolidated Logs (Single File for All Tests)
+
+```typescript
+// Configure all logs to go to a single file
+log.configure({
+  fileLogging: {
+    enabled: true,
+    defaultTestFolder: 'all-tests-in-one',
+    forceConsolidated: true,
+    outputDir: 'playwright-logs/'
+  }
+})
+```
+
+#### 2. Organized Logs (Separate Files by Test)
+
+```typescript
+// Organize logs by test file and name
+log.configure({
+  fileLogging: {
+    enabled: true,
+    defaultTestFolder: 'by-test',
+    forceConsolidated: false,
+    outputDir: 'playwright-logs/'
+  }
+})
+```
+
+#### 3. CI Environment Configuration
+
+```typescript
+// More minimal output for CI environments
+log.configure({
+  console: true,
+  fileLogging: {
+    enabled: true,
+    outputDir: 'test-artifacts/logs/',
+    forceConsolidated: true
+  },
+  format: {
+    maxLineLength: 120 // Prevent overly long lines
+  }
+})
+```
+
+#### 4. Development Environment with Debug Output
+
+```typescript
+// Full logging for development
+log.configure({
+  console: {
+    enabled: true,
+    colorize: true,
+    timestamps: true
+  },
+  fileLogging: {
+    enabled: true,
+    outputDir: 'playwright-logs/',
+    prependTestFile: true
+  },
+  workerID: true
+})
+```
+
+### Configuration Type Reference
+
+For advanced users and TypeScript integration, here's the full configuration type:
 
 ```typescript
 type LoggingConfig = {
-  /** Enable/disable console output (accepts boolean or detailed config) */
+  // Console output (boolean or object)
   console?:
     | boolean
     | {
         enabled: boolean
-        colorize?: boolean
-        timestamps?: boolean
+        colorize?: boolean // Default: true
+        timestamps?: boolean // Default: true
       }
 
-  /** Enable/disable worker ID for this log (accepts boolean or detailed config) */
-  workerID?:
-    | boolean
-    | {
-        enabled: boolean
-        format?: string
-      }
-
-  /** Enable/disable file logging (accepts boolean or detailed config) */
+  // File logging (boolean or object)
   fileLogging?:
     | boolean
     | {
         enabled: boolean
-        outputDir?: string
+        outputDir?: string // Default: 'playwright-logs/'
         defaultTestFolder?: string
-        stripAnsiCodes?: boolean
-        timestamp?: boolean
+        stripAnsiCodes?: boolean // Default: true
+        timestamp?: boolean // Default: true
         prependTestFile?: boolean
         forceConsolidated?: boolean
       }
 
-  /** Source file tracking for decorators (accepts boolean or detailed config) */
-  sourceFileTracking?:
+  // Worker ID display (boolean or object)
+  workerID?:
     | boolean
     | {
         enabled: boolean
-        exclude?: RegExp[]
+        format?: string // Default: '[W{workerIndex}]'
       }
 
-  /** Formatting options */
+  // Other formatting and context options
   format?: {
-    /** Add a prefix to the message */
     prefix?: string
-
-    /** Add a suffix to the message */
-    suffix?: string
-
-    /** Show timestamps in console output */
     timestamps?: boolean
-
-    /** Use colorized output in console logs */
-    colorize?: boolean
-
-    /** Max line length for console messages */
+    colorize?: boolean // Default: true
     maxLineLength?: number
   }
-
-  /** Capture test details (usually auto-captured) */
-  testFile?: string
-  testName?: string
-
-  /** Custom context data to include in logs */
-  context?: Record<string, unknown>
 }
+```
 
+```typescript
 // Individual log messages can override global settings
 // You can use either boolean values or detailed configurations
 
 // Using simple boolean values
 await log.info('Simple configuration', {
-  console: true,      // Enable console output with default settings
-  fileLogging: false  // Disable file logging for this message
+  console: true, // Enable console output with default settings
+  fileLogging: false // Disable file logging for this message
 })
 
 // Using detailed configuration objects
 await log.info('Detailed configuration', {
   console: {
     enabled: true,
-    colorize: false,  // Disable colors
+    colorize: false, // Disable colors
     timestamps: false // Disable timestamps
   },
   fileLogging: {
@@ -420,13 +486,14 @@ await log.info('Detailed configuration', {
 
 // Mixing styles
 await log.debug('Mixed configuration styles', {
-  console: true,           // Simple boolean
-  fileLogging: {           // Detailed object
+  console: true, // Simple boolean
+  fileLogging: {
+    // Detailed object
     enabled: true,
     forceConsolidated: true
   },
   format: {
-    prefix: '[DEBUG] '     // Add a prefix
+    prefix: '[DEBUG] ' // Add a prefix
   }
 })
 await log.step('Major test section', {

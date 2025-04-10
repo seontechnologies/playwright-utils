@@ -49,7 +49,7 @@ import {
 
 // Object format (preferred for new code):
 log.configure({
-  console: false
+  console: true
 })
 
 const TODO_ITEMS = [
