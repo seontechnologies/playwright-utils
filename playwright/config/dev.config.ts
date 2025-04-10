@@ -1,4 +1,4 @@
-import deepmerge from 'deepmerge'
+import merge from 'lodash/merge'
 import { defineConfig } from '@playwright/test'
 import { baseConfig } from './base.config'
 import { log } from '../../src'
@@ -27,7 +27,7 @@ log.configure({
 // })
 
 export default defineConfig(
-  deepmerge(baseConfig, {
+  merge({}, baseConfig, {
     use: { baseUrl: 'https://test-api.k6.io' },
     // Add the special project to your config
     projects: [...(baseConfig.projects || [])]
