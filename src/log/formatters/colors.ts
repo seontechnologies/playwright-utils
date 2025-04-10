@@ -11,16 +11,3 @@ export const colors = {
   white: '\x1b[37m',
   bold: '\x1b[1m'
 }
-
-/** Applies ANSI color formatting to text */
-export const colorizeText = (
-  text: string,
-  color: string,
-  useColor: boolean
-): string => (useColor ? `${colors.bold}${color}${text}${colors.reset}` : text)
-
-/** Adds prefix and suffix delimiters to text */
-export const addDelimiters = (
-  text: string,
-  config: { prefix: string; suffix: string }
-): string => `${config.prefix}${text}${config.suffix}`

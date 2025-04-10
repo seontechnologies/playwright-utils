@@ -163,7 +163,7 @@ const formatMessageText = (
     colorize?: FormatOptions['colorize']
   }
 ): string => {
-  const { levelConfig, colorize = false } = options
+  const { levelConfig, colorize = true } = options
 
   // No level config means return the original message
   if (!levelConfig) return message
@@ -174,14 +174,23 @@ const formatMessageText = (
     return `${levelConfig.prefix || ''}${text}${levelConfig.suffix || ''}`
   }
 
-  // Function to apply color if enabled and color function exists
+  // Function to apply color if enabled and color is provided
   const applyColor = (text: string) => {
-    const hasValidColorFn =
-      colorize && levelConfig.color && typeof levelConfig.color === 'function'
+    // Only apply colors if colorize is enabled and levelConfig.color exists
+    if (!colorize || !levelConfig.color) return text
 
-    return hasValidColorFn
-      ? (levelConfig.color as (text: string) => string)(text)
-      : text
+    // If color is a function, call it
+    if (typeof levelConfig.color === 'function') {
+      return (levelConfig.color as (text: string) => string)(text)
+    }
+
+    // Otherwise, assume it's an ANSI color code string
+    // Use the colors.bold plus the color code, and reset at the end
+    const colorCode = levelConfig.color as string
+    const boldCode = '\x1b[1m' // Bold code
+    const resetCode = '\x1b[0m' // Reset code
+
+    return `${boldCode}${colorCode}${text}${resetCode}`
   }
 
   // Apply transformations in sequence
