@@ -98,7 +98,7 @@ test.describe('New Todo', () => {
     await checkNumberOfTodosInLocalStorage(page, 2)
   })
 
-  test('should allow me to add todo items (using Page Object)', async ({
+  test.only('should allow me to add todo items (using Page Object)', async ({
     page
   }) => {
     await log.step('Testing adding todo items with Page Object')
@@ -141,7 +141,7 @@ test.describe('New Todo', () => {
     await checkNumberOfTodosInLocalStorage(page, 1)
   })
 
-  test('should append new items to the bottom of the list', async ({
+  test.only('should append new items to the bottom of the list', async ({
     page
   }) => {
     // Create 3 items.
@@ -583,6 +583,7 @@ class TodoPage {
     const newTodo = this.page.getByPlaceholder('What needs to be done?')
     await newTodo.fill(text)
     await newTodo.press('Enter')
+    await log.step('step within a decorator')
     await log.success(`Added todo: ${text}`)
   }
 
@@ -642,6 +643,7 @@ const createDefaultTodos = functionTestStep(
   'Create default todos',
   async (page: Page) => {
     await log.info('Creating default todos')
+    await log.step('step within a functionWrapper')
     const todoPage = new TodoPage(page)
 
     for (const item of TODO_ITEMS) {

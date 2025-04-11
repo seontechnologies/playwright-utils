@@ -10,7 +10,6 @@ All utilities can be used as Playwright fixtures by importing the test object
     - [API Request](#api-request)
     - [Recurse (Polling)](#recurse-polling)
     - [Logging](#logging)
-  - [Design Decisions](#design-decisions)
 
 ## Installation
 
@@ -111,20 +110,3 @@ test('example', async ({ log }) => {
 ```
 
 [→ Logging Documentation](./docs/log.md)
-
-## Design Decisions
-
-**Why not Winston?**
-
-Our custom logging implementation was chosen over Winston for several key reasons:
-
-- **Zero Dependencies**: No additional packages to maintain or deploy
-  - Avoids Winston's ~15 dependencies and ~1.5MB node_modules footprint
-- **Playwright-Optimized Design**: Purpose-built for test automation with:
-  - Seamless integration with Playwright fixtures and contexts
-  - Test name inference and consolidated reporting
-  - Context-aware test lifecycle management
-- **Performance**: Minimal overhead in CI environments
-  - Eliminates Winston's ~50-100ms initialization time
-  - Avoids ~3-5MB additional memory usage
-  - No per-log transport and format processing overhead
