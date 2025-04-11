@@ -583,6 +583,7 @@ class TodoPage {
     const newTodo = this.page.getByPlaceholder('What needs to be done?')
     await newTodo.fill(text)
     await newTodo.press('Enter')
+    await log.step('step within a decorator')
     await log.success(`Added todo: ${text}`)
   }
 
@@ -642,6 +643,7 @@ const createDefaultTodos = functionTestStep(
   'Create default todos',
   async (page: Page) => {
     await log.info('Creating default todos')
+    await log.step('step within a functionWrapper') // only steps are visible in PW UI
     const todoPage = new TodoPage(page)
 
     for (const item of TODO_ITEMS) {
