@@ -643,7 +643,7 @@ const createDefaultTodos = functionTestStep(
   'Create default todos',
   async (page: Page) => {
     await log.info('Creating default todos')
-    await log.step('step within a functionWrapper')
+    await log.step('step within a functionWrapper') // only steps are visible in PW UI
     const todoPage = new TodoPage(page)
 
     for (const item of TODO_ITEMS) {
