@@ -28,7 +28,7 @@ type RecursePostData<T> = {
   successful: boolean
 }
 
-export type RecurseOptions = {
+type RecurseOptions = {
   timeout?: number
   interval?: number
   log?: boolean | string | ((value: any, data: RecurseLogData) => void)

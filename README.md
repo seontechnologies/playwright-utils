@@ -10,6 +10,7 @@ All utilities can be used as Playwright fixtures by importing the test object
     - [API Request](#api-request)
     - [Recurse (Polling)](#recurse-polling)
     - [Logging](#logging)
+    - [Network Interception](#network-interception)
 
 ## Installation
 
@@ -110,3 +111,51 @@ test('example', async ({ log }) => {
 ```
 
 [→ Logging Documentation](./docs/log.md)
+
+### [Network Interception](./docs/intercept-network-call.md)
+
+A powerful utility for intercepting, observing, and mocking network requests in Playwright tests.
+
+```typescript
+// Direct import
+import { interceptNetworkCall } from '@seon/playwright-utils'
+
+test('example', async ({ page }) => {
+  // Set up an interception - returns a Promise that resolves when the network call is made
+  const networkCall = interceptNetworkCall({
+    page,
+    method: 'GET',
+    url: '/api/users',
+    fulfillResponse: {
+      status: 200,
+      body: { data: [{ id: 1, name: 'Test User' }] }
+    }
+  })
+
+  // Navigate to page that will trigger the network call
+  await page.goto('/users')
+
+  // Await the network call and access the result
+  const { responseJson, status } = await networkCall
+})
+
+// As a fixture
+import { test } from '@seon/playwright-utils/fixtures'
+
+test('example', async ({ page, interceptNetworkCall }) => {
+  // With fixture, you don't need to pass the page object
+  const userDataCall = interceptNetworkCall({
+    method: 'GET',
+    url: '/api/users',
+    fulfillResponse: {
+      status: 200,
+      body: { data: [] }
+    }
+  })
+
+  await page.goto('/')
+  await userDataCall // Wait for the network call to complete
+})
+```
+
+[→ Network Interception Documentation](./docs/intercept-network-call.md)
