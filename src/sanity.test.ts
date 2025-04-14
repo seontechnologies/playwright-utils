@@ -6,7 +6,7 @@
  */
 
 // Import using ES modules syntax
-import { apiRequest, recurse, log } from './index'
+import { apiRequest, recurse, log, interceptNetworkCall } from './index'
 
 // Import modules directly to verify they're the same instance
 import * as apiUtils from './api-request'
@@ -15,6 +15,8 @@ import * as recurseUtils from './recurse'
 import * as recurseFixtures from './recurse/fixtures'
 import * as logUtils from './log/index'
 import * as logFixtures from './log/fixtures'
+import * as interceptUtils from './intercept-network-call'
+import * as interceptFixtures from './intercept-network-call/fixtures'
 
 describe('sanity tests', () => {
   describe('API exports', () => {
@@ -65,6 +67,20 @@ describe('sanity tests', () => {
       // Verify fixtures are exported
       expect(logFixtures).toBeDefined()
       expect(logFixtures.test).toBeDefined()
+    })
+
+    it('should properly export intercept-network-call utilities', () => {
+      // Test main export function exists
+      expect(typeof interceptNetworkCall).toBe('function')
+
+      // Verify same instance as direct import
+      expect(interceptNetworkCall).toBe(interceptUtils.interceptNetworkCall)
+    })
+
+    it('should properly export intercept-network-call fixtures', () => {
+      // Verify fixtures are exported
+      expect(interceptFixtures).toBeDefined()
+      expect(interceptFixtures.test).toBeDefined()
     })
   })
 
