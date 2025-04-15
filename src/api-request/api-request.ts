@@ -19,7 +19,7 @@ export type ApiRequestResponse<T = unknown> = {
 }
 
 /** Creates a step name for API requests that will appear in the Playwright UI */
-const createApiStepName = ({
+const createStepName = ({
   method,
   path,
   baseUrl,
@@ -153,7 +153,7 @@ const apiRequestBase = async <T = unknown>({
 export const apiRequest = async <T = unknown>(
   options: ApiRequestParams
 ): Promise<ApiRequestResponse<T>> =>
-  test.step(createApiStepName(options), async () => apiRequestBase<T>(options))
+  test.step(createStepName(options), async () => apiRequestBase<T>(options))
 
 /** URL normalization to handle edge cases with slashes */
 const joinUrlParts = (base: string, path: string): string => {

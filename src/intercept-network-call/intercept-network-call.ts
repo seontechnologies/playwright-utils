@@ -42,7 +42,7 @@ const interceptNetworkCallBase = async ({
 /** Creates a step name based on the network interception options */
 const createStepName = (options: InterceptOptions): string => {
   const operation = options.fulfillResponse
-    ? 'Mock'
+    ? 'Stub'
     : options.handler
       ? 'Modify'
       : 'Observe'
