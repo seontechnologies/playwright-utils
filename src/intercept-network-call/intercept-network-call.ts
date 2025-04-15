@@ -1,4 +1,5 @@
 import type { Page, Route, Request } from '@playwright/test'
+import { test } from '@playwright/test'
 import { fulfillNetworkCall } from './core/fulfill-network-call'
 import { observeNetworkCall } from './core/observe-network-call'
 import type { NetworkCallResult } from './core/types'
@@ -18,20 +19,15 @@ type InterceptOptions = {
 }
 
 /**
- * Intercepts a network request matching the given criteria.
- * - If `fulfillResponse` is provided, stubs the request and fulfills it with the given response.
- * - If `handler` is provided, uses it to handle the route.
- * - Otherwise, observes the request and returns its data.
- * @param {InterceptOptions} options - Options for matching and handling the request.
- * @returns {Promise<NetworkCallResult>}
+ * Base implementation for network interception
  */
-export async function interceptNetworkCall({
+const interceptNetworkCallBase = async ({
   method,
   url,
   page,
   fulfillResponse,
   handler
-}: InterceptOptions): Promise<NetworkCallResult> {
+}: InterceptOptions): Promise<NetworkCallResult> => {
   if (!page) {
     throw new Error('The `page` argument is required for network interception')
   }
@@ -43,8 +39,36 @@ export async function interceptNetworkCall({
   }
 }
 
+/** Creates a step name based on the network interception options */
+const createStepName = (options: InterceptOptions): string => {
+  const operation = options.fulfillResponse
+    ? 'Mock'
+    : options.handler
+      ? 'Modify'
+      : 'Observe'
+  const methodStr = options.method ? options.method : ''
+  const urlStr = options.url ? options.url : ''
+
+  return `${operation} ${methodStr} ${urlStr}`
+}
+
+/**
+ * Intercepts a network request matching the given criteria.
+ * - If `fulfillResponse` is provided, stubs the request and fulfills it with the given response.
+ * - If `handler` is provided, uses it to handle the route.
+ * - Otherwise, observes the request and returns its data.
+ * @param {InterceptOptions} options - Options for matching and handling the request.
+ * @returns {Promise<NetworkCallResult>}
+ */
+export const interceptNetworkCall = async (
+  options: InterceptOptions
+): Promise<NetworkCallResult> =>
+  test.step(createStepName(options), async () =>
+    interceptNetworkCallBase(options)
+  )
+
 export type InterceptOptionsFixture = Omit<InterceptOptions, 'page'>
 
 export type InterceptNetworkCallFn = (
   options: InterceptOptionsFixture
-) => ReturnType<typeof interceptNetworkCall>
+) => Promise<NetworkCallResult>
