@@ -44,7 +44,30 @@ const formatConfig: FormatConfigMap = {
   }
 }
 
-/** Formats a message for logging with appropriate formatting based on log level */
+/**
+ * Format object parameters as strings in a readable way
+ */
+function formatObjects(object: unknown): string {
+  if (object === null) return 'null'
+  if (object === undefined) return 'undefined'
+
+  if (typeof object === 'object') {
+    try {
+      // Use 2-space indentation for readability
+      return JSON.stringify(object, null, 2)
+    } catch {
+      return '[Object could not be stringified]'
+    }
+  }
+
+  // For primitives, just convert to string
+  return String(object)
+}
+
+/**
+ * Formats a message for logging with appropriate formatting based on log level
+ * Now supports an optional object parameter
+ */
 export function formatMessage(
   message: string,
   level: LogLevel = 'info',
@@ -53,13 +76,23 @@ export function formatMessage(
     colorize: true,
     maxLineLength: 120
   },
-  workerIdConfig?: { enabled: boolean; format: string }
+  workerIdConfig?: { enabled: boolean; format: string },
+  metaObjects: unknown[] = []
 ): string {
   // Get configuration for this log level
   const config = formatConfig[level]
 
+  // Format the object if one was passed
+  let objectStr = ''
+  if (metaObjects && metaObjects.length > 0 && metaObjects[0] !== undefined) {
+    objectStr = '\n' + formatObjects(metaObjects[0])
+  }
+
+  // Combine message with formatted object
+  const combinedMessage = message + objectStr
+
   // Use the base formatter with console-appropriate options
-  return formatMessageBase(message, {
+  return formatMessageBase(combinedMessage, {
     addTimestamp: options.timestamps,
     workerIdConfig: workerIdConfig && {
       enabled: workerIdConfig.enabled,

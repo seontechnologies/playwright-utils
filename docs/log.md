@@ -7,6 +7,7 @@ A functional logging utility for Playwright tests with enhanced features for tes
   - [Installation](#installation)
   - [Quick Start](#quick-start)
     - [Basic Usage](#basic-usage)
+    - [Object Logging](#object-logging)
     - [Logging out to text file(s)](#logging-out-to-text-files)
   - [Configuration](#configuration)
     - [Default Settings](#default-settings)
@@ -67,10 +68,47 @@ test('should allow me to add todo items', async ({ page }) => {
   await log.success('Successfully added all todo items')
   await log.warning('Some items might be duplicates')
 
-  // You can also log objects
-  await log.debug('Current todo items:', { items: ['item1', 'item2'] })
+  // Object logging capability
+  await log.info({
+    todoItems: ['buy milk', 'clean house'],
+    completed: 1,
+    total: 2
+  })
+
+  // Log with object as the first argument and config as the second
+  await log.debug(
+    { userId: 123, action: 'login' },
+    { console: { enabled: true } }
+  )
 })
 ```
+
+### Object Logging
+
+The logging system supports direct object logging. Each log function accepts either a string message or an object as the first parameter, and an optional configuration object as the second parameter.
+
+```typescript
+// Log an object directly
+await log.info({ userId: 123, status: 'active' })
+
+// Log a string message with a configuration object
+await log.success('Operation completed', {
+  console: { enabled: true, colorize: true }
+})
+
+// Log a string message with an object (useful for debugging)
+await log.debug('User data:', {
+  user: { id: 123, name: 'John Doe', role: 'admin' }
+})
+
+// Log an object with a configuration object
+await log.warning(
+  { warning: 'API rate limit exceeded', code: 'WARN001' },
+  { fileLogging: { enabled: true } }
+)
+```
+
+Objects are automatically formatted with 2-space indentation for readability. The structure is preserved, making it easy to inspect complex objects in your logs.
 
 ### Logging out to text file(s)
 
@@ -319,6 +357,43 @@ log.configure({
 ```
 
 ### Logging examples
+
+```typescript
+// Basic string logging
+await log.info('Processing started')
+await log.step('Validating user input')
+await log.success('User created successfully')
+await log.warning('Failed to send confirmation email')
+await log.error('Database connection failed')
+await log.debug('Connection details', { host: 'localhost', port: 3306 })
+
+// Object logging
+await log.info({ userId: 123, action: 'login', timestamp: new Date() })
+
+// Object with configuration
+await log.warning(
+  { warning: 'Rate limit exceeded', count: 100, limit: 50 },
+  { console: { enabled: true, colorize: true } }
+)
+
+// Object logging examples
+await log.info({
+  key: 'value',
+  data: [1, 2, 3],
+  nested: { foo: 'bar' }
+})
+
+await log.warning(
+  {
+    warning: 'Rate limit exceeded',
+    count: 100,
+    limit: 50
+  },
+  {
+    console: { enabled: true, colorize: true }
+  }
+)
+```
 
 All logging methods follow the same signature pattern:
 
