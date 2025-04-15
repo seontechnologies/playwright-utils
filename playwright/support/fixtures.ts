@@ -1,5 +1,6 @@
-import { test as base } from '@playwright/test'
+import { test as base, mergeTests } from '@playwright/test'
 import { captureTestContext } from '../../src/log'
+import { test as interceptNetworkCall } from '../../src/intercept-network-call/fixtures'
 
 // a hook that will run before each test in the suite
 // this is like having the below code in each test file
@@ -10,5 +11,6 @@ base.beforeEach(async ({}, testInfo) => {
   captureTestContext(testInfo)
 })
 
-export const test = base
-export const expect = base.expect
+const test = mergeTests(base, interceptNetworkCall)
+const expect = base.expect
+export { test, expect }

@@ -1,4 +1,5 @@
 import { type APIRequestContext } from '@playwright/test'
+import { test } from '@playwright/test'
 import { getLogger } from '../internal'
 
 export type ApiRequestParams = {
@@ -17,53 +18,25 @@ export type ApiRequestResponse<T = unknown> = {
   body: T
 }
 
+/** Creates a step name for API requests that will appear in the Playwright UI */
+const createStepName = ({
+  method,
+  path,
+  baseUrl,
+  configBaseUrl = ''
+}: ApiRequestParams): string => {
+  const effectiveBaseUrl = baseUrl || configBaseUrl || ''
+  const fullPath = effectiveBaseUrl
+    ? joinUrlParts(effectiveBaseUrl, path)
+    : path
+
+  return `API ${method} ${fullPath}`
+}
+
 /**
- * Simplified helper for making API requests and returning the status and JSON body.
- * This helper automatically performs the request based on the provided method, path, body, and headers.
- * It handles URL construction with proper slash handling and response parsing based on content type.
- *
- * @param {Object} params - The parameters for the request.
- * @param {APIRequestContext} params.request - The Playwright request object, used to make the HTTP request.
- * @param {string} params.method - The HTTP method to use (POST, GET, PUT, DELETE, PATCH, HEAD).
- * @param {string} params.path - The path or endpoint to send the request to (e.g., '/api/users').
- * @param {string} [params.baseUrl] - The base URL to prepend to the path (e.g., 'https://api.example.com').
- * @param {string} [params.configBaseUrl] - Fallback base URL, typically from Playwright config.
- * @param {unknown} [params.body=null] - The body to send with the request (for POST, PUT, and PATCH requests).
- * @param {Record<string, string> | undefined} [params.headers] - The headers to include with the request.
- * @param {Record<string, string | boolean | number> | undefined} [params.params] - Query parameters to include with the request.
- * @returns {Promise<ApiRequestResponse<T>>} - An object containing the status code and the parsed response body.
- *    - `status`: The HTTP status code returned by the server.
- *    - `body`: The parsed response body from the server, typed as T.
- *
- * @example
- * // GET request to an endpoint
- * test('fetch user data', async ({ apiRequest }) => {
- *   const { status, body } = await apiRequest<UserResponse>({
- *     method: 'GET',
- *     url: '/api/users/123',
- *     headers: { 'Authorization': 'Bearer token' }
- *   });
- *
- *   expect(status).toBe(200);
- *   expect(body.name).toBe('John Doe');
- * });
- *
- * @example
- * // POST request with a body
- * test('create new item', async ({ apiRequest }) => {
- *   const { status, body } = await apiRequest<CreateItemResponse>({
- *     method: 'POST',
- *     url: '/api/items',
- *     baseUrl: 'https://api.example.com', // override default baseURL
- *     body: { name: 'New Item', price: 19.99 },
- *     headers: { 'Content-Type': 'application/json' }
- *   });
- *
- *   expect(status).toBe(201);
- *   expect(body.id).toBeDefined();
- * });
+ * Base implementation of API request without test step wrapping
  */
-export async function apiRequest<T = unknown>({
+const apiRequestBase = async <T = unknown>({
   request,
   method,
   path,
@@ -72,7 +45,7 @@ export async function apiRequest<T = unknown>({
   body = null,
   headers,
   params
-}: ApiRequestParams): Promise<ApiRequestResponse<T>> {
+}: ApiRequestParams): Promise<ApiRequestResponse<T>> => {
   // common options; if there's a prop, add it to the options object
   const options = Object.assign(
     {},
@@ -130,6 +103,57 @@ export async function apiRequest<T = unknown>({
 
   return { status, body: responseBody as T }
 }
+
+/**
+ * Simplified helper for making API requests and returning the status and JSON body.
+ * This helper automatically performs the request based on the provided method, path, body, and headers.
+ * It handles URL construction with proper slash handling and response parsing based on content type.
+ *
+ * @param {Object} params - The parameters for the request.
+ * @param {APIRequestContext} params.request - The Playwright request object, used to make the HTTP request.
+ * @param {string} params.method - The HTTP method to use (POST, GET, PUT, DELETE, PATCH, HEAD).
+ * @param {string} params.path - The path or endpoint to send the request to (e.g., '/api/users').
+ * @param {string} [params.baseUrl] - The base URL to prepend to the path (e.g., 'https://api.example.com').
+ * @param {string} [params.configBaseUrl] - Fallback base URL, typically from Playwright config.
+ * @param {unknown} [params.body=null] - The body to send with the request (for POST, PUT, and PATCH requests).
+ * @param {Record<string, string> | undefined} [params.headers] - The headers to include with the request.
+ * @param {Record<string, string | boolean | number> | undefined} [params.params] - Query parameters to include with the request.
+ * @returns {Promise<ApiRequestResponse<T>>} - An object containing the status code and the parsed response body.
+ *    - `status`: The HTTP status code returned by the server.
+ *    - `body`: The parsed response body from the server, typed as T.
+ *
+ * @example
+ * // GET request to an endpoint
+ * test('fetch user data', async ({ apiRequest }) => {
+ *   const { status, body } = await apiRequest<UserResponse>({
+ *     method: 'GET',
+ *     url: '/api/users/123',
+ *     headers: { 'Authorization': 'Bearer token' }
+ *   });
+ *
+ *   expect(status).toBe(200);
+ *   expect(body.name).toBe('John Doe');
+ * });
+ *
+ * @example
+ * // POST request with a body
+ * test('create new item', async ({ apiRequest }) => {
+ *   const { status, body } = await apiRequest<CreateItemResponse>({
+ *     method: 'POST',
+ *     url: '/api/items',
+ *     baseUrl: 'https://api.example.com', // override default baseURL
+ *     body: { name: 'New Item', price: 19.99 },
+ *     headers: { 'Content-Type': 'application/json' }
+ *   });
+ *
+ *   expect(status).toBe(201);
+ *   expect(body.id).toBeDefined();
+ * });
+ */
+export const apiRequest = async <T = unknown>(
+  options: ApiRequestParams
+): Promise<ApiRequestResponse<T>> =>
+  test.step(createStepName(options), async () => apiRequestBase<T>(options))
 
 /** URL normalization to handle edge cases with slashes */
 const joinUrlParts = (base: string, path: string): string => {

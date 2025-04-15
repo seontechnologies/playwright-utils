@@ -1,27 +1,27 @@
 # Network Interception Utility
 
 - [Network Interception Utility](#network-interception-utility)
-	- [Why Use This Instead of Native Playwright?](#why-use-this-instead-of-native-playwright)
-	- [Comparison with Native Playwright](#comparison-with-native-playwright)
-		- [Observing Network Requests](#observing-network-requests)
-		- [Mocking Responses](#mocking-responses)
-		- [URL Pattern Matching Simplification](#url-pattern-matching-simplification)
-	- [Usage](#usage)
-		- [Direct Import](#direct-import)
-		- [As a Fixture](#as-a-fixture)
-	- [API Reference](#api-reference)
-		- [`interceptNetworkCall(options)`](#interceptnetworkcalloptions)
-			- [Options](#options)
-			- [`fulfillResponse` Object](#fulfillresponse-object)
-			- [Return Value](#return-value)
-	- [URL Pattern Matching](#url-pattern-matching)
-	- [Examples](#examples)
-		- [Observing a Network Request](#observing-a-network-request)
-		- [Mocking a Response](#mocking-a-response)
-		- [Using a Custom Handler](#using-a-custom-handler)
-		- [Using URL Patterns](#using-url-patterns)
-		- [Intercepting Multiple Requests](#intercepting-multiple-requests)
-		- [Error Simulation](#error-simulation)
+  - [Why Use This Instead of Native Playwright?](#why-use-this-instead-of-native-playwright)
+  - [Comparison with Native Playwright](#comparison-with-native-playwright)
+    - [Spying on the network](#spying-on-the-network)
+    - [Stubbing the network](#stubbing-the-network)
+    - [URL Pattern Matching Simplification](#url-pattern-matching-simplification)
+  - [Usage](#usage)
+    - [Direct Import](#direct-import)
+    - [As a Fixture](#as-a-fixture)
+  - [API Reference](#api-reference)
+    - [`interceptNetworkCall(options)`](#interceptnetworkcalloptions)
+      - [Options](#options)
+      - [`fulfillResponse` Object](#fulfillresponse-object)
+      - [Return Value](#return-value)
+  - [URL Pattern Matching](#url-pattern-matching)
+  - [Examples](#examples)
+    - [Observing a Network Request](#observing-a-network-request)
+    - [Mocking a Response](#mocking-a-response)
+    - [Using a Custom Handler](#using-a-custom-handler)
+    - [Using URL Patterns](#using-url-patterns)
+    - [Intercepting Multiple Requests](#intercepting-multiple-requests)
+    - [Error Simulation](#error-simulation)
 
 The Network Interception utility provides a powerful way to observe, intercept, and mock network requests in Playwright tests. This utility significantly improves upon Playwright's built-in network handling capabilities by offering a more intuitive API, automatic response parsing, and a cleaner fixture-based approach.
 
@@ -40,128 +40,95 @@ While Playwright offers built-in network interception via `page.route()` and `pa
 
 ## Comparison with Native Playwright
 
-### Observing Network Requests
+### Spying on the network
 
 **With Native Playwright:**
 
 ```typescript
-test('observe a request with native Playwright', async ({ page }) => {
-  // Set up response listener with complex filtering predicate
-  const usersCall = page.waitForResponse(
-    (response) =>
-      response.url().includes('/api/users') &&
-      response.request().method() === 'GET' &&
-      response.status() === 200
-  )
+test('Spy on the network - original', async ({ page }) => {
+  // Set up the interception before navigating
+  await page.route('*/**/api/v1/fruits', (route) => route.continue())
 
-  // Navigate to page
-  await page.goto('/users')
+  await page.goto('https://demo.playwright.dev/api-mocking')
 
-  // Wait for the response and manually parse JSON
-  const response = await usersCall
-  const responseBody = await response.json()
-  const { data } = responseBody
-
-  // Make assertions
-  expect(response.status()).toBe(200)
-  expect(data).toHaveLength(10)
-})
-```
-
-**With Our Utility:**
-
-```typescript
-test('observe a request with our utility', async ({
-  page,
-  interceptNetworkCall
-}) => {
-  // Set up observation with simple declarative options
-  const usersCall = interceptNetworkCall({
-    method: 'GET',
-    url: '/api/users' // status 200 is optional
-  })
-
-  // Navigate to page
-  await page.goto('/users')
-
-  // Wait for the call and get pre-parsed JSON with type safety
-  const {
-    status,
-    responseJson: { data }
-  } = await usersCall
-
-  // Make assertions
+  // Wait for the intercepted response
+  const fruitsResponse = await page.waitForResponse('*/**/api/v1/fruits')
+  // verify the network
+  const fruitsResponseBody = await fruitsResponse.json()
+  const status = fruitsResponse.status()
+  expect(fruitsResponseBody.length).toBeGreaterThan(0)
   expect(status).toBe(200)
-  expect(data).toHaveLength(10)
-})
-```
-
-### Mocking Responses
-
-**With Native Playwright:**
-
-```typescript
-test('mock a response with native Playwright', async ({ page }) => {
-  // Set up a flag to track if our mock was used
-  let mockWasUsed = false
-
-  // Set up route handler
-  await page.route('**/api/users/1', (route) => {
-    // Mark that our mock was used
-    mockWasUsed = true
-
-    return route.fulfill({
-      status: 200,
-      body: JSON.stringify({ id: 1, name: 'Test User' }),
-      headers: { 'Content-Type': 'application/json' }
-    })
-  })
-
-  // Additionally, if you want to capture the request and response details,
-  // you need to set up a separate response listener
-  const responsePromise = page.waitForResponse((response) =>
-    response.url().includes('/api/users/1')
-  )
-
-  // Navigate to page
-  await page.goto('/user/1')
-
-  // Verify that our mock was actually used
-  expect(mockWasUsed).toBe(true)
-
-  // If you need the response details, you need to await the separate promise
-  const response = await responsePromise
-  const status = response.status()
-  // Note: For mocked responses, you can't easily access the mocked body data
-  // since the response.json() would be from the mocked response
 })
 ```
 
 **With Our Utility:**
 
 ```typescript
-test('mock a response with our utility', async ({
-  page,
-  interceptNetworkCall
-}) => {
-  // Set up mock with clean, declarative options
-  const userCall = interceptNetworkCall({
-    method: 'GET',
-    url: '/api/users/1',
+test('Spy on the network', async ({ page, interceptNetworkCall }) => {
+  // Set up the interception before navigating
+  const fruitsResponse = interceptNetworkCall({
+    url: '**/fruits'
+  })
+
+  await page.goto('https://demo.playwright.dev/api-mocking')
+
+  // Wait for the intercepted response
+  const { responseJson, status } = await fruitsResponse
+  // verify the network
+  expect(responseJson.length).toBeGreaterThan(0)
+  expect(status).toBe(200)
+})
+```
+
+### Stubbing the network
+
+**With Native Playwright:**
+
+```typescript
+test('Stub the network - original', async ({ page }) => {
+  const fruit = { name: 'Guava', id: 12 }
+
+  // Set up the interception before navigating
+  await page.route('*/**/api/v1/fruits', (route) =>
+    route.fulfill({
+      json: [fruit]
+    })
+  )
+
+  await page.goto('https://demo.playwright.dev/api-mocking')
+
+  // Wait for the intercepted response
+  const fruitsResponse = await page.waitForResponse('*/**/api/v1/fruits')
+  // verify the network
+  const fruitsResponseBody = await fruitsResponse.json()
+  expect(fruitsResponseBody).toEqual([fruit])
+
+  await expect(page.getByText(fruit.name)).toBeVisible()
+})
+```
+
+**With Our Utility:**
+
+```typescript
+test('Stub the network', async ({ page, interceptNetworkCall }) => {
+  const fruit = { name: 'Guava', id: 12 }
+
+  // Set up the interception before navigating
+  const fruitsResponse = interceptNetworkCall({
+    url: '/api/*/fruits', // just a specificity on '**/fruits'
     fulfillResponse: {
-      status: 200,
-      body: { id: 1, name: 'Test User' }
+      body: [fruit]
     }
   })
 
-  // Navigate to page
-  await page.goto('/user/1')
+  await page.goto('https://demo.playwright.dev/api-mocking')
 
-  // Wait for the mock to be used and verify
-  await userCall
+  // Wait for the intercepted response
+  const { responseJson } = await fruitsResponse
+  // verify the network
+  expect(responseJson).toEqual([fruit])
 
-  // optional: can still access the request details if needed
-  const { request, status } = await userCall
+  await expect(page.getByText(fruit.name)).toBeVisible()
 })
 ```
 
