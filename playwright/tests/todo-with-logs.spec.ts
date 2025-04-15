@@ -655,12 +655,13 @@ const createDefaultTodos = functionTestStep(
 )
 
 const checkNumberOfTodosInLocalStorage = functionTestStep(
-  'Check total todos count',
+  'Check total todos count fn-step',
   async (page: Page, expected: number) => {
     await log.info(`Verifying todo count: ${expected}`)
-    const result = await page.waitForFunction((e) => {
-      return JSON.parse(localStorage['react-todos']).length === e
-    }, expected)
+    const result = await page.waitForFunction(
+      (e) => JSON.parse(localStorage['react-todos']).length === e,
+      expected
+    )
     await log.success(`Verified todo count: ${expected}`)
     return result
   }
@@ -670,14 +671,14 @@ const checkNumberOfCompletedTodosInLocalStorage = functionTestStep(
   'Check completed todos count',
   async (page: Page, expected: number) => {
     await log.info(`Verifying completed todo count: ${expected}`)
-    const result = await page.waitForFunction((e) => {
-      return (
+    const result = await page.waitForFunction(
+      (e) =>
         JSON.parse(localStorage['react-todos']).filter(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (todo: any) => todo.completed
-        ).length === e
-      )
-    }, expected)
+        ).length === e,
+      expected
+    )
     await log.success(`Verified completed todo count: ${expected}`)
     return result
   }
@@ -687,14 +688,14 @@ const checkTodosInLocalStorage = functionTestStep(
   'Check todo exists',
   async (page: Page, title: string) => {
     await log.info(`Verifying todo exists: ${title}`)
-    const result = await page.waitForFunction((t) => {
-      return (
+    const result = await page.waitForFunction(
+      (t) =>
         JSON.parse(localStorage['react-todos'])
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((todo: any) => todo.title)
-          .includes(t)
-      )
-    }, title)
+          .includes(t),
+      title
+    )
     await log.success(`Verified todo exists: ${title}`)
     return result
   }

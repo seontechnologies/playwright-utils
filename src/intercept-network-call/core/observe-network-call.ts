@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Page } from '@playwright/test'
 import type { NetworkCallResult } from './types'
 import { matchesRequest } from './utils/matches-request'
@@ -16,21 +17,29 @@ export async function observeNetworkCall(
     throw new Error('No response received for the request')
   }
 
-  let data = null
+  let data: unknown = null
 
   try {
-    const contentType = response.headers()['content-type']
-    if (contentType?.includes('application/json')) {
-      data = await response.json()
+    data = await response.json()
+  } catch (_error) {
+    const contentType =
+      response.headers()['content-type'] ||
+      response.headers()['Content-Type'] ||
+      ''
+
+    if (!contentType.includes('application/json')) {
+      data = null
+    } else {
+      console.warn(
+        'Failed to parse JSON response despite Content-Type indicating JSON'
+      )
     }
-  } catch {
-    // Response is not JSON
   }
 
-  let requestJson = null
+  let requestJson: unknown = null
   try {
     requestJson = await request.postDataJSON()
-  } catch {
+  } catch (_error) {
     // Request has no post data or is not JSON
   }
 

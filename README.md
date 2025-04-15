@@ -137,6 +137,29 @@ test('example', async ({ page }) => {
 
   // Await the network call and access the result
   const { responseJson, status } = await networkCall
+
+  // With type assertion for strongly typed access
+  const {
+    responseJson: { data }
+  } = (await networkCall) as { responseJson: { data: User[] } }
+
+  // Conditional request handling
+  await interceptNetworkCall({
+    page,
+    url: '/api/data',
+    handler: async (route, request) => {
+      if (request.method() === 'POST') {
+        // Handle POST requests
+        await route.fulfill({
+          status: 200,
+          body: JSON.stringify({ success: true })
+        })
+      } else {
+        // Continue with other requests
+        await route.continue()
+      }
+    }
+  })
 })
 
 // As a fixture

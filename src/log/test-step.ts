@@ -50,10 +50,6 @@ export function methodTestStep(stepName?: string) {
       // Combine them for a descriptive step name in test reports
       const fullStepName = `${name} (${className})`
 
-      // Log the step to our custom logger before Playwright's test.step
-      // This allows for consistent logging across all our test utilities
-      await log.step(fullStepName)
-
       // Wrap execution in Playwright's test.step for proper test reporting
       // This makes steps appear in Playwright's HTML reporter with timing info
       return test.step(fullStepName, async () => {
@@ -98,9 +94,6 @@ export function functionTestStep<T extends any[], R>(
   return async function (...args: T): Promise<R> {
     // Unlike methodTestStep, we don't need to handle 'this' context
     // Because we're working with standalone functions, not class methods
-
-    // Log the step to our custom logger for consistent output
-    await log.step(stepName)
 
     // Wrap execution in Playwright's test.step for proper test reporting
     return test.step(stepName, async () => {
