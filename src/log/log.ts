@@ -110,27 +110,43 @@ const handleFileLogging = async (
   }
 }
 
-/** Base logging function that handles common logging logic */
+/**
+ * Base logging function that handles common logging logic
+ * Supports either string message or object as first parameter
+ */
 const logBase = async (
-  message: string,
+  messageOrData: string | unknown,
   level: LogLevel,
   options: LoggingConfig = {}
 ): Promise<void> => {
   // Get configuration and context
   const config = getLoggingConfig()
   const testContext = getTestContextInfo()
-  const displayMessage = message || '(empty message)'
+
+  // Handle message formatting based on type
+  let displayMessage: string
+  let metaObject: unknown | undefined
+
+  if (typeof messageOrData === 'string') {
+    displayMessage = messageOrData || '(empty message)'
+    metaObject = undefined
+  } else {
+    // If first argument is not a string, treat it as an object to log
+    displayMessage = ''
+    metaObject = messageOrData
+  }
 
   // Get configurations
   const formattingOptions = getFormattingOptions(options)
   const workerIdConfig = getWorkerIdConfig(options, config)
 
-  // Format message
+  // Format message with optional object parameter
   const formattedMessage = formatMessage(
     displayMessage,
     level,
     formattingOptions,
-    workerIdConfig
+    workerIdConfig,
+    metaObject ? [metaObject] : []
   )
 
   // Handle different output destinations
@@ -138,43 +154,48 @@ const logBase = async (
   await handleFileLogging(formattedMessage, level, options, config, testContext)
 
   // Try to use Playwright step (only for 'step' level)
+  // For PW steps, only use the string message for better UI display
   if (level === 'step') {
     await tryPlaywrightStep(displayMessage)
   }
 }
 
-// Specific logging methods for each level
+// Specific logging methods for each level with support for objects
 const logInfo = async (
-  message: string,
+  messageOrData: string | unknown,
   options?: Partial<LoggingConfig>
-): Promise<void> => logBase(message, 'info', mergeOptions(options, 'info'))
+): Promise<void> =>
+  logBase(messageOrData, 'info', mergeOptions(options, 'info'))
 
 const logStep = async (
-  message: string,
+  messageOrData: string | unknown,
   options?: Partial<LoggingConfig>
-): Promise<void> => logBase(message, 'step', mergeOptions(options, 'step'))
+): Promise<void> =>
+  logBase(messageOrData, 'step', mergeOptions(options, 'step'))
 
 const logSuccess = async (
-  message: string,
+  messageOrData: string | unknown,
   options?: Partial<LoggingConfig>
 ): Promise<void> =>
-  logBase(message, 'success', mergeOptions(options, 'success'))
+  logBase(messageOrData, 'success', mergeOptions(options, 'success'))
 
 const logWarning = async (
-  message: string,
+  messageOrData: string | unknown,
   options?: Partial<LoggingConfig>
 ): Promise<void> =>
-  logBase(message, 'warning', mergeOptions(options, 'warning'))
+  logBase(messageOrData, 'warning', mergeOptions(options, 'warning'))
 
 const logError = async (
-  message: string,
+  messageOrData: string | unknown,
   options?: Partial<LoggingConfig>
-): Promise<void> => logBase(message, 'error', mergeOptions(options, 'error'))
+): Promise<void> =>
+  logBase(messageOrData, 'error', mergeOptions(options, 'error'))
 
 const logDebug = async (
-  message: string,
+  messageOrData: string | unknown,
   options?: Partial<LoggingConfig>
-): Promise<void> => logBase(message, 'debug', mergeOptions(options, 'debug'))
+): Promise<void> =>
+  logBase(messageOrData, 'debug', mergeOptions(options, 'debug'))
 
 /**
  * Main logger utility with methods for different log levels

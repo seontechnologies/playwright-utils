@@ -58,16 +58,34 @@ const TODO_ITEMS = [
   'book a doctors appointment'
 ] as const
 
-test.beforeAll(async () => {
-  await log.info('Starting TodoMVC test suite with enhanced logging')
-})
-
 test.beforeEach(async ({ page }) => {
   await log.step('Navigate to TodoMVC app')
   await page.goto('https://demo.playwright.dev/todomvc')
 })
 
 test.describe('New Todo', () => {
+  test('Log demo', async () => {
+    await log.info('Starting TodoMVC test suite with enhanced logging')
+
+    // Can also log objects with other log levels
+    await log.debug({ timestamp: new Date(), recordCount: 42 })
+
+    // String message with object logging
+    await log.success('success!')
+
+    // Object with logging options
+    await log.warning(
+      { warning: 'This is a warning object', code: 'WARN001' },
+      { console: { enabled: true, colorize: true } }
+    )
+
+    await log.step(
+      'You should not log an object here, steps only display strings'
+    )
+
+    await log.info({ someText: 'objects will show empty in test steps' })
+  })
+
   test('should allow me to add todo items', async ({ page }) => {
     await log.step('Testing adding todo items')
 
@@ -81,7 +99,11 @@ test.describe('New Todo', () => {
 
     // Make sure the list only has one todo item.
     await expect(page.getByTestId('todo-title')).toHaveText([TODO_ITEMS[0]])
-    await log.success('First todo added and verified')
+    // Log with object - demonstrates the new feature
+    await log.success({
+      todoItem: TODO_ITEMS[0],
+      count: 1
+    })
 
     await log.step('Add second todo')
     // Create 2nd todo.
@@ -93,7 +115,14 @@ test.describe('New Todo', () => {
       TODO_ITEMS[0],
       TODO_ITEMS[1]
     ])
-    await log.success('Second todo added and verified')
+
+    // Object with custom logging options
+    await log.success(
+      // Data to log
+      { todoItems: [TODO_ITEMS[0], TODO_ITEMS[1]], count: 2 },
+      // Custom logging options
+      { console: { enabled: true, colorize: true } }
+    )
 
     await checkNumberOfTodosInLocalStorage(page, 2)
   })
