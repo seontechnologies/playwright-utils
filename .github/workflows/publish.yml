@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read # Required for checkout
   packages: write # Required for publishing to GitHub Packages
+  id-token: write # Required for OIDC token request
 
 jobs:
   build-and-publish:
