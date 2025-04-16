@@ -60,14 +60,14 @@ A powerful polling utility for waiting on asynchronous conditions.
 // note that there is no need to pass in request or page context from Playwright
 
 // Direct import
-import { recurse } from '@seon/playwright-utils'
+import { recurse } from 'playwright-utils/recurse'
 
 test('example', async ({}) => {
-  const result = await recurse({
-    command: () => fetchData(),
-    predicate: (data) => data.status === 'ready',
-    options: { timeout: 30000 }
-  })
+  const result = await recurse(
+    () => fetchData(),
+    (data) => data.status === 'ready',
+    { timeout: 30000 }
+  )
 })
 
 // As a fixture
