@@ -72,11 +72,11 @@ async function recurse<T>(
 
 ### Parameters
 
-| Parameter | Type                      | Description |
-|-----------|---------------------------|-------------|
-| command   | `() => Promise<T>`        | A function that returns a Promise. This is the operation you want to retry. |
-| predicate | `(value: T) => boolean`   | A function that tests the result from the command. Return true when the condition is satisfied. |
-| options   | `RecurseOptions`          | Optional configuration for timeout, interval, and logging. |
+| Parameter | Type                    | Description                                                                                     |
+| --------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| command   | `() => Promise<T>`      | A function that returns a Promise. This is the operation you want to retry.                     |
+| predicate | `(value: T) => boolean` | A function that tests the result from the command. Return true when the condition is satisfied. |
+| options   | `RecurseOptions`        | Optional configuration for timeout, interval, and logging.                                      |
 
 ### RecurseOptions
 
@@ -170,9 +170,9 @@ test('demonstrates integratest('wait for resource creation', async ({ recurse, a
     url: '/api/resources',
     body: { name: 'Test Resource' }
   })
-  
+
   const resourceId = createResponse.id
-  
+
   // Wait for the resource to be fully processed (async operation)
   const { body: resource } = await recurse(
     () => apiRequest({
@@ -196,11 +196,11 @@ test('demonstrates integratest('wait for resource creation', async ({ recurse, a
 
 ```typescript
 test('waits for dynamic UI changes', async ({ page, recurse }) => {
-  await page.goto('https://example.com/dashboard');
-  
+  await page.goto('https://example.com/dashboard')
+
   // Click a button that triggers an asynchronous data load
-  await page.getByRole('button', { name: 'Load Data' }).click();
-  
+  await page.getByRole('button', { name: 'Load Data' }).click()
+
   // Wait for the UI to update with the loaded data
   // This approach is more flexible than fixed timeouts or simple waitFor methods
   const tableData = await recurse(
@@ -214,10 +214,10 @@ test('waits for dynamic UI changes', async ({ page, recurse }) => {
       interval: 500,
       log: 'Waiting for table data to load'
     }
-  );
-  
-  console.log(`Table loaded with ${tableData} rows`);
-  
+  )
+
+  console.log(`Table loaded with ${tableData} rows`)
+
   // More complex example - waiting for specific content within the UI
   await recurse(
     async () => {
@@ -230,6 +230,6 @@ test('waits for dynamic UI changes', async ({ page, recurse }) => {
         console.log(`Current status: ${value} (attempt #${data.iteration})`)
       }
     }
-  );
-});
+  )
+})
 ```

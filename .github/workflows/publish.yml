@@ -5,35 +5,50 @@ on:
     tags:
       - 'v*.*.*'
 
-env:
-  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+permissions:
+  contents: read # Required for checkout
+  packages: write # Required for publishing to GitHub Packages
 
 jobs:
   build-and-publish:
-    runs-on: kubernetes-default
+    runs-on: ubuntu-latest
     steps:
       # 1. Checkout the repository
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for version calculation
 
-      # 2. Read Node version from .nvmrc
-      - name: Read Node version from .nvmrc
-        id: node_version
-        run: echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_ENV
-
-      # 3. Set up Node.js with Auth Token
+      # 2. Setup Node.js
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org/'
+          node-version-file: '.nvmrc'
+          registry-url: 'https://npm.pkg.github.com/'
+          scope: '@seontechnologies'
+          cache: 'npm'
+
+      # Cache node modules
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
 
       # 4. Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 5. Build the project
-      - name: Build
-        run: npm run build
+      # 5. Run typecheck, lint, tests
+      - name: Test
+        run: npm run validate
 
-      # 6. Publish to npm
-      - name: Publish
-        run: npm publish --access public
+      # 6. For tag triggers - use explicit version
+      - name: Handle tag-based release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "Publishing tag-based release"
+          npm run build
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

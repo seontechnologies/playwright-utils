@@ -1,6 +1,6 @@
 {
-  "name": "playwright-utils",
-  "version": "1.0.0",
+  "name": "@seontechnologies/playwright-utils",
+  "version": "0.0.1",
   "description": "A collection of utilities for Playwright.",
   "author": "Murat Ozcan",
   "license": "UNLICENSED",
@@ -69,7 +69,11 @@
     "playwright",
     "utils"
   ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
+    "publish:local": "./scripts/publish.sh",
     "build": "rm -rf dist && tsc -p tsconfig-build.json",
     "prettier": "prettier --ignore-path .gitignore \"**/*.+(js|ts|json)\"",
     "fix:format": "npm run prettier -- --write",
@@ -80,6 +84,9 @@
     "lint": "eslint . --cache-location node_modules/.cache/eslint --fix",
     "test:pw": "TEST_ENV=dev npx playwright test",
     "test:pw-ui": "TEST_ENV=dev npx playwright test --ui"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.51.1"
   },
   "devDependencies": {
     "@faker-js/faker": "9.7.0",
