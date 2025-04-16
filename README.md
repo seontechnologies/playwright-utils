@@ -23,6 +23,8 @@ All utilities can be used as Playwright fixtures by importing the test object
 npm install @seontechnologies/playwright-utils
 ```
 
+> **Note:** This package requires `@playwright/test` as a peer dependency. It should already be installed in your repository.
+
 ## Development
 
 ```bash

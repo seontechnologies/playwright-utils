@@ -85,6 +85,9 @@
     "test:pw": "TEST_ENV=dev npx playwright test",
     "test:pw-ui": "TEST_ENV=dev npx playwright test --ui"
   },
+  "peerDependencies": {
+    "@playwright/test": "^1.51.1"
+  },
   "devDependencies": {
     "@faker-js/faker": "9.7.0",
     "@playwright/test": "^1.51.1",
