@@ -4,9 +4,25 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type to bump'
+        required: true
+        default: 'patch'
+        type: 'choice'
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      custom_version:
+        description: 'Custom version (if version_type is "custom")'
+        required: false
+        type: 'string'
 
 permissions:
-  contents: read # Required for checkout
+  contents: write # Required for checkout and pushing changes
   packages: write # Required for publishing to GitHub Packages
   id-token: write # Required for OIDC token request
 
@@ -51,5 +67,45 @@ jobs:
           echo "Publishing tag-based release"
           npm run build
           npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # 7. For workflow dispatch - bump version, build, publish and tag
+      - name: Handle workflow dispatch release
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          # Configure git
+          git config --global user.name "SEON CI Bot"
+          git config --global user.email "ci-bot@seon.io"
+          
+          # Get current version
+          CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Determine version
+          if [[ "${{ github.event.inputs.version_type }}" == "custom" ]]; then
+            NEW_VERSION="${{ github.event.inputs.custom_version }}"
+            echo "Setting custom version: $NEW_VERSION"
+            npm version "$NEW_VERSION" --no-git-tag-version
+          else
+            VERSION_TYPE="${{ github.event.inputs.version_type }}"
+            echo "Bumping $VERSION_TYPE version"
+            npm version $VERSION_TYPE --no-git-tag-version
+          fi
+          
+          # Get the new version
+          NEW_VERSION=$(npm pkg get version | tr -d '"')
+          echo "New version: $NEW_VERSION"
+          
+          # Build and publish
+          npm run build
+          npm publish
+          
+          # Commit the version change
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to $NEW_VERSION"
+          git tag -a "v$NEW_VERSION" -m "Release $NEW_VERSION"
+          git push origin HEAD:${GITHUB_REF#refs/heads/}
+          git push origin "v$NEW_VERSION"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

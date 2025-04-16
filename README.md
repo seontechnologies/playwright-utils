@@ -14,7 +14,8 @@ All utilities can be used as Playwright fixtures by importing the test object
     - [Network Interception](#network-interception)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
-    - [Publishing from GitHub Actions (Recommended)](#publishing-from-github-actions-recommended)
+    - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
+    - [Publishing from Tags](#publishing-from-tags)
     - [Publishing Locally](#publishing-locally)
 
 ## Installation
@@ -230,7 +231,26 @@ pnpm add file:/path/to/playwright-utils-1.0.0.tgz
 
 This package is published to the GitHub Packages registry under the `@seontechnologies` scope.
 
-### Publishing from GitHub Actions (Recommended)
+### Publishing via GitHub UI (Recommended)
+
+You can trigger a release directly from GitHub's web interface:
+
+1. Go to the repository → Actions → "Publish Package" workflow
+2. Click "Run workflow" button (dropdown on the right)
+3. Select options in the form:
+   - **Branch**: main
+   - **Version type**: patch/minor/major/custom
+   - **Custom version**: Only needed if you selected "custom" type
+4. Click "Run workflow"
+
+This will automatically:
+
+- Bump the version according to your selection
+- Build and publish the package
+- Create a git tag and commit
+- Push everything back to the repository
+
+### Publishing from Tags
 
 The package is automatically published when a new version tag is pushed to GitHub:
 
