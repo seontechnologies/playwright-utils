@@ -6,16 +6,39 @@ All utilities can be used as Playwright fixtures by importing the test object
 
 - [Playwright Utils](#playwright-utils)
   - [Installation](#installation)
+  - [Development](#development)
   - [Available Utilities](#available-utilities)
     - [API Request](#api-request)
     - [Recurse (Polling)](#recurse-polling)
     - [Logging](#logging)
     - [Network Interception](#network-interception)
+  - [Testing the Package Locally](#testing-the-package-locally)
+  - [Release and Publishing](#release-and-publishing)
+    - [Publishing from GitHub Actions (Recommended)](#publishing-from-github-actions-recommended)
+    - [Publishing Locally](#publishing-locally)
 
 ## Installation
 
 ```bash
-npm install @seon/playwright-utils
+npm install @seontechnologies/playwright-utils
+```
+
+## Development
+
+```bash
+# Install dependencies
+npm i
+
+# Development commands
+npm run lint          # Run ESLint
+npm run typecheck     # Run TypeScript checks
+npm run fix:format    # Fix code formatting with Prettier
+npm run test          # Run unit tests
+npm run validate      # Run all the above in parallel
+
+# Playwright tests
+npm run test:pw       # Run Playwright tests
+npm run test:pw-ui    # Run Playwright tests with UI
 ```
 
 ## Available Utilities
@@ -182,3 +205,59 @@ test('example', async ({ page, interceptNetworkCall }) => {
 ```
 
 [→ Network Interception Documentation](./docs/intercept-network-call.md)
+
+## Testing the Package Locally
+
+```bash
+# Build the package
+npm run build
+
+# Create a tarball package
+npm pack
+
+# Install in a target repository
+# For npm projects:
+npm install /path/to/playwright-utils-1.0.0.tgz
+
+# For pnpm projects:
+pnpm add file:/path/to/playwright-utils-1.0.0.tgz
+```
+
+## Release and Publishing
+
+This package is published to the GitHub Packages registry under the `@seontechnologies` scope.
+
+### Publishing from GitHub Actions (Recommended)
+
+The package is automatically published when a new version tag is pushed to GitHub:
+
+```bash
+# Switch to main branch and ensure it's up to date
+git checkout main
+git pull
+
+# Create an annotated tag with the version number
+git tag -a v1.0.0 -m "Release version 1.0.0"
+
+# Push the tag to GitHub to trigger the publish workflow
+git push origin v1.0.0
+```
+
+### Publishing Locally
+
+You can also publish the package locally using the provided script:
+
+```bash
+# 1. If not already set, set your GitHub token as an environment variable
+export GITHUB_TOKEN=your_personal_access_token
+
+# 2. Run the publish script and follow the prompts
+npm run publish:local
+```
+
+The script will guide you through:
+
+- Selecting a version type (patch/minor/major/custom/date-based)
+- Building the package
+- Publishing to GitHub Packages
+- Creating a git tag and commit

@@ -1,6 +1,6 @@
 {
-  "name": "playwright-utils",
-  "version": "1.0.0",
+  "name": "@seontechnologies/playwright-utils",
+  "version": "0.0.1",
   "description": "A collection of utilities for Playwright.",
   "author": "Murat Ozcan",
   "license": "UNLICENSED",
@@ -69,7 +69,12 @@
     "playwright",
     "utils"
   ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
+    "publish:local": "./scripts/publish.sh",
+    "prepublishOnly": "npm run build && npm run test",
     "build": "rm -rf dist && tsc -p tsconfig-build.json",
     "prettier": "prettier --ignore-path .gitignore \"**/*.+(js|ts|json)\"",
     "fix:format": "npm run prettier -- --write",

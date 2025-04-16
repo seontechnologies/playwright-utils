@@ -1,0 +1,117 @@
+#!/bin/bash
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check if on main or master branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
+  echo -e "${YELLOW}Warning: You are not on the main or master branch.${NC}"
+  read -p "Continue anyway? (y/N) " -n 1 -r
+  echo
+  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${RED}Aborting.${NC}"
+    exit 1
+  fi
+fi
+
+# Ensure working directory is clean
+if [ -n "$(git status --porcelain)" ]; then
+  echo -e "${RED}Error: Working directory is not clean. Commit or stash changes first.${NC}"
+  exit 1
+fi
+
+# Setup .npmrc for GitHub packages if it doesn't exist
+if [ ! -f .npmrc ] || ! grep -q "npm.pkg.github.com" .npmrc; then
+  echo -e "${YELLOW}Setting up .npmrc for GitHub Packages...${NC}"
+  
+  # Check if GITHUB_TOKEN is set
+  if [ -z "$GITHUB_TOKEN" ]; then
+    echo -e "${RED}Error: GITHUB_TOKEN environment variable is not set.${NC}"
+    echo -e "Please set it with: export GITHUB_TOKEN=your_github_token"
+    exit 1
+  fi
+  
+  # Create .npmrc with GitHub Packages configuration
+  echo "@seontechnologies:registry=https://npm.pkg.github.com" > .npmrc
+  echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> .npmrc
+  
+  echo -e "${GREEN}Created .npmrc file for GitHub Packages.${NC}"
+fi
+
+# Read current version
+CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+echo -e "Current version: ${GREEN}$CURRENT_VERSION${NC}"
+
+# Prompt for version type or specific version
+echo "Select version type:"
+echo "1) Patch (x.x.X)"
+echo "2) Minor (x.X.0)"
+echo "3) Major (X.0.0)"
+echo "4) Custom version"
+echo "5) Use date-based version (YYYY.MM.DD-commit)"
+read -p "Enter choice (1-5): " VERSION_CHOICE
+
+case $VERSION_CHOICE in
+  1) VERSION_TYPE="patch" ;;
+  2) VERSION_TYPE="minor" ;;
+  3) VERSION_TYPE="major" ;;
+  4)
+    read -p "Enter custom version (without v prefix): " CUSTOM_VERSION
+    VERSION_TYPE=$CUSTOM_VERSION
+    ;;
+  5)
+    COMMIT=$(git rev-parse --short HEAD)
+    YEAR=$(date '+%Y')
+    MONTH=$(date '+%-m')
+    DAY=$(date '+%-d')
+    VERSION_TYPE="$YEAR.$MONTH.$DAY-$COMMIT"
+    ;;
+  *)
+    echo -e "${RED}Invalid choice. Exiting.${NC}"
+    exit 1
+    ;;
+esac
+
+# Build the package
+echo -e "${YELLOW}Building package...${NC}"
+npm run build
+
+# Bump version
+if [[ "$VERSION_CHOICE" == "4" || "$VERSION_CHOICE" == "5" ]]; then
+  echo -e "Setting version to: ${GREEN}$VERSION_TYPE${NC}"
+  npm version "$VERSION_TYPE" --no-git-tag-version
+else
+  echo -e "Bumping ${GREEN}$VERSION_TYPE${NC} version..."
+  npm version $VERSION_TYPE --no-git-tag-version
+fi
+
+NEW_VERSION=$(npm pkg get version | tr -d '"')
+
+# Publish
+echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to GitHub Packages..."
+npm publish
+
+echo -e "${GREEN}Successfully published version $NEW_VERSION${NC}"
+
+# Create a version commit and tag
+git add package.json package-lock.json
+git commit -m "chore: bump version to $NEW_VERSION"
+git tag -a "v$NEW_VERSION" -m "Release $NEW_VERSION"
+
+echo -e "${YELLOW}Push commit and tag? (y/N)${NC}"
+read -p "" -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  git push origin $CURRENT_BRANCH
+  git push origin "v$NEW_VERSION"
+  echo -e "${GREEN}Pushed commit and tag v$NEW_VERSION${NC}"
+else
+  echo -e "${YELLOW}Skipped pushing. Remember to push manually:${NC}"
+  echo "  git push origin $CURRENT_BRANCH"
+  echo "  git push origin v$NEW_VERSION"
+fi
