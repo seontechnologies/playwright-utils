@@ -106,7 +106,8 @@ jobs:
           git add package.json package-lock.json
           git commit -m "chore: bump version to $NEW_VERSION"
           git tag -a "v$NEW_VERSION" -m "Release $NEW_VERSION"
-          git push origin HEAD:${GITHUB_REF#refs/heads/}
+          # Push to a dedicated release-tracking branch instead of main
+          git push origin HEAD:release-tracking -f
           git push origin "v$NEW_VERSION"
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
