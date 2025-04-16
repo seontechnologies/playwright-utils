@@ -74,7 +74,6 @@
   },
   "scripts": {
     "publish:local": "./scripts/publish.sh",
-    "prepublishOnly": "npm run build && npm run test",
     "build": "rm -rf dist && tsc -p tsconfig-build.json",
     "prettier": "prettier --ignore-path .gitignore \"**/*.+(js|ts|json)\"",
     "fix:format": "npm run prettier -- --write",

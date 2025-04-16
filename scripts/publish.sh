@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -e # fail on script error
 
 # Colors for output
 RED='\033[0;31m'
@@ -25,22 +25,23 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
-# Setup .npmrc for GitHub packages if it doesn't exist
+# Check for required .npmrc configuration
 if [ ! -f .npmrc ] || ! grep -q "npm.pkg.github.com" .npmrc; then
-  echo -e "${YELLOW}Setting up .npmrc for GitHub Packages...${NC}"
-  
-  # Check if GITHUB_TOKEN is set
-  if [ -z "$GITHUB_TOKEN" ]; then
-    echo -e "${RED}Error: GITHUB_TOKEN environment variable is not set.${NC}"
-    echo -e "Please set it with: export GITHUB_TOKEN=your_github_token"
-    exit 1
-  fi
-  
-  # Create .npmrc with GitHub Packages configuration
-  echo "@seontechnologies:registry=https://npm.pkg.github.com" > .npmrc
-  echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> .npmrc
-  
-  echo -e "${GREEN}Created .npmrc file for GitHub Packages.${NC}"
+  echo -e "${RED}Error: Missing .npmrc file or incorrect configuration.${NC}"
+  echo -e "Please create an .npmrc file with the following example content:"
+  echo -e "public registry example:"
+  echo -e "@seontechnologies:registry=https://npm.pkg.github.com"
+  echo -e "//npm.pkg.github.com/:_authToken=\${GITHUB_TOKEN}"
+  echo -e "public example"
+  echo -e "registry=https://registry.npmjs.org"
+  exit 1
+fi
+
+# Check if GITHUB_TOKEN is set
+if [ -z "$GITHUB_TOKEN" ]; then
+  echo -e "${RED}Error: GITHUB_TOKEN environment variable is not set.${NC}"
+  echo -e "Please set it with: export GITHUB_TOKEN=your_github_token"
+  exit 1
 fi
 
 # Read current version
