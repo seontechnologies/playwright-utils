@@ -6,10 +6,12 @@ import { matchesRequest } from './utils/matches-request'
 export async function observeNetworkCall(
   page: Page,
   method?: string,
-  url?: string
+  url?: string,
+  timeout?: number
 ): Promise<NetworkCallResult> {
-  const request = await page.waitForRequest((req) =>
-    matchesRequest(req, method, url)
+  const request = await page.waitForRequest(
+    (req) => matchesRequest(req, method, url),
+    { timeout }
   )
 
   const response = await request.response()

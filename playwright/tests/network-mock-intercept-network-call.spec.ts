@@ -56,4 +56,21 @@ test.describe('describe network interception', () => {
     await fruitResponse
     await expect(page.getByText('MAGIC FRUIT')).toBeVisible()
   })
+
+  test('Use timeout option', async ({ page, interceptNetworkCall }) => {
+    // Set up the interception with a timeout
+    const fruitsResponse = interceptNetworkCall({
+      url: '**/fruits',
+      timeout: 5000 // 5 seconds timeout
+    })
+
+    await page.goto('https://demo.playwright.dev/api-mocking')
+
+    // Wait for the intercepted response
+    const { responseJson, status } = await fruitsResponse
+
+    // Verify the response was successful
+    expect(status).toBe(200)
+    expect(responseJson.length).toBeGreaterThan(0)
+  })
 })

@@ -16,6 +16,7 @@ type InterceptOptions = {
   page: Page
   fulfillResponse?: FulfillResponse
   handler?: (route: Route, request: Request) => Promise<void> | void
+  timeout?: number // Timeout in milliseconds
 }
 
 /**
@@ -26,30 +27,39 @@ const interceptNetworkCallBase = async ({
   url,
   page,
   fulfillResponse,
-  handler
+  handler,
+  timeout
 }: InterceptOptions): Promise<NetworkCallResult> => {
   if (!page) {
     throw new Error('The `page` argument is required for network interception')
   }
 
   if (fulfillResponse || handler) {
-    return fulfillNetworkCall(page, method, url, fulfillResponse, handler)
+    return fulfillNetworkCall(
+      page,
+      method,
+      url,
+      fulfillResponse,
+      handler,
+      timeout
+    )
   } else {
-    return observeNetworkCall(page, method, url)
+    return observeNetworkCall(page, method, url, timeout)
   }
 }
 
 /** Creates a step name based on the network interception options */
 const createStepName = (options: InterceptOptions): string => {
   const operation = options.fulfillResponse
-    ? 'Stub'
+    ? 'Mock'
     : options.handler
       ? 'Modify'
       : 'Observe'
   const methodStr = options.method ? options.method : ''
   const urlStr = options.url ? options.url : ''
+  const timeoutStr = options.timeout ? ` (timeout: ${options.timeout}ms)` : ''
 
-  return `${operation} ${methodStr} ${urlStr}`
+  return `${operation} ${methodStr} ${urlStr}${timeoutStr}`
 }
 
 /**

@@ -42,7 +42,8 @@ export async function fulfillNetworkCall(
   method?: string,
   url?: string,
   fulfillResponse?: FulfillResponse,
-  handler?: (route: Route, request: Request) => Promise<void> | void
+  handler?: (route: Route, request: Request) => Promise<void> | void,
+  timeout?: number
 ): Promise<NetworkCallResult> {
   const routePattern = url?.startsWith('**') ? url : `**${url || '*'}`
   const preparedResponse = prepareResponse(fulfillResponse)
@@ -68,8 +69,21 @@ export async function fulfillNetworkCall(
     }
   })
 
-  // Wait for the request to be captured
-  const request = await requestPromise
+  // Wait for the request to be captured with timeout if specified
+  const request = await Promise.race([
+    requestPromise,
+    // If timeout is specified, create a rejection promise that triggers after timeout
+    ...(timeout
+      ? [
+          new Promise<Request>((_, reject) =>
+            setTimeout(
+              () => reject(new Error(`Request timeout after ${timeout}ms`)),
+              timeout
+            )
+          )
+        ]
+      : [])
+  ])
   let requestJson = null
   try {
     requestJson = await request.postDataJSON()

@@ -11,13 +11,8 @@ npm run fix:format
 npm run validate # all the above in parallel
 
 npm run test # unit tests
-npm run test:watch # watch mode
+npm run test:pw # watch mode
 
-npm run mock:server # starts the mock backend/provider server
-
-npm run cy:open-local # open mode
-npm run cy:run-local  # run mode
-npm run cy:run-local-fast  # no video or screen shots
 ```
 
 ## Test the package locally
