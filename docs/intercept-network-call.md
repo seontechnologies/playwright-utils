@@ -246,6 +246,7 @@ The main function to intercept network requests.
 | `url`             | `string`   | Optional: URL pattern to match (supports glob patterns via picomatch) |
 | `fulfillResponse` | `object`   | Optional: Response to use when mocking                                |
 | `handler`         | `function` | Optional: Custom handler function for the route                       |
+| `timeout`         | `number`   | Optional: Timeout in milliseconds for the network request             |
 
 #### `fulfillResponse` Object
 
@@ -456,3 +457,27 @@ await errorCall
 // Verify error handling in the UI
 await expect(page.locator('.error-message')).toBeVisible()
 ```
+
+### Using Timeout
+
+```typescript
+// Set a timeout for waiting on a network request
+const dataCall = interceptNetworkCall({
+  page,
+  method: 'GET',
+  url: '/api/data-that-might-be-slow',
+  timeout: 5000  // 5 seconds timeout
+})
+
+await page.goto('/data-page')
+
+try {
+  const { responseJson } = await dataCall
+  console.log('Data loaded successfully:', responseJson)
+} catch (error) {
+  if (error.message.includes('timeout')) {
+    console.log('Request timed out as expected')
+  } else {
+    throw error  // Unexpected error
+  }
+}
