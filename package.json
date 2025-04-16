@@ -60,7 +60,7 @@
   "homepage": "https://github.com/seontechnologies/playwright-utils#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/seontechnologies/playwright-utils.git"
+    "url": "git+https://github.com/seontechnologies/playwright-utils.git"
   },
   "bugs": {
     "url": "https://github.com/seontechnologies/playwright-utils/issues"
