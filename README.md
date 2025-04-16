@@ -239,6 +239,8 @@ The package is automatically published when a new version tag is pushed to GitHu
 git checkout main
 git pull
 
+# Manually update the version at package.json
+
 # Create an annotated tag with the version number
 git tag -a v1.0.0 -m "Release version 1.0.0"
 
