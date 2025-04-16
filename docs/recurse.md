@@ -19,18 +19,18 @@ The utility can be used in two ways:
 ### 1. As a Plain Function
 
 ```typescript
-import { recurse } from '@seon/playwright-utils'
+import { recurse } from 'playwright-utils/recurse'
 
 // Inside a test or another function
-const result = await recurse({
-  command: () => fetchSomeData(),
-  predicate: (data) => data.status === 'ready',
-  options: {
+const result = await recurse(
+  () => fetchSomeData(),
+  (data) => data.status === 'ready',
+  {
     timeout: 60000, // 60 seconds
     interval: 2000, // check every 2 seconds
     log: 'Waiting for data to be ready'
   }
-})
+)
 
 // result contains the value from command when predicate returned true
 ```
@@ -39,7 +39,7 @@ const result = await recurse({
 
 ```typescript
 // Import the fixture
-import { test } from '@seon/playwright-utils/fixtures'
+import { test } from 'playwright-utils/recurse/fixtures'
 
 // Use the fixture in your tests
 test('should wait for resource to be ready', async ({
@@ -47,11 +47,11 @@ test('should wait for resource to be ready', async ({
   apiRequest
 }) => {
   // Poll until session becomes active
-  const session = await recurse({
-    command: () => apiRequest({ method: 'GET', url: '/session' }),
-    predicate: (response) => response.body.status === 'ACTIVE',
-    options: { timeout: 60000, interval: 2000 }
-  })
+  const session = await recurse(
+    () => apiRequest({ method: 'GET', url: '/session' }),
+    (response) => response.body.status === 'ACTIVE',
+    { timeout: 60000, interval: 2000 }
+  )
 
   // Assertions
   expect(session.body.id).toBeDefined()
@@ -63,20 +63,20 @@ test('should wait for resource to be ready', async ({
 ### recurse Function
 
 ```typescript
-async function recurse<T>({
-  command,
-  predicate,
-  options
-}: RecurseParams<T>): Promise<T>
+async function recurse<T>(
+  command: () => Promise<T>,
+  predicate: (value: T) => boolean,
+  options?: RecurseOptions
+): Promise<T>
 ```
 
 ### Parameters
 
-| Parameter | Type                      | Description                                                              |
-| --------- | ------------------------- | ------------------------------------------------------------------------ |
-| command   | () => Promise\<T\>        | Function that returns a value to test                                    |
-| predicate | (value: T) => boolean     | Function that tests the value and returns true when the condition is met |
-| options   | RecurseOptions (optional) | Configuration options                                                    |
+| Parameter | Type                      | Description |
+|-----------|---------------------------|-------------|
+| command   | `() => Promise<T>`        | A function that returns a Promise. This is the operation you want to retry. |
+| predicate | `(value: T) => boolean`   | A function that tests the result from the command. Return true when the condition is satisfied. |
+| options   | `RecurseOptions`          | Optional configuration for timeout, interval, and logging. |
 
 ### RecurseOptions
 
@@ -99,11 +99,13 @@ The function returns a Promise that resolves to the value returned by the `comma
 ```typescript
 test('demonstrates basic polling', async ({ recurse }) => {
   // Wait for an asynchronous process to complete
-  await recurse({
-    command: () => checkProcessStatus(),
-    predicate: (status) => status === 'completed',
-    options: { timeout: 15000 }
-  })
+  await recurse(
+    () => checkProcessStatus(),
+    (status) => status === 'completed',
+    {
+      timeout: 15000
+    }
+  )
 
   // Continue with test after condition is met
 })
@@ -114,20 +116,20 @@ test('demonstrates basic polling', async ({ recurse }) => {
 ```typescript
 test('demonstrates custom logging', async ({ recurse }) => {
   // Simple string logging
-  await recurse({
-    command: () => fetchData(),
-    predicate: (data) => data.isReady,
-    options: {
+  await recurse(
+    () => fetchData(),
+    (data) => data.isReady,
+    {
       log: 'Waiting for data to be ready',
       timeout: 15000
     }
-  })
+  )
 
   // Custom function logging
-  await recurse({
-    command: () => fetchData(),
-    predicate: (data) => data.isReady,
-    options: {
+  await recurse(
+    () => fetchData(),
+    (data) => data.isReady,
+    {
       log: (value, data) => {
         console.log(
           `Attempt #${data.iteration}: Value is ${JSON.stringify(value)}`
@@ -135,7 +137,7 @@ test('demonstrates custom logging', async ({ recurse }) => {
         console.log(`Elapsed: ${data.elapsed}ms of ${data.timeout}ms`)
       }
     }
-  })
+  )
 })
 ```
 
@@ -144,46 +146,46 @@ test('demonstrates custom logging', async ({ recurse }) => {
 ```typescript
 test('demonstrates post callback', async ({ recurse }) => {
   // Track metrics or perform cleanup after successful polling
-  await recurse({
-    command: () => fetchData(),
-    predicate: (data) => data.isReady,
-    options: {
+  await recurse(
+    () => fetchData(),
+    (data) => data.isReady,
+    {
       post: (data) => {
         console.log(`Data became ready after ${data.iteration} attempts`)
         console.log(`Total time: ${data.elapsed}ms`)
         // Could also perform cleanup or logging to metrics service
       }
     }
-  })
+  )
 })
 ```
 
 ### Integration with API Request
 
 ```typescript
-test('demonstrates integration with apiRequest', async ({
-  recurse,
-  apiRequest
-}) => {
-  // Wait for a resource to be created and reach a specific state
-  const resource = await recurse({
-    command: async () => {
-      // Get the latest status
-      return apiRequest({
-        method: 'GET',
-        path: `/api/resources/${resourceId}`
-      })
-    },
-    predicate: (response) => {
-      // Check if the resource is in the desired state
-      return response.status === 200 && response.body.state === 'ACTIVE'
-    },
-    options: {
-      timeout: 60000,
-      interval: 5000,
-      log: 'Waiting for resource to become active'
-    }
+test('demonstrates integratest('wait for resource creation', async ({ recurse, apiRequest }) => {
+  // Create a resource first
+  const { body: createResponse } = await apiRequest({
+    method: 'POST',
+    url: '/api/resources',
+    body: { name: 'Test Resource' }
   })
+  
+  const resourceId = createResponse.id
+  
+  // Wait for the resource to be fully processed (async operation)
+  const { body: resource } = await recurse(
+    () => apiRequest({
+      method: 'GET',
+      url: `/api/resources/${resourceId}`
+    }),
+    (response) => response.body.status === 'READY',
+    {
+      timeout: 30000,
+      interval: 2000,
+      log: 'Waiting for resource to be ready'
+    }
+  )
 
   // Use the resource once it's active
   expect(resource.body.properties).toBeDefined()
@@ -201,33 +203,33 @@ test('waits for dynamic UI changes', async ({ page, recurse }) => {
   
   // Wait for the UI to update with the loaded data
   // This approach is more flexible than fixed timeouts or simple waitFor methods
-  const tableData = await recurse({
-    command: async () => {
+  const tableData = await recurse(
+    async () => {
       // Get all row counts in the table
       return page.locator('table tr').count()
     },
-    predicate: (rowCount) => rowCount > 1, // We expect at least one data row plus header
-    options: {
+    (rowCount) => rowCount > 1, // We expect at least one data row plus header
+    {
       timeout: 10000,
       interval: 500,
       log: 'Waiting for table data to load'
     }
-  });
+  );
   
   console.log(`Table loaded with ${tableData} rows`);
   
   // More complex example - waiting for specific content within the UI
-  await recurse({
-    command: async () => {
+  await recurse(
+    async () => {
       // Extract the status text from a status indicator
       return page.locator('.status-indicator').textContent()
     },
-    predicate: (status) => status === 'All Systems Operational',
-    options: {
+    (status) => status === 'All Systems Operational',
+    {
       log: (value, data) => {
         console.log(`Current status: ${value} (attempt #${data.iteration})`)
       }
     }
-  });
+  );
 });
 ```

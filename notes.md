@@ -18,9 +18,12 @@ npm run test:pw # watch mode
 ## Test the package locally
 
 ```bash
+npm run build
 npm pack
 # copy the tar file to the target repo root
 npm install playwright-utils-1.0.0.tgz
+# if target repo is using pnpm
+pnpm add file:playwright-utils-1.0.0.tgz
 ```
 
 ## Release

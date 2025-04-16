@@ -1,6 +1,5 @@
 import { test as base } from '@playwright/test'
 import { recurse as recurseFunction } from './recurse'
-import type { RecurseParams } from './recurse'
 
 export const test = base.extend<{
   /**
@@ -33,15 +32,18 @@ export const test = base.extend<{
    *   );
    * });
    */
-  recurse: <T>(params: RecurseParams<T>) => Promise<T>
+  recurse: <T>(
+    command: () => Promise<T>,
+    predicate: (value: T) => boolean,
+    options?: Record<string, unknown>
+  ) => Promise<T>
 }>({
   recurse: async ({}, use) => {
-    const recurse = async <T>({
-      command,
-      predicate,
-      options
-    }: RecurseParams<T>): Promise<T> =>
-      recurseFunction({ command, predicate, options })
+    const recurse = async <T>(
+      command: () => Promise<T>,
+      predicate: (value: T) => boolean,
+      options: Record<string, unknown> = {}
+    ): Promise<T> => recurseFunction(command, predicate, options)
 
     await use(recurse)
   }

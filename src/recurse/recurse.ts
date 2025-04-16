@@ -219,6 +219,7 @@ const executePolling = async <T>(state: RecurseState<T>) => {
     .toBeTruthy()
 }
 
+// Legacy type for compatibility with existing code that might use it
 export type RecurseParams<T> = {
   command: () => Promise<T>
   predicate: (value: T) => boolean
@@ -259,11 +260,20 @@ export type RecurseParams<T> = {
  *   );
  * });
  */
-export async function recurse<T>({
-  command,
-  predicate,
-  options
-}: RecurseParams<T>): Promise<T> {
+/**
+ * Re-runs a function until the predicate returns true or timeout is reached
+ * This follows the cypress-recurse API but uses Playwright's expect.poll
+ *
+ * @param command Function that returns a value to test
+ * @param predicate Function that tests the value and returns true when the condition is met
+ * @param options Configuration options
+ * @returns The value from the command function when predicate returns true
+ */
+export async function recurse<T>(
+  command: () => Promise<T>,
+  predicate: (value: T) => boolean,
+  options: RecurseOptions = {}
+): Promise<T> {
   // create the shared polling state
   const state = createPollingState(command, predicate, options)
 
