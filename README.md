@@ -252,24 +252,6 @@ This will automatically:
 - Create a git tag and commit
 - Push everything back to the repository
 
-### Publishing from Tags
-
-The package is automatically published when a new version tag is pushed to GitHub:
-
-```bash
-# Switch to main branch and ensure it's up to date
-git checkout main
-git pull
-
-# Manually update the version at package.json
-
-# Create an annotated tag with the version number
-git tag -a v1.0.0 -m "Release version 1.0.0"
-
-# Push the tag to GitHub to trigger the publish workflow
-git push origin v1.0.0
-```
-
 ### Publishing Locally
 
 You can also publish the package locally using the provided script:
