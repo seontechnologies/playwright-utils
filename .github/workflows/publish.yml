@@ -1,9 +1,6 @@
 name: Publish Package
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       version_type:
@@ -24,7 +21,6 @@ on:
 permissions:
   contents: write # Required for checkout and pushing changes
   packages: write # Required for publishing to GitHub Packages
-  id-token: write # Required for OIDC token request
   pull-requests: write # Required for creating PRs
 
 jobs:
@@ -32,130 +28,141 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # 1. Checkout the repository
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Needed for version calculation
 
-      # 2. Set GitHub token securely (prevents shell injection)
-      - name: Set GitHub Token
-        run: echo "GITHUB_TOKEN=${{ secrets.PERSONAL_GITHUB_TOKEN }}" >> $GITHUB_ENV
-
-      # 3. Setup Node.js
-      - uses: actions/setup-node@v4
+      # 2. Setup Node.js with caching
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
+          node-version-file: '.nvmrc' # Verified correct for v4
           registry-url: 'https://npm.pkg.github.com/'
           scope: '@seontechnologies'
-          cache: 'npm'
+          cache: 'npm' # Use built-in caching
 
-      # 4. Cache node modules
-      - name: Cache node modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            npm-${{ runner.os }}-
-
-      # 5. Install dependencies
+      # 3. Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 6. Run typecheck, lint, tests
-      - name: Test
+      # 4. Validate code
+      - name: Run tests and validation
         run: npm run validate
 
-      # 7. For tag triggers - use explicit version
-      - name: Handle tag-based release
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          echo "Publishing tag-based release"
-          npm run build
-          npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+      # (Tag-based publishing removed as requested)
 
-      # 8. For workflow dispatch - bump version, build, publish and tag
-      - name: Handle workflow dispatch release
-        if: github.event_name == 'workflow_dispatch'
+      # 5. Validate custom version input if provided
+      - name: Validate inputs
         run: |
-          # Configure git
+          if [[ "${{ github.event.inputs.version_type }}" == "custom" ]]; then
+            if [[ -z "${{ github.event.inputs.custom_version }}" ]]; then
+              echo "ERROR: custom_version must be provided when version_type=custom"
+              exit 1
+            fi
+          fi
+
+      # 6. Configure git
+      - name: Configure git
+        run: |
           git config --global user.name "SEON CI Bot"
           git config --global user.email "ci-bot@seon.io"
 
+      # 7. Calculate and set version
+      - name: Calculate version
+        id: version
+        run: |
           # Get current version
           CURRENT_VERSION=$(npm pkg get version | tr -d '"')
           echo "Current version: $CURRENT_VERSION"
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
           # Determine version
           if [[ "${{ github.event.inputs.version_type }}" == "custom" ]]; then
             NEW_VERSION="${{ github.event.inputs.custom_version }}"
             echo "Setting custom version: $NEW_VERSION"
-            npm version "$NEW_VERSION" --no-git-tag-version
           else
-            # Use standard semver but with a more robust increment approach
-            # Parse current version to understand current semver positioning
+            # Use standard semver with a robust increment approach
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
             PATCH_BASE="${PATCH%%-*}" # Remove anything after a dash
             
-            # Create version number based on semver increment
             if [[ "${{ github.event.inputs.version_type }}" == "major" ]]; then
-              # For major, increment the major version: (major+1).0.0
               NEW_MAJOR=$((MAJOR + 1))
               NEW_VERSION="$NEW_MAJOR.0.0"
             elif [[ "${{ github.event.inputs.version_type }}" == "minor" ]]; then
-              # For minor, increment the minor version: major.(minor+1).0
               NEW_MINOR=$((MINOR + 1))
               NEW_VERSION="$MAJOR.$NEW_MINOR.0"
             else
-              # For patch, increment the patch version: major.minor.(patch+1)
               NEW_PATCH=$((PATCH_BASE + 1))
               NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
             fi
             
             echo "Setting semver version: $NEW_VERSION"
-            npm version "$NEW_VERSION" --no-git-tag-version
           fi
 
-          # Get the new version
-          NEW_VERSION=$(npm pkg get version | tr -d '"')
-          echo "New version: $NEW_VERSION"
+          # Guard against no-op version bump
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "Version is already $NEW_VERSION, nothing to do."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Update package.json version
+          npm version "$NEW_VERSION" --no-git-tag-version
+
+          # Verify version was set
+          UPDATED_VERSION=$(npm pkg get version | tr -d '"')
+          echo "New version: $UPDATED_VERSION"
+          echo "new_version=$UPDATED_VERSION" >> $GITHUB_OUTPUT
+          echo "release_branch=release/v$UPDATED_VERSION" >> $GITHUB_OUTPUT
+
+      # 8. Build and publish package
+      - name: Build and publish
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          # Explicitly set registry for publishing
+          export NPM_CONFIG_REGISTRY=https://npm.pkg.github.com/
 
           # Build and publish
           npm run build
           npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # 9. Create git commit, tag and branch
+      - name: Create commit and branch
+        if: steps.version.outputs.skip != 'true'
+        run: |
           # Commit the version change
           git add package.json package-lock.json
-          git commit -m "chore: bump version to $NEW_VERSION"
-          git tag -a "v$NEW_VERSION" -m "Release $NEW_VERSION"
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+          git tag -a "v${{ steps.version.outputs.new_version }}" -m "Release ${{ steps.version.outputs.new_version }}"
 
           # Create a branch for this release
-          RELEASE_BRANCH="release/v$NEW_VERSION"
-          git checkout -b "$RELEASE_BRANCH"
+          git checkout -b "${{ steps.version.outputs.release_branch }}"
 
           # Push the release branch and tag
-          git push origin "$RELEASE_BRANCH"
-          git push origin "v$NEW_VERSION"
+          git push origin "${{ steps.version.outputs.release_branch }}"
+          git push origin "v${{ steps.version.outputs.new_version }}"
 
-          # Create a pull request using GitHub CLI with proper authentication
-          echo "Creating pull request for version $NEW_VERSION"
+      # 10. Create pull request
+      - name: Create pull request
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          echo "Creating pull request for version ${{ steps.version.outputs.new_version }}"
 
-          # Configure GitHub CLI authentication explicitly
-          # Using a safer approach to avoid quote nesting issues
-          gh auth login --with-token <<< "$GITHUB_TOKEN"
+          # Authenticate GitHub CLI explicitly
+          echo "$GH_TOKEN" | gh auth login --with-token
 
-          # Create the PR with proper multi-line body formatting
-          # First create the PR body in a variable to avoid escaping issues
-          PR_BODY="This PR updates the package version to $NEW_VERSION. This was automatically generated by the publish workflow."
-
-          # Then create the PR using the variable
-          gh pr create \
+          # Create PR and capture URL
+          PR_URL=$(gh pr create \
             --base main \
-            --head "$RELEASE_BRANCH" \
-            --title "chore: release v$NEW_VERSION" \
-            --body "$PR_BODY"
+            --head "${{ steps.version.outputs.release_branch }}" \
+            --title "chore: release v${{ steps.version.outputs.new_version }}" \
+            --body "This PR updates the package version to ${{ steps.version.outputs.new_version }}. This was automatically generated by the publish workflow." \
+            2>&1 || echo "Failed to create PR")
+
+          # Display URL to created PR
+          echo "Pull request URL: $PR_URL"
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
