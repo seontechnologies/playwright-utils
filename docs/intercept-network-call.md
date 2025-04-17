@@ -21,6 +21,12 @@
     - [Using a Custom Handler](#using-a-custom-handler)
     - [Using URL Patterns](#using-url-patterns)
     - [Intercepting Multiple Requests](#intercepting-multiple-requests)
+    - [Order Matters](#order-matters)
+      - [❌ Incorrect Approach](#-incorrect-approach)
+      - [✅ Correct Approach](#-correct-approach)
+    - [Capturing Multiple Requests to the Same Endpoint](#capturing-multiple-requests-to-the-same-endpoint)
+      - [✅ Capturing a Known Number of Requests](#-capturing-a-known-number-of-requests)
+      - [✅ Handling an Unknown Number of Requests](#-handling-an-unknown-number-of-requests)
     - [Error Simulation](#error-simulation)
     - [Using Timeout](#using-timeout)
 
@@ -334,6 +340,8 @@ await userCall
 
 ### Using a Custom Handler
 
+If the response need to be customized / partially modified:
+
 ```typescript
 // Set up a handler for dynamic request processing
 const loginCall = interceptNetworkCall({
@@ -395,41 +403,114 @@ await interceptNetworkCall({
 })
 ```
 
-### Intercepting Multiple Requests
+### Order Matters
 
-For multiple related requests, you can set up multiple interceptions:
+Order matters significantly when using network interception. The interceptor **must** be set up **before** the network request occurs. If you set up the interception after the page is already loaded and the network request has completed, the interceptor won't catch it.
+
+#### ❌ Incorrect Approach
 
 ```typescript
-// Mock authentication
-const loginCall = interceptNetworkCall({
-  page,
-  method: 'POST',
-  url: '/api/login',
-  fulfillResponse: {
-    status: 200,
-    body: { token: 'fake-token' }
-  }
+// THIS WON'T WORK - interceptor set up too late
+await page.goto('https://example.com') // Request already happened
+
+// Too late - the network call already occurred
+const networkCall = interceptNetworkCall({
+  url: '**/api/data'
 })
 
-// Mock user data
-const profileCall = interceptNetworkCall({
-  page,
-  method: 'GET',
-  url: '/api/user-profile',
-  fulfillResponse: {
-    status: 200,
-    body: { data: { id: 1, name: 'Test User' } }
-  }
+// This will hang indefinitely waiting for a request that already completed
+await networkCall
+```
+
+#### ✅ Correct Approach
+
+```typescript
+// CORRECT - Set up interception first
+const networkCall = interceptNetworkCall({
+  url: '**/api/data'
 })
 
-// Navigate to a page that uses both APIs
-await page.goto('/dashboard')
+// Then trigger the network request
+await page.goto('https://example.com')
 
-// Wait for both API calls to complete
-await loginCall
-await profileCall
+// Then wait for completion
+const result = await networkCall
+```
 
-// Now you can make assertions about the page state
+This pattern follows the classic test spy/stub pattern:
+
+1. Define the spy/stub (set up interception)
+2. Perform the action (trigger the network request)
+3. Assert on the spy/stub (await and verify the response)
+
+### Capturing Multiple Requests to the Same Endpoint
+
+
+
+#### Capturing a Known Number of Requests
+
+By default, each `interceptNetworkCall` captures **only the first matching request**. When the same endpoint is hit multiple times, you need multiple interceptors to capture each occurrence.
+
+```typescript
+// First interceptor for the first request
+const firstRequest = interceptNetworkCall({
+  url: '/api/data'
+})
+
+// Second interceptor for the second request
+const secondRequest = interceptNetworkCall({
+  url: '/api/data'
+})
+
+// Trigger actions that cause multiple requests
+await page.click('#load-data-button')
+
+// Wait for and process each request in sequence
+const firstResponse = await firstRequest
+const secondResponse = await secondRequest
+
+// Now you can verify both responses
+expect(firstResponse.status).toBe(200)
+expect(secondResponse.status).toBe(200)
+```
+
+#### Handling an Unknown Number of Requests
+
+```typescript
+// Function to get a fresh interceptor
+// We use a function here because each call to interceptNetworkCall()
+// creates a NEW interceptor that watches for the NEXT matching request
+const getDataRequestInterceptor = () =>
+  interceptNetworkCall({
+    url: '/api/data',
+    timeout: 1000 // Short timeout to detect when no more requests are coming
+  })
+
+// Initial interceptor
+let currentInterceptor = getDataRequestInterceptor()
+
+// Array to collect all responses
+const allResponses = []
+
+// Trigger the action that causes requests
+await page.click('#load-multiple-data-button')
+
+// Collect responses until there are no more or timeout
+while (true) {
+  try {
+    // Wait with a short timeout to see if there's another request
+    const response = await currentInterceptor
+    allResponses.push(response)
+
+    // Set up another interceptor for potential next request
+    currentInterceptor = getDataRequestInterceptor()
+  } catch (error) {
+    // No more requests (timeout)
+    break
+  }
+}
+
+console.log(`Captured ${allResponses.length} requests to /api/data`)
 ```
 
 ### Error Simulation
