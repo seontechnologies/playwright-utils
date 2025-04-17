@@ -22,6 +22,7 @@
     - [Using URL Patterns](#using-url-patterns)
     - [Intercepting Multiple Requests](#intercepting-multiple-requests)
     - [Error Simulation](#error-simulation)
+    - [Using Timeout](#using-timeout)
 
 The Network Interception utility provides a powerful way to observe, intercept, and mock network requests in Playwright tests. This utility significantly improves upon Playwright's built-in network handling capabilities by offering a more intuitive API, automatic response parsing, and a cleaner fixture-based approach.
 
@@ -162,7 +163,7 @@ page.waitForResponse(predicate)
 // Simple, readable glob patterns to match the same URLs
 interceptNetworkCall({ url: '/api/users' }) // Exact endpoint
 interceptNetworkCall({ url: '/api/users/*' }) // User by ID pattern
-interceptNetworkCall({ url: '/api/users/*/profile' }) // Specific subpaths
+interceptNetworkCall({ url: '/api/users/*/profile' }) // Specific sub-paths
 
 // Or even match all of them with a single pattern
 interceptNetworkCall({ url: '/api/users/**' })
@@ -466,7 +467,7 @@ const dataCall = interceptNetworkCall({
   page,
   method: 'GET',
   url: '/api/data-that-might-be-slow',
-  timeout: 5000  // 5 seconds timeout
+  timeout: 5000 // 5 seconds timeout
 })
 
 await page.goto('/data-page')
@@ -478,6 +479,7 @@ try {
   if (error.message.includes('timeout')) {
     console.log('Request timed out as expected')
   } else {
-    throw error  // Unexpected error
+    throw error // Unexpected error
   }
 }
+```
