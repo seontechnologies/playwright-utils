@@ -245,13 +245,7 @@ You can trigger a release directly from GitHub's web interface:
    - **Custom version**: Only needed if you selected "custom" type
 4. Click "Run workflow"
 
-This will automatically:
-
-- Bump the version according to your selection
-- Build and publish the package to GitHub Packages
-- Create a git tag and release branch
-- Create a pull request for the version change
-- **Important**: You must review and merge the PR to complete the process
+**Important**: You must review and merge the PR to complete the process
 
 ### Publishing Locally
 
