@@ -66,11 +66,31 @@ case $VERSION_CHOICE in
     VERSION_TYPE=$CUSTOM_VERSION
     ;;
   5)
-    COMMIT=$(git rev-parse --short HEAD)
+    # Parse current version to understand current semver positioning
+    IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+    PATCH_BASE="${PATCH%%-*}" # Remove anything after a dash
+    
+    # Get date components
     YEAR=$(date '+%Y')
     MONTH=$(date '+%-m')
     DAY=$(date '+%-d')
-    VERSION_TYPE="$YEAR.$MONTH.$DAY-$COMMIT"
+    DATE_STAMP="$YEAR$MONTH$DAY"
+    
+    echo "Choose date-based version type:"
+    echo "a) Patch: $MAJOR.$MINOR.$((PATCH_BASE + 1))-$DATE_STAMP"
+    echo "b) Minor: $MAJOR.$((MINOR + 1)).0-$DATE_STAMP"
+    echo "c) Major: $((MAJOR + 1)).0.0-$DATE_STAMP"
+    read -p "Enter choice (a-c): " DATE_VERSION_CHOICE
+    
+    case $DATE_VERSION_CHOICE in
+      a|A) VERSION_TYPE="$MAJOR.$MINOR.$((PATCH_BASE + 1))-$DATE_STAMP" ;;
+      b|B) VERSION_TYPE="$MAJOR.$((MINOR + 1)).0-$DATE_STAMP" ;;
+      c|C) VERSION_TYPE="$((MAJOR + 1)).0.0-$DATE_STAMP" ;;
+      *)
+        echo -e "${RED}Invalid choice. Using patch version.${NC}"
+        VERSION_TYPE="$MAJOR.$MINOR.$((PATCH_BASE + 1))-$DATE_STAMP"
+        ;;
+    esac
     ;;
   *)
     echo -e "${RED}Invalid choice. Exiting.${NC}"
