@@ -92,33 +92,27 @@ jobs:
             echo "Setting custom version: $NEW_VERSION"
             npm version "$NEW_VERSION" --no-git-tag-version
           else
-            # Use hybrid versioning for reliable, conflict-free versioning that respects semver
+            # Use standard semver but with a more robust increment approach
             # Parse current version to understand current semver positioning
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
             PATCH_BASE="${PATCH%%-*}" # Remove anything after a dash
             
-            # Get date components for the version
-            YEAR=$(date '+%Y')
-            MONTH=$(date '+%-m')
-            DAY=$(date '+%-d')
-            TIMESTAMP=$(date '+%H%M')
-            
-            # Create version number based on semver increment + date info
+            # Create version number based on semver increment
             if [[ "${{ github.event.inputs.version_type }}" == "major" ]]; then
-              # For major, increment the major version: (major+1).0.0-YYYYMMDD
+              # For major, increment the major version: (major+1).0.0
               NEW_MAJOR=$((MAJOR + 1))
-              NEW_VERSION="$NEW_MAJOR.0.0-$YEAR$MONTH$DAY"
+              NEW_VERSION="$NEW_MAJOR.0.0"
             elif [[ "${{ github.event.inputs.version_type }}" == "minor" ]]; then
-              # For minor, increment the minor version: major.(minor+1).0-YYYYMMDD
+              # For minor, increment the minor version: major.(minor+1).0
               NEW_MINOR=$((MINOR + 1))
-              NEW_VERSION="$MAJOR.$NEW_MINOR.0-$YEAR$MONTH$DAY"
+              NEW_VERSION="$MAJOR.$NEW_MINOR.0"
             else
-              # For patch, increment the patch version: major.minor.(patch+1)-YYYYMMDD
+              # For patch, increment the patch version: major.minor.(patch+1)
               NEW_PATCH=$((PATCH_BASE + 1))
-              NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH-$YEAR$MONTH$DAY"
+              NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
             fi
             
-            echo "Setting date-based version: $NEW_VERSION"
+            echo "Setting semver version: $NEW_VERSION"
             npm version "$NEW_VERSION" --no-git-tag-version
           fi
 

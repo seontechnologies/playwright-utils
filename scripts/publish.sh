@@ -70,25 +70,19 @@ case $VERSION_CHOICE in
     IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
     PATCH_BASE="${PATCH%%-*}" # Remove anything after a dash
     
-    # Get date components
-    YEAR=$(date '+%Y')
-    MONTH=$(date '+%-m')
-    DAY=$(date '+%-d')
-    DATE_STAMP="$YEAR$MONTH$DAY"
+    echo "Choose semver version type:"
+    echo "a) Patch: $MAJOR.$MINOR.$((PATCH_BASE + 1))"
+    echo "b) Minor: $MAJOR.$((MINOR + 1)).0"
+    echo "c) Major: $((MAJOR + 1)).0.0"
+    read -p "Enter choice (a-c): " SEM_VERSION_CHOICE
     
-    echo "Choose date-based version type:"
-    echo "a) Patch: $MAJOR.$MINOR.$((PATCH_BASE + 1))-$DATE_STAMP"
-    echo "b) Minor: $MAJOR.$((MINOR + 1)).0-$DATE_STAMP"
-    echo "c) Major: $((MAJOR + 1)).0.0-$DATE_STAMP"
-    read -p "Enter choice (a-c): " DATE_VERSION_CHOICE
-    
-    case $DATE_VERSION_CHOICE in
-      a|A) VERSION_TYPE="$MAJOR.$MINOR.$((PATCH_BASE + 1))-$DATE_STAMP" ;;
-      b|B) VERSION_TYPE="$MAJOR.$((MINOR + 1)).0-$DATE_STAMP" ;;
-      c|C) VERSION_TYPE="$((MAJOR + 1)).0.0-$DATE_STAMP" ;;
+    case $SEM_VERSION_CHOICE in
+      a|A) VERSION_TYPE="$MAJOR.$MINOR.$((PATCH_BASE + 1))" ;;
+      b|B) VERSION_TYPE="$MAJOR.$((MINOR + 1)).0" ;;
+      c|C) VERSION_TYPE="$((MAJOR + 1)).0.0" ;;
       *)
         echo -e "${RED}Invalid choice. Using patch version.${NC}"
-        VERSION_TYPE="$MAJOR.$MINOR.$((PATCH_BASE + 1))-$DATE_STAMP"
+        VERSION_TYPE="$MAJOR.$MINOR.$((PATCH_BASE + 1))"
         ;;
     esac
     ;;
