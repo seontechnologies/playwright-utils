@@ -91,7 +91,31 @@ jobs:
           else
             VERSION_TYPE="${{ github.event.inputs.version_type }}"
             echo "Bumping $VERSION_TYPE version"
-            npm version $VERSION_TYPE --no-git-tag-version
+            # Try version bump, if it fails (already published), try incrementing further
+            ATTEMPTS=0
+            MAX_ATTEMPTS=5
+            while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+              # Try version bump
+              npm version $VERSION_TYPE --no-git-tag-version
+              CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+              
+              # Check if this version exists in GitHub Packages
+              STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GITHUB_TOKEN" \
+                https://npm.pkg.github.com/@seontechnologies/playwright-utils/-/playwright-utils-${CURRENT_VERSION}.tgz)
+              
+              if [ "$STATUS_CODE" == "404" ]; then
+                echo "Version $CURRENT_VERSION is available for publishing"
+                break
+              else
+                echo "Version $CURRENT_VERSION already exists, trying next version"
+                ATTEMPTS=$((ATTEMPTS+1))
+              fi
+            done
+            
+            if [ $ATTEMPTS -eq $MAX_ATTEMPTS ]; then
+              echo "Failed to find an available version after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
           fi
 
           # Get the new version
