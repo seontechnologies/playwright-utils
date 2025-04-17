@@ -90,29 +90,61 @@ jobs:
             npm version "$NEW_VERSION" --no-git-tag-version
           else
             VERSION_TYPE="${{ github.event.inputs.version_type }}"
-            echo "Bumping $VERSION_TYPE version"
-            # Try version bump, if it fails (already published), try incrementing further
-            ATTEMPTS=0
-            MAX_ATTEMPTS=5
-            while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
-              # Try version bump
-              npm version $VERSION_TYPE --no-git-tag-version
-              CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+            echo "Finding latest published version and bumping $VERSION_TYPE"
+            
+            # Parse current version components
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            echo "Current version components: Major=$MAJOR, Minor=$MINOR, Patch=$PATCH"
+            
+            # Determine starting versions based on bump type
+            if [[ "$VERSION_TYPE" == "major" ]]; then
+              TARGET_MAJOR=$((MAJOR + 1))
+              TARGET_MINOR=0
+              TARGET_PATCH=0
+            elif [[ "$VERSION_TYPE" == "minor" ]]; then
+              TARGET_MAJOR=$MAJOR
+              TARGET_MINOR=$((MINOR + 1))
+              TARGET_PATCH=0
+            else
+              # patch is default
+              TARGET_MAJOR=$MAJOR
+              TARGET_MINOR=$MINOR
+              TARGET_PATCH=$((PATCH + 1))
+            fi
+            
+            echo "Starting version search at $TARGET_MAJOR.$TARGET_MINOR.$TARGET_PATCH"
+            
+            # Try to find an available version
+            MAX_ATTEMPTS=20
+            FOUND_VERSION=false
+            
+            for ((i=0; i<MAX_ATTEMPTS; i++)); do
+              TARGET_VERSION="$TARGET_MAJOR.$TARGET_MINOR.$TARGET_PATCH"
+              echo "Checking if version $TARGET_VERSION is available..."
               
               # Check if this version exists in GitHub Packages
               STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GITHUB_TOKEN" \
-                https://npm.pkg.github.com/@seontechnologies/playwright-utils/-/playwright-utils-${CURRENT_VERSION}.tgz)
+                https://npm.pkg.github.com/@seontechnologies/playwright-utils/-/playwright-utils-${TARGET_VERSION}.tgz)
               
               if [ "$STATUS_CODE" == "404" ]; then
-                echo "Version $CURRENT_VERSION is available for publishing"
+                echo "Version $TARGET_VERSION is available for publishing"
+                npm version "$TARGET_VERSION" --no-git-tag-version
+                FOUND_VERSION=true
                 break
               else
-                echo "Version $CURRENT_VERSION already exists, trying next version"
-                ATTEMPTS=$((ATTEMPTS+1))
+                echo "Version $TARGET_VERSION already exists, trying next version"
+                # Increment patch by default
+                TARGET_PATCH=$((TARGET_PATCH + 1))
+                
+                # Move to next minor version if patch gets too high
+                if [ "$TARGET_PATCH" -ge 100 ]; then
+                  TARGET_PATCH=0
+                  TARGET_MINOR=$((TARGET_MINOR + 1))
+                fi
               fi
             done
             
-            if [ $ATTEMPTS -eq $MAX_ATTEMPTS ]; then
+            if [ "$FOUND_VERSION" != "true" ]; then
               echo "Failed to find an available version after $MAX_ATTEMPTS attempts"
               exit 1
             fi
