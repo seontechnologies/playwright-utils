@@ -1,6 +1,6 @@
 {
   "name": "@seontechnologies/playwright-utils",
-  "version": "0.0.5",
+  "version": "0.1.1",
   "description": "A collection of utilities for Playwright.",
   "author": "Murat Ozcan",
   "license": "UNLICENSED",

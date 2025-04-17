@@ -89,65 +89,27 @@ jobs:
             echo "Setting custom version: $NEW_VERSION"
             npm version "$NEW_VERSION" --no-git-tag-version
           else
-            VERSION_TYPE="${{ github.event.inputs.version_type }}"
-            echo "Finding latest published version and bumping $VERSION_TYPE"
+            # Use date-based versioning for reliable, conflict-free versioning
+            COMMIT=$(git rev-parse --short HEAD)
+            YEAR=$(date '+%Y')
+            MONTH=$(date '+%-m')
+            DAY=$(date '+%-d')
+            TIMESTAMP=$(date '+%H%M')
             
-            # Parse current version components
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-            echo "Current version components: Major=$MAJOR, Minor=$MINOR, Patch=$PATCH"
-            
-            # Determine starting versions based on bump type
-            if [[ "$VERSION_TYPE" == "major" ]]; then
-              TARGET_MAJOR=$((MAJOR + 1))
-              TARGET_MINOR=0
-              TARGET_PATCH=0
-            elif [[ "$VERSION_TYPE" == "minor" ]]; then
-              TARGET_MAJOR=$MAJOR
-              TARGET_MINOR=$((MINOR + 1))
-              TARGET_PATCH=0
+            # Create version number based on date and commit hash
+            if [[ "${{ github.event.inputs.version_type }}" == "major" ]]; then
+              # For major, use YYYY.0.0-commit
+              NEW_VERSION="$YEAR.0.0-$COMMIT"
+            elif [[ "${{ github.event.inputs.version_type }}" == "minor" ]]; then
+              # For minor, use YYYY.MM.0-commit
+              NEW_VERSION="$YEAR.$MONTH.0-$COMMIT"
             else
-              # patch is default
-              TARGET_MAJOR=$MAJOR
-              TARGET_MINOR=$MINOR
-              TARGET_PATCH=$((PATCH + 1))
+              # For patch, use YYYY.MM.DD-commit
+              NEW_VERSION="$YEAR.$MONTH.$DAY-$COMMIT"
             fi
             
-            echo "Starting version search at $TARGET_MAJOR.$TARGET_MINOR.$TARGET_PATCH"
-            
-            # Try to find an available version
-            MAX_ATTEMPTS=20
-            FOUND_VERSION=false
-            
-            for ((i=0; i<MAX_ATTEMPTS; i++)); do
-              TARGET_VERSION="$TARGET_MAJOR.$TARGET_MINOR.$TARGET_PATCH"
-              echo "Checking if version $TARGET_VERSION is available..."
-              
-              # Check if this version exists in GitHub Packages
-              STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GITHUB_TOKEN" \
-                https://npm.pkg.github.com/@seontechnologies/playwright-utils/-/playwright-utils-${TARGET_VERSION}.tgz)
-              
-              if [ "$STATUS_CODE" == "404" ]; then
-                echo "Version $TARGET_VERSION is available for publishing"
-                npm version "$TARGET_VERSION" --no-git-tag-version
-                FOUND_VERSION=true
-                break
-              else
-                echo "Version $TARGET_VERSION already exists, trying next version"
-                # Increment patch by default
-                TARGET_PATCH=$((TARGET_PATCH + 1))
-                
-                # Move to next minor version if patch gets too high
-                if [ "$TARGET_PATCH" -ge 100 ]; then
-                  TARGET_PATCH=0
-                  TARGET_MINOR=$((TARGET_MINOR + 1))
-                fi
-              fi
-            done
-            
-            if [ "$FOUND_VERSION" != "true" ]; then
-              echo "Failed to find an available version after $MAX_ATTEMPTS attempts"
-              exit 1
-            fi
+            echo "Setting date-based version: $NEW_VERSION"
+            npm version "$NEW_VERSION" --no-git-tag-version
           fi
 
           # Get the new version
