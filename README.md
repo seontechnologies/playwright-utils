@@ -248,9 +248,10 @@ You can trigger a release directly from GitHub's web interface:
 This will automatically:
 
 - Bump the version according to your selection
-- Build and publish the package
-- Create a git tag and commit
-- Push everything back to the repository
+- Build and publish the package to GitHub Packages
+- Create a git tag and release branch
+- Create a pull request for the version change
+- **Important**: You must review and merge the PR to complete the process
 
 ### Publishing Locally
 
@@ -260,13 +261,6 @@ You can also publish the package locally using the provided script:
 # 1. If not already set, set your GitHub token as an environment variable
 export GITHUB_TOKEN=your_personal_access_token
 
-# 2. Run the publish script and follow the prompts
+# 2. Run the publish script
 npm run publish:local
 ```
-
-The script will guide you through:
-
-- Selecting a version type (patch/minor/major/custom/date-based)
-- Building the package
-- Publishing to GitHub Packages
-- Creating a git tag and commit
