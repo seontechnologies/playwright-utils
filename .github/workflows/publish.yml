@@ -52,6 +52,10 @@ jobs:
           restore-keys: |
             npm-${{ runner.os }}-
 
+      # Set GitHub token securely (prevents shell injection)
+      - name: Set GitHub Token
+        run: echo "GITHUB_TOKEN=${{ secrets.PERSONAL_GITHUB_TOKEN }}" >> $GITHUB_ENV
+
       # 4. Install dependencies
       - name: Install dependencies
         run: npm ci
@@ -68,7 +72,6 @@ jobs:
           npm run build
           npm publish
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
 
       # 7. For workflow dispatch - bump version, build, publish and tag
@@ -89,23 +92,30 @@ jobs:
             echo "Setting custom version: $NEW_VERSION"
             npm version "$NEW_VERSION" --no-git-tag-version
           else
-            # Use date-based versioning for reliable, conflict-free versioning
-            COMMIT=$(git rev-parse --short HEAD)
+            # Use hybrid versioning for reliable, conflict-free versioning that respects semver
+            # Parse current version to understand current semver positioning
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            PATCH_BASE="${PATCH%%-*}" # Remove anything after a dash
+            
+            # Get date components for the version
             YEAR=$(date '+%Y')
             MONTH=$(date '+%-m')
             DAY=$(date '+%-d')
             TIMESTAMP=$(date '+%H%M')
             
-            # Create version number based on date and commit hash
+            # Create version number based on semver increment + date info
             if [[ "${{ github.event.inputs.version_type }}" == "major" ]]; then
-              # For major, use YYYY.0.0-commit
-              NEW_VERSION="$YEAR.0.0-$COMMIT"
+              # For major, increment the major version: (major+1).0.0-YYYYMMDD
+              NEW_MAJOR=$((MAJOR + 1))
+              NEW_VERSION="$NEW_MAJOR.0.0-$YEAR$MONTH$DAY"
             elif [[ "${{ github.event.inputs.version_type }}" == "minor" ]]; then
-              # For minor, use YYYY.MM.0-commit
-              NEW_VERSION="$YEAR.$MONTH.0-$COMMIT"
+              # For minor, increment the minor version: major.(minor+1).0-YYYYMMDD
+              NEW_MINOR=$((MINOR + 1))
+              NEW_VERSION="$MAJOR.$NEW_MINOR.0-$YEAR$MONTH$DAY"
             else
-              # For patch, use YYYY.MM.DD-commit
-              NEW_VERSION="$YEAR.$MONTH.$DAY-$COMMIT"
+              # For patch, increment the patch version: major.minor.(patch+1)-YYYYMMDD
+              NEW_PATCH=$((PATCH_BASE + 1))
+              NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH-$YEAR$MONTH$DAY"
             fi
             
             echo "Setting date-based version: $NEW_VERSION"
@@ -128,5 +138,4 @@ jobs:
           git push origin HEAD:release-tracking -f
           git push origin "v$NEW_VERSION"
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
