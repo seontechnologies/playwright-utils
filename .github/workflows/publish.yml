@@ -35,11 +35,20 @@ jobs:
         with:
           fetch-depth: 0 # Needed for version calculation
 
-      # 2. Set up GitHub token for package publishing
-      - name: Set GitHub Token
-        uses: seontechnologies/seon-gh-actions/set-github-token@v2
+      # 2. Configure AWS credentials for parameter store
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::739917862298:role/react-admin-github-action-Role-ANIMERCNGNEW
+          aws-region: eu-west-1
 
-      # 3. Setup Node.js
+      # 3. Read parameters & secrets from AWS Parameter Store
+      - name: Read parameters & secrets from AWS Parameter Store into environment variables
+        uses: seontechnologies/seon-gh-actions-parameter-store@v1
+        with:
+          component: playwright-utils
+
+      # 4. Setup Node.js
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
@@ -47,7 +56,7 @@ jobs:
           scope: '@seontechnologies'
           cache: 'npm'
 
-      # 4. Cache node modules
+      # 5. Cache node modules
       - name: Cache node modules
         uses: actions/cache@v4
         with:
@@ -56,15 +65,17 @@ jobs:
           restore-keys: |
             npm-${{ runner.os }}-
 
-      # 5. Install dependencies
+      # 6. Install dependencies
       - name: Install dependencies
         run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
 
-      # 6. Run typecheck, lint, tests
+      # 7. Run typecheck, lint, tests
       - name: Test
         run: npm run validate
 
-      # 7. For tag triggers - use explicit version
+      # 8. For tag triggers - use explicit version
       - name: Handle tag-based release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -72,18 +83,16 @@ jobs:
           npm run build
           npm publish
         env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.GITHUB_TOKEN }}
 
-      # 8. For workflow dispatch - bump version, build, publish and tag
+      # 9. For workflow dispatch - bump version, build, publish and tag
       - name: Handle workflow dispatch release
         if: github.event_name == 'workflow_dispatch'
         run: |
-          # Configure git with token authentication
+          # Configure git
           git config --global user.name "SEON CI Bot"
           git config --global user.email "ci-bot@seon.io"
-          
-          # Set git to use the token directly for authentication
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           # Get current version
           CURRENT_VERSION=$(npm pkg get version | tr -d '"')
@@ -112,7 +121,6 @@ jobs:
           git add package.json package-lock.json
           git commit -m "chore: bump version to $NEW_VERSION"
           git tag -a "v$NEW_VERSION" -m "Release $NEW_VERSION"
-
           # Push to a dedicated release-tracking branch instead of main
           git push origin HEAD:release-tracking -f
           git push origin "v$NEW_VERSION"
