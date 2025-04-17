@@ -81,9 +81,9 @@ jobs:
           # Configure git with token authentication
           git config --global user.name "SEON CI Bot"
           git config --global user.email "ci-bot@seon.io"
-
-          # Set up proper git authentication for pushing
-          echo "$GITHUB_TOKEN" | gh auth login --with-token
+          
+          # Set git to use the token directly for authentication
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           # Get current version
           CURRENT_VERSION=$(npm pkg get version | tr -d '"')
