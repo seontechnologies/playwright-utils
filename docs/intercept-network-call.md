@@ -30,14 +30,13 @@ The Network Interception utility provides a powerful way to observe, intercept, 
 
 While Playwright offers built-in network interception via `page.route()` and `page.waitForResponse()`, our utility addresses several common pain points:
 
-| Native Playwright                                             | Our Network Interception Utility                                               |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Requires separate code paths for interception vs. observation | Unified API for both interception and observation                              |
-| Manual JSON parsing with `await response.json()`              | Automatic JSON parsing with strongly-typed results                             |
-| Complex filter predicates for response matching               | Simple declarative options with powerful glob pattern matching using picomatch |
-| Verbose syntax, especially for conditional handling           | Concise, readable API with flexible handler options                            |
-| Limited type safety for response data                         | Full TypeScript support with type assertions                                   |
-| Route setup and response waiting in separate steps            | Single declarative call that returns a Promise                                 |
+| Native Playwright                                   | Our Network Interception Utility                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Route setup and response waiting in separate steps  | Single declarative call that returns a Promise                                 |
+| Manual JSON parsing with `await response.json()`    | Automatic JSON parsing with strongly-typed results                             |
+| Complex filter predicates for response matching     | Simple declarative options with powerful glob pattern matching using picomatch |
+| Verbose syntax, especially for conditional handling | Concise, readable API with flexible handler options                            |
+| Limited type safety for response data               | Full TypeScript support with type assertions                                   |
 
 ## Comparison with Native Playwright
 
