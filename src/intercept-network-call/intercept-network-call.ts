@@ -48,34 +48,64 @@ const interceptNetworkCallBase = async ({
   }
 }
 
-/** Creates a step name based on the network interception options */
-const createStepName = (options: InterceptOptions): string => {
+/** Gets the common components for step names */
+const getStepNameComponents = (
+  options: InterceptOptions
+): {
+  operation: string
+  methodStr: string
+  urlStr: string
+} => {
   const operation = options.fulfillResponse
     ? 'Mock'
     : options.handler
       ? 'Modify'
       : 'Observe'
-  const methodStr = options.method ? options.method : ''
-  const urlStr = options.url ? options.url : ''
-  const timeoutStr = options.timeout ? ` (timeout: ${options.timeout}ms)` : ''
 
-  return `${operation} ${methodStr} ${urlStr}${timeoutStr}`
+  const methodStr = options.method || ''
+
+  const urlStr = options.url || ''
+
+  return { operation, methodStr, urlStr }
 }
 
-/**
- * Intercepts a network request matching the given criteria.
- * - If `fulfillResponse` is provided, stubs the request and fulfills it with the given response.
- * - If `handler` is provided, uses it to handle the route.
- * - Otherwise, observes the request and returns its data.
- * @param {InterceptOptions} options - Options for matching and handling the request.
- * @returns {Promise<NetworkCallResult>}
- */
+/** Creates a step name based on the network interception options */
+const createStepName = (options: InterceptOptions): string => {
+  const { operation, methodStr, urlStr } = getStepNameComponents(options)
+  return `${operation} ${methodStr} ${urlStr}`
+}
+
+/** Creates a description for when network call completes */
+const createCompletedStepName = (
+  options: InterceptOptions,
+  result: NetworkCallResult
+): string => {
+  const { operation, methodStr, urlStr } = getStepNameComponents(options)
+  const statusStr = result.status ? ` (${result.status})` : ''
+
+  return `Received response for ${operation} ${methodStr} ${urlStr}${statusStr}`
+}
+
 export const interceptNetworkCall = async (
   options: InterceptOptions
-): Promise<NetworkCallResult> =>
-  test.step(createStepName(options), async () =>
-    interceptNetworkCallBase(options)
-  )
+): Promise<NetworkCallResult> => {
+  // Main step for setting up the interception
+  return test.step(createStepName(options), async () => {
+    // Store the result promise
+    const resultPromise = interceptNetworkCallBase(options)
+
+    // Wait for the result
+    const result = await resultPromise
+
+    // Add a nested step that shows when the response is received
+    await test.step(createCompletedStepName(options, result), async () => {
+      // Just a marker step - no additional logic needed
+      return
+    })
+
+    return result
+  })
+}
 
 export type InterceptOptionsFixture = Omit<InterceptOptions, 'page'>
 
