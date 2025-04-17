@@ -147,32 +147,52 @@ A powerful utility for intercepting, observing, and mocking network requests in 
 // Direct import
 import { interceptNetworkCall } from '@seon/playwright-utils'
 
-test('example', async ({ page }) => {
-  // Set up an interception - returns a Promise that resolves when the network call is made
+test('Spy on the network', async ({ page }) => {
+  // Set up the interception before navigating
   const networkCall = interceptNetworkCall({
     page,
+    method: 'GET', // GET is optional
+    url: '**/api/users'
+  })
+
+  await page.goto('/users-page')
+
+  // Wait for the intercepted response and access the result
+  const { responseJson, status } = await networkCall
+
+  expect(responseJson.length).toBeGreaterThan(0)
+  expect(status).toBe(200)
+})
+```
+
+```typescript
+// As a fixture
+import { test } from '@seon/playwright-utils/fixtures'
+
+test('Stub the network', async ({ page, interceptNetworkCall }) => {
+  // With fixture, you don't need to pass the page object
+  const mockResponse = interceptNetworkCall({
     method: 'GET',
-    url: '/api/users',
+    url: '**/api/users',
     fulfillResponse: {
       status: 200,
       body: { data: [{ id: 1, name: 'Test User' }] }
     }
   })
 
-  // Navigate to page that will trigger the network call
-  await page.goto('/users')
+  await page.goto('/users-page')
 
-  // Await the network call and access the result
-  const { responseJson, status } = await networkCall
+  // Wait for the intercepted response
+  await mockResponse
 
-  // With type assertion for strongly typed access
-  const {
-    responseJson: { data }
-  } = (await networkCall) as { responseJson: { data: User[] } }
+  expect(responseJson.data[0].name).toBe('Test User')
+})
+```
 
-  // Conditional request handling
+```typescript
+// Conditional request handling
+test('Modify responses', async ({ page, interceptNetworkCall }) => {
   await interceptNetworkCall({
-    page,
     url: '/api/data',
     handler: async (route, request) => {
       if (request.method() === 'POST') {
@@ -187,24 +207,6 @@ test('example', async ({ page }) => {
       }
     }
   })
-})
-
-// As a fixture
-import { test } from '@seon/playwright-utils/fixtures'
-
-test('example', async ({ page, interceptNetworkCall }) => {
-  // With fixture, you don't need to pass the page object
-  const userDataCall = interceptNetworkCall({
-    method: 'GET',
-    url: '/api/users',
-    fulfillResponse: {
-      status: 200,
-      body: { data: [] }
-    }
-  })
-
-  await page.goto('/')
-  await userDataCall // Wait for the network call to complete
 })
 ```
 
