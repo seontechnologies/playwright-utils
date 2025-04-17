@@ -35,7 +35,11 @@ jobs:
         with:
           fetch-depth: 0 # Needed for version calculation
 
-      # 2. Setup Node.js
+      # 2. Set up GitHub token for package publishing
+      - name: Set GitHub Token
+        uses: seontechnologies/seon-gh-actions/set-github-token@master
+
+      # 3. Setup Node.js
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
@@ -67,9 +71,9 @@ jobs:
           echo "Publishing tag-based release"
           npm run build
           npm publish
+        # GitHub token is already set by the set-github-token action
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.GITHUB_TOKEN }}
 
       # 7. For workflow dispatch - bump version, build, publish and tag
       - name: Handle workflow dispatch release
@@ -109,6 +113,6 @@ jobs:
           # Push to a dedicated release-tracking branch instead of main
           git push origin HEAD:release-tracking -f
           git push origin "v$NEW_VERSION"
+        # GitHub token is already set by the set-github-token action
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.GITHUB_TOKEN }}
