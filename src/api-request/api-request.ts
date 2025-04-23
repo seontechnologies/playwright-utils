@@ -47,9 +47,10 @@ const apiRequestBase = async <T = unknown>({
   params
 }: ApiRequestParams): Promise<ApiRequestResponse<T>> => {
   // common options; if there's a prop, add it to the options object
+  // Note: Playwright expects 'data' for the request body, not 'body'
   const options = Object.assign(
     {},
-    body && { body },
+    body && { data: body }, // Map 'body' to 'data' for Playwright
     headers && { headers },
     params && { params }
   )

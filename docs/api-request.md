@@ -71,16 +71,16 @@ async function apiRequest<T = unknown>({
 
 ### Parameters
 
-| Parameter     | Type                                                      | Description                              |
-| ------------- | --------------------------------------------------------- | ---------------------------------------- |
-| request       | APIRequestContext                                         | The Playwright request context           |
-| method        | 'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH' \| 'HEAD' | HTTP method to use                       |
-| path          | string                                                    | The URL path (e.g., '/api/users')        |
-| baseUrl       | string (optional)                                         | Base URL to prepend to the path          |
-| configBaseUrl | string (optional)                                         | Fallback base URL from Playwright config |
-| body          | unknown (optional)                                        | Request body for POST/PUT/PATCH          |
-| headers       | Record<string, string> (optional)                         | HTTP headers                             |
-| params        | Record<string, string \| boolean \| number> (optional)    | Query parameters                         |
+| Parameter     | Type                                                      | Description                                                                          |
+| ------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| request       | APIRequestContext                                         | The Playwright request context                                                       |
+| method        | 'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH' \| 'HEAD' | HTTP method to use                                                                   |
+| path          | string                                                    | The URL path (e.g., '/api/users')                                                    |
+| baseUrl       | string (optional)                                         | Base URL to prepend to the path                                                      |
+| configBaseUrl | string (optional)                                         | Fallback base URL from Playwright config                                             |
+| body          | unknown (optional)                                        | Request body for POST/PUT/PATCH (internally mapped to Playwright's 'data' parameter) |
+| headers       | Record<string, string> (optional)                         | HTTP headers                                                                         |
+| params        | Record<string, string \| boolean \| number> (optional)    | Query parameters                                                                     |
 
 ### Return Type
 
