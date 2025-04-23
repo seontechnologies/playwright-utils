@@ -2,18 +2,27 @@ import { test as base } from '@playwright/test'
 import { apiRequest as apiRequestFunction } from './api-request'
 import type { ApiRequestParams, ApiRequestResponse } from './api-request'
 
+/**
+ * Type for the apiRequest fixture parameters - exactly like ApiRequestParams but without the 'request' property
+ * which is handled internally by the fixture.
+ */
+export type ApiRequestFixtureParams = Omit<ApiRequestParams, 'request'>
+
 export const test = base.extend<{
   /**
    * Simplified helper for making API requests and returning the status and JSON body.
    * This helper automatically performs the request based on the provided method, path, body, and headers.
    * It handles URL construction with proper slash handling and response parsing based on content type.
    *
+   * IMPORTANT: When using the fixture version, you do NOT need to provide the 'request' parameter,
+   * as it's automatically injected by the fixture.
+   *
    * @example
    * // GET request to an endpoint
    * test('fetch user data', async ({ apiRequest }) => {
    *   const { status, body } = await apiRequest<UserResponse>({
    *     method: 'GET',
-   *     url: '/api/users/123',
+   *     path: '/api/users/123',  // Note: use 'path' not 'url'
    *     headers: { 'Authorization': 'Bearer token' }
    *   });
    *
@@ -26,7 +35,7 @@ export const test = base.extend<{
    * test('create new item', async ({ apiRequest }) => {
    *   const { status, body } = await apiRequest<CreateItemResponse>({
    *     method: 'POST',
-   *     url: '/api/items',
+   *     path: '/api/items',  // Note: use 'path' not 'url'
    *     baseUrl: 'https://api.example.com', // override default baseURL
    *     body: { name: 'New Item', price: 19.99 },
    *     headers: { 'Content-Type': 'application/json' }
@@ -37,7 +46,7 @@ export const test = base.extend<{
    * });
    */
   apiRequest: <T = unknown>(
-    params: ApiRequestParams
+    params: ApiRequestFixtureParams
   ) => Promise<ApiRequestResponse<T>>
 }>({
   apiRequest: async ({ request, baseURL }, use) => {
@@ -49,7 +58,7 @@ export const test = base.extend<{
       body = null,
       headers,
       params
-    }: ApiRequestParams): Promise<ApiRequestResponse<T>> => {
+    }: ApiRequestFixtureParams): Promise<ApiRequestResponse<T>> => {
       const response = await apiRequestFunction({
         request,
         method,
