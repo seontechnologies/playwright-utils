@@ -1,2 +1,6 @@
-// export only the core API request functionality (no fixtures)
-export { apiRequest } from './api-request'
+// Export core API request functionality and types
+export {
+  apiRequest,
+  type ApiRequestParams,
+  type ApiRequestResponse
+} from './api-request'
