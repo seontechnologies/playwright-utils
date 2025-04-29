@@ -12,10 +12,10 @@ All utilities can be used as Playwright fixtures by importing the test object
     - [Recurse (Polling)](#recurse-polling)
     - [Logging](#logging)
     - [Network Interception](#network-interception)
+    - [Auth Session](#auth-session)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
-    - [Publishing from Tags](#publishing-from-tags)
     - [Publishing Locally](#publishing-locally)
 
 ## Installation
@@ -211,6 +211,45 @@ test('Modify responses', async ({ page, interceptNetworkCall }) => {
 ```
 
 [→ Network Interception Documentation](./docs/intercept-network-call.md)
+
+### [Auth Session](./docs/auth-session.md)
+
+A robust authentication session management system for Playwright tests that persists tokens between test runs:
+
+- Significantly faster tests with persistent token storage
+- Role-based authentication support
+- Environment-specific configuration
+- Support for both UI and API testing
+- Session storage management
+
+```typescript
+// Configure auth once in your global setup
+import {
+  configureAuthSession,
+  setAuthProvider
+} from '@seontechnologies/playwright-utils/auth-session'
+
+configureAuthSession({
+  storageDir: '.auth-sessions',
+  debug: process.env.DEBUG === 'true'
+})
+
+setAuthProvider(createDefaultAuthProvider())
+
+// TODO: use real test example from this repo when we have tests
+// In your tests
+import { test } from '@playwright/test'
+import { createAuthFixtures } from '@seontechnologies/playwright-utils/auth-session'
+
+const authTest = test.extend(createAuthFixtures())
+
+authTest('access protected resources', async ({ page, authToken }) => {
+  // Use authToken for API calls or page is already authenticated
+  await page.goto('/protected-area')
+})
+```
+
+[→ Auth Session Documentation](./docs/auth-session.md)
 
 ## Testing the Package Locally
 
