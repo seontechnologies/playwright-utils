@@ -51,6 +51,16 @@
       "types": "./dist/recurse/fixtures.d.ts",
       "require": "./dist/recurse/fixtures.js",
       "import": "./dist/recurse/fixtures.js"
+    },
+    "./auth-session": {
+      "types": "./dist/auth-session/index.d.ts",
+      "require": "./dist/auth-session/index.js",
+      "import": "./dist/auth-session/index.js"
+    },
+    "./auth-session/fixtures": {
+      "types": "./dist/auth-session/fixtures.d.ts",
+      "require": "./dist/auth-session/fixtures.js",
+      "import": "./dist/auth-session/fixtures.js"
     }
   },
   "files": [
@@ -94,9 +104,11 @@
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.16",
     "@types/node": "22.14.1",
+    "@types/picomatch": "^4.0.0",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "8.31.0",
     "@typescript-eslint/parser": "8.31.0",
-    "dotenv": "16.5.0",
+    "dotenv": "^16.5.0",
     "eslint": "8.57.1",
     "eslint-config-prettier": "10.1.2",
     "eslint-import-resolver-typescript": "4.3.4",
@@ -115,8 +127,8 @@
     "typescript": "5.8.3"
   },
   "dependencies": {
-    "@types/picomatch": "^4.0.0",
     "deepmerge": "^4.3.1",
-    "picomatch": "^4.0.2"
+    "picomatch": "^4.0.2",
+    "uuid": "^11.1.0"
   }
 }
