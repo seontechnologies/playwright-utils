@@ -12,6 +12,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import fs from 'node:fs'
 import path from 'node:path'
+import type { Storage, StorageOptions } from './types'
 
 /**  Default environment when none is specified */
 const DEFAULT_ENVIRONMENT = 'local'
@@ -58,10 +59,7 @@ const getCurrentUserRole = (options?: { userRole?: string }): string => {
  * @param options.userRole User role for storage separation
  * @returns Path to the auth storage directory
  */
-export const getStorageDir = (options?: {
-  environment?: string
-  userRole?: string
-}): string =>
+export const getStorageDir = (options?: StorageOptions): string =>
   path.join(
     process.cwd(),
     'pw',
@@ -77,10 +75,26 @@ export const getStorageDir = (options?: {
  * @param options.userRole User role for storage separation
  * @returns Path to the storage state file
  */
-export const getStorageStatePath = (options?: {
+export const getStorageStatePath = (options?: StorageOptions): string =>
+  path.join(getStorageDir(options), 'storage-state.json')
+
+/**
+ * Get the token file path for a specific environment and user role
+ *
+ * @param options Configuration options
+ * @param options.environment Test environment (e.g., 'local', 'dev', 'staging')
+ * @param options.userRole User role for storage separation
+ * @param options.tokenFileName Custom token filename
+ * @returns Path to the token file
+ */
+export function getTokenFilePath(options?: {
   environment?: string
   userRole?: string
-}): string => path.join(getStorageDir(options), 'storage-state.json')
+  tokenFileName?: string
+}): string {
+  const tokenFileName = options?.tokenFileName || 'auth-token.json'
+  return path.join(getStorageDir(options), tokenFileName)
+}
 
 // Default paths using the current environment
 export const storageDir = getStorageDir()
@@ -97,10 +111,7 @@ export const storageDir = getStorageDir()
  * @param options.userRole User role for storage separation
  * @returns Object containing the created storage paths
  */
-export function authStorageInit(options?: {
-  environment?: string
-  userRole?: string
-}): { storageDir: string; storageStatePath: string } {
+export function authStorageInit(options?: StorageOptions): Storage {
   const dir = getStorageDir(options)
   const statePath = getStorageStatePath(options)
 

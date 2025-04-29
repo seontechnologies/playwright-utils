@@ -16,7 +16,7 @@ type TokenFetchOptions = {
 export type AuthTokenData = {
   token: string
   createdAt: string
-  expiresAt?: string
+  expiresAt?: string | null
   refreshToken?: string
   tokenType?: string
   [key: string]: unknown
@@ -68,4 +68,11 @@ export type AuthFixtures = {
   authOptions: AuthOptions
   authToken: string
   // context and page are already part of the base Playwright test
+}
+
+export type Storage = { storageDir: string; storageStatePath: string }
+
+export type StorageOptions = {
+  environment?: string
+  userRole?: string
 }
