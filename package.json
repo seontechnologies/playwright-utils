@@ -103,7 +103,7 @@
     "@playwright/test": "^1.52.0",
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.16",
-    "@types/node": "22.14.1",
+    "@types/node": "22.15.2",
     "@types/picomatch": "^4.0.0",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "8.31.0",
