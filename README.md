@@ -15,7 +15,6 @@ All utilities can be used as Playwright fixtures by importing the test object
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
-    - [Publishing from Tags](#publishing-from-tags)
     - [Publishing Locally](#publishing-locally)
 
 ## Installation
@@ -258,3 +257,5 @@ export GITHUB_TOKEN=your_personal_access_token
 # 2. Run the publish script
 npm run publish:local
 ```
+
+TODO: add a section for auth-session
