@@ -7,7 +7,7 @@ import {
   authStorageInit as initStorage,
   getStorageStatePath
 } from './auth-storage-utils'
-import type { Storage, StorageOptions } from './types'
+import type { StoragePaths, AuthIdentifiers } from './types'
 
 /** Initialize auth session storage directories and files.
  * Creates necessary directories and empty storage state files for Playwright.
@@ -15,7 +15,7 @@ import type { Storage, StorageOptions } from './types'
  *
  * @param options Optional environment and user role overrides
  * @returns Object containing created storage paths */
-export const authStorageInit = (options?: StorageOptions): Storage =>
+export const authStorageInit = (options?: AuthIdentifiers): StoragePaths =>
   initStorage(options)
 
 /**  Pre-fetch authentication token during global setup

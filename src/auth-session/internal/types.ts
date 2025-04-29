@@ -43,15 +43,11 @@ export type AuthSessionOptions = {
   debug?: boolean
 }
 
-export type AuthOptions = {
-  /** Environment to use for authentication
-   * @default process.env.TEST_ENV || 'local' */
-  environment?: string
-
-  /** User role to authenticate as
-   * @default 'default' */
-  userRole?: string
-
+/**
+ * Full auth configuration that extends the base identifiers
+ * Includes URLs and additional configuration beyond just identifiers
+ */
+export type AuthOptions = AuthIdentifiers & {
   /** Base URL to use for the browser context (the application URL)
    * If not provided, will be determined based on environment
    * @default process.env.BASE_URL || environment-specific URL */
@@ -70,9 +66,28 @@ export type AuthFixtures = {
   // context and page are already part of the base Playwright test
 }
 
-export type Storage = { storageDir: string; storageStatePath: string }
-
-export type StorageOptions = {
+/**
+ * Base identification options used across the auth system
+ * These identifiers determine which environment and role to use
+ */
+export type AuthIdentifiers = {
+  /** Environment to use for authentication
+   * @default process.env.TEST_ENV || 'local' */
   environment?: string
+
+  /** User role to authenticate as
+   * @default 'default' */
   userRole?: string
+}
+
+/**
+ * Result of storage path resolution
+ * Contains the actual filesystem paths for auth storage
+ */
+export type StoragePaths = {
+  /** Resolved directory for auth storage files */
+  storageDir: string
+
+  /** Full path to the Playwright storage state file */
+  storageStatePath: string
 }

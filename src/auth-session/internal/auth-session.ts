@@ -2,25 +2,19 @@
  * @internal This file contains implementation details that should not be directly imported
  * Use the public API exported from index.ts instead */
 
-import type { APIRequestContext, BrowserContext } from '@playwright/test'
-import {
-  getStorageDir,
-  getStorageStatePath,
-  getTokenFilePath
-} from './auth-storage-utils'
+import type { APIRequestContext } from '@playwright/test'
+import { getStorageDir, getTokenFilePath } from './auth-storage-utils'
 import * as fs from 'fs'
 import * as path from 'path'
 import type {
   AuthSessionOptions,
   AuthTokenData,
-  StorageOptions,
   TokenDataFormatter
 } from './types'
 import { getGlobalAuthOptions } from './auth-configure'
 import { getAuthProvider } from './auth-provider'
 
-/** Re-export configureAuthSession from auth-configure */
-export { configureAuthSession } from './auth-configure'
+// Public API is now exclusively in core.ts
 
 /** Default token data formatter that creates the basic token structure
  * Can be overridden by providing a custom formatter in AuthSessionOptions */
@@ -31,87 +25,6 @@ export const defaultTokenFormatter: TokenDataFormatter = (
   createdAt: new Date().toISOString(),
   expiresAt: null
 })
-
-/**
- * Get a token for authentication
- *
- * This function requires both:
- * 1. configureAuthSession() - For basic storage paths and configuration
- * 2. setAuthProvider() - For actual token implementation
- */
-export async function getAuthToken(
-  request: APIRequestContext,
-  options?: StorageOptions
-): Promise<string> {
-  // Step 1: Check if basic configuration exists (from configureAuthSession)
-  const globalOptions = getGlobalAuthOptions()
-  if (!globalOptions) {
-    throw new Error(
-      'Basic auth configuration missing. You must call configureAuthSession() first to set up storage paths.'
-    )
-  }
-
-  // Step 2: Check if a custom provider is configured (from setAuthProvider)
-  const provider = getAuthProvider()
-  if (!provider) {
-    throw new Error(
-      'No auth provider configured. You must call setAuthProvider() with your custom provider.'
-    )
-  }
-
-  // Step 3: Use the custom provider with configuration from both sources
-  return provider.getToken(request, {
-    environment: options?.environment,
-    userRole: options?.userRole
-  })
-}
-
-/** Clear the token from storage */
-export function clearAuthToken(options?: StorageOptions) {
-  // Get global auth options
-  const globalOptions = getGlobalAuthOptions()
-  if (!globalOptions) {
-    throw new Error(
-      'Auth session not configured. Call configureAuthSession first.'
-    )
-  }
-
-  // Create full options
-  const fullOptions: AuthSessionOptions = {
-    ...globalOptions,
-    ...options
-  }
-
-  const authManager = AuthSessionManager.getInstance(fullOptions)
-  authManager.clearToken()
-}
-
-/** Apply auth token to a browser context for UI testing */
-export async function applyAuthToBrowserContext(
-  context: BrowserContext,
-  token: string,
-  options?: StorageOptions
-) {
-  const statePath = getStorageStatePath(options)
-
-  // save the current state
-  await context.storageState({ path: statePath })
-
-  // add the auth token to localStorage
-  await context.addInitScript((token: string) => {
-    window.localStorage.setItem('authToken', token)
-  }, token)
-
-  // TODO: Make the navigation URL configurable. In a library context, users should
-  // be able to specify which URL to navigate to for initializing auth, or we should
-  // make this step optional with clear documentation about the consequences.
-  const page = await context.newPage()
-  await page.goto('/')
-  await page.close()
-
-  // Save the state with the token
-  await context.storageState({ path: statePath })
-}
 
 export class AuthSessionManager {
   private static instance: AuthSessionManager

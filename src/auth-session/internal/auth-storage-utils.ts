@@ -12,7 +12,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Storage, StorageOptions } from './types'
+import type { StoragePaths, AuthIdentifiers } from './types'
 
 /**  Default environment when none is specified */
 const DEFAULT_ENVIRONMENT = 'local'
@@ -59,7 +59,7 @@ const getCurrentUserRole = (options?: { userRole?: string }): string => {
  * @param options.userRole User role for storage separation
  * @returns Path to the auth storage directory
  */
-export const getStorageDir = (options?: StorageOptions): string =>
+export const getStorageDir = (options?: AuthIdentifiers): string =>
   path.join(
     process.cwd(),
     'pw',
@@ -75,23 +75,22 @@ export const getStorageDir = (options?: StorageOptions): string =>
  * @param options.userRole User role for storage separation
  * @returns Path to the storage state file
  */
-export const getStorageStatePath = (options?: StorageOptions): string =>
+export const getStorageStatePath = (options?: AuthIdentifiers): string =>
   path.join(getStorageDir(options), 'storage-state.json')
 
 /**
- * Get the token file path for a specific environment and user role
- *
- * @param options Configuration options
- * @param options.environment Test environment (e.g., 'local', 'dev', 'staging')
+ * Generate a token file path based on environment and user role
+ * @param options Options for token file path generation
+ * @param options.environment Environment for storage separation
  * @param options.userRole User role for storage separation
  * @param options.tokenFileName Custom token filename
  * @returns Path to the token file
  */
-export function getTokenFilePath(options?: {
-  environment?: string
-  userRole?: string
-  tokenFileName?: string
-}): string {
+export function getTokenFilePath(
+  options?: AuthIdentifiers & {
+    tokenFileName?: string
+  }
+): string {
   const tokenFileName = options?.tokenFileName || 'auth-token.json'
   return path.join(getStorageDir(options), tokenFileName)
 }
@@ -111,7 +110,7 @@ export const storageDir = getStorageDir()
  * @param options.userRole User role for storage separation
  * @returns Object containing the created storage paths
  */
-export function authStorageInit(options?: StorageOptions): Storage {
+export function authStorageInit(options?: AuthIdentifiers): StoragePaths {
   const dir = getStorageDir(options)
   const statePath = getStorageStatePath(options)
 
