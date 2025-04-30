@@ -12,6 +12,7 @@ dist
 # misc
 .DS_Store
 .env
+!sample-app/.env
 .vscode
 npm-debug.log*
 

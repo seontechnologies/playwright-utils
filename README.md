@@ -7,6 +7,7 @@ All utilities can be used as Playwright fixtures by importing the test object
 - [Playwright Utils](#playwright-utils)
   - [Installation](#installation)
   - [Development](#development)
+    - [Testing Strategy](#testing-strategy)
   - [Available Utilities](#available-utilities)
     - [API Request](#api-request)
     - [Recurse (Polling)](#recurse-polling)
@@ -40,10 +41,32 @@ npm run fix:format    # Fix code formatting with Prettier
 npm run test          # Run unit tests
 npm run validate      # Run all the above in parallel
 
+# Start the sample app (for testing apiRequest, recurse, auth-session)
+npm run start:sample-app
+
 # Playwright tests
 npm run test:pw       # Run Playwright tests
 npm run test:pw-ui    # Run Playwright tests with UI
 ```
+
+### Testing Strategy
+
+The overall testing approach:
+
+1. **Deployed Apps Tests** - Some tests use deployed apps (`log`, `interceptNetworkCall`):
+
+   - `playwright/tests/network-mock-original.spec.ts`
+   - `playwright/tests/todo-with-logs.spec.ts`
+   - `playwright/tests/network-mock-intercept-network-call.spec.ts`
+
+2. **Sample App Tests** - The `./sample-app` provides a more complex environment to test:
+   - API request automation
+   - Recursion and retry patterns
+   - Authentication flows
+
+See [sample-app/README.md](./sample-app/README.md) for details on running and testing the sample app. TL, DR; `npm run start:sample-app`.
+
+The sample app uses `"@seontechnologies/playwright-utils": "*"` in its package.json so that changes to the library are immediately available for testing without requiring republishing or package updates.
 
 ## Available Utilities
 
