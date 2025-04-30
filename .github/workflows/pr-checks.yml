@@ -32,6 +32,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        
+      - name: Generate Prisma types
+        run: cd sample-app && npx prisma generate
 
       - name: Run typecheck
         run: npm run typecheck
