@@ -8,6 +8,9 @@ concurrency:
   group: ${{ github.ref }} && ${{ github.workflow }}
   cancel-in-progress: true
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   pr-check:
     runs-on: kubernetes-default
