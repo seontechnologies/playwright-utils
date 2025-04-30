@@ -1,6 +1,7 @@
 {
   "include": [
     "src",
+    "sample-app",
     "./jest.config.ts",
     "./.eslintrc.js",
     "playwright",

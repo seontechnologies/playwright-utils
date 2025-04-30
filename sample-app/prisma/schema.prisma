@@ -1,0 +1,21 @@
+// if this file changes
+// npm run db:migrate
+// npm run db:sync
+// npm run reset:db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Movie {
+  id       Int    @id @default(autoincrement())
+  name     String
+  year     Int
+  rating   Float
+  director String
+}

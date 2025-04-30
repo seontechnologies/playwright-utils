@@ -1,0 +1,100 @@
+@baseUrl = http://localhost:3001
+
+###
+# @name generateToken
+# Simulate token generation (mocked)
+GET {{baseUrl}}/auth/fake-token
+
+###
+@token = {{generateToken.response.body.token}}
+
+###
+# @name heartbeat
+GET {{baseUrl}}
+
+###
+# @name addMovie
+POST {{baseUrl}}/movies
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+    "name": "Inception",
+    "year": 2010,
+    "rating": 7.5,
+    "director": "Christopher Nolan"
+}
+
+###
+
+@movieId = {{addMovie.response.body.data.id}}
+@movieName = {{addMovie.response.body.data.name}}
+
+###
+# @name getAllMovies
+GET {{baseUrl}}/movies
+Authorization: {{token}}
+
+###
+# @name getMovieById
+GET {{baseUrl}}/movies/{{movieId}}
+Authorization: {{token}}
+
+###
+# @name getMovieByName
+GET {{baseUrl}}/movies?name={{movieName}}
+Authorization: {{token}}
+
+###
+# @name addDuplicateMovie
+POST {{baseUrl}}/movies/
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+    "name": "Inception",
+    "year": 2010,
+    "rating": 7.5
+}
+
+###
+# @name addMovieInvalidYear
+POST {{baseUrl}}/movies
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+    "name": "Invalid Year Movie",
+    "year": 1800,
+    "rating": 7.5,
+    "director": "Christopher Nolan"
+}
+
+###
+# @name updateMovie
+PUT {{baseUrl}}/movies/{{movieId}}
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+    "name": "Inception Updated",
+    "year": 2015,
+    "rating": 8.0,
+    "director": "Steven Spielberg"
+}
+
+###
+# @name deleteMovie
+DELETE {{baseUrl}}/movies/{{movieId}}
+Authorization: {{token}}
+
+###
+# @name getNonExistentMovie
+GET {{baseUrl}}/movies/999
+Authorization: {{token}}
+
+
+###
+# @name deleteNonExistentMovie
+DELETE {{baseUrl}}/movies/999
+Authorization: {{token}}

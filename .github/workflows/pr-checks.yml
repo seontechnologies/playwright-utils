@@ -8,6 +8,9 @@ concurrency:
   group: ${{ github.ref }} && ${{ github.workflow }}
   cancel-in-progress: true
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   pr-check:
     runs-on: kubernetes-default
@@ -29,6 +32,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Prisma needs to generate TypeScript types from our schema before typechecking runs
+      # Locally, this happens when we start the app.
+      - name: Generate Prisma types
+        run: cd sample-app && npx prisma generate
 
       - name: Run typecheck
         run: npm run typecheck
