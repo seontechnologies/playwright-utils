@@ -23,3 +23,4 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 downloads
+sample-app/test-events/movie-events.log

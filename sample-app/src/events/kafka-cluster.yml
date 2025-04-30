@@ -1,0 +1,96 @@
+# This docker-compose file can be used to start Kafka and its dependencies locally.
+# If Kafka is not running, movie CRUD operations will still work but the movie events will not be published.
+
+version: '3.8'  # Version of Docker Compose file format
+
+services:
+  kafka:
+    image: bitnami/kafka:3.4.1  # Pin to a specific version for stability
+    platform: linux/amd64  # Ensures compatibility with AMD64 architecture
+    depends_on:
+      - zookeeper  # Kafka requires Zookeeper for managing configurations and cluster state
+    ports:
+      - '29092:29092'  # Maps external port 29092 to Kafka's listener for external access
+    expose:
+      - '9092'
+      - '29092'  
+    environment:
+      # Basic configuration
+      KAFKA_BROKER_ID: 1
+      
+      # Simplified configuration - just two listeners for maximum compatibility
+      # PLAINTEXT - Used for inter-broker communication within Docker
+      # EXTERNAL - Used for connections from the host machine
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,EXTERNAL://:29092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      
+      # Additional reliability settings
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CFG_CONNECTIONS_MAX_IDLE_MS: 60000
+      KAFKA_CFG_SOCKET_CONNECTION_SETUP_TIMEOUT_MS: 30000
+      KAFKA_CFG_SOCKET_CONNECTION_SETUP_TIMEOUT_MAX_MS: 60000
+      
+      # Use Zookeeper instead of KRaft mode
+      KAFKA_CFG_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      
+      # Explicitly disable KRaft mode
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+      
+      # Additional settings for reliability
+      KAFKA_CFG_NUM_PARTITIONS: 1
+      KAFKA_CFG_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      
+      # Reduce unnecessary logs
+      KAFKA_CFG_LOG_RETENTION_HOURS: 24
+      
+      # Improve container startup
+      KAFKA_HEAP_OPTS: '-Xmx256m -Xms128m'
+
+    volumes:
+      - kafka_data:/var/lib/kafka/data  
+      # Maps a persistent volume to store Kafka logs and data, preventing data loss on restarts.
+
+  init-kafka:
+    image: bitnami/kafka:latest  # Kafka image, the same as the main Kafka broker
+    depends_on:
+      - kafka  # Will run after the Kafka broker is up and running
+    entrypoint: ['/bin/sh', '-c']  # Defines the shell entry point for this container
+    command: |
+      "
+      # Wait for Kafka to be ready
+      /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+
+      # Create the 'movies' topic
+      echo -e 'Creating kafka topics'
+      /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic movies --replication-factor 1 --partitions 1
+
+      echo -e 'Successfully created the following topics:'
+      /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+      "
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest  # Kafka UI tool for managing and viewing topics and brokers
+    ports:
+      - 8085:8080  # Exposes the Kafka UI on port 8085 (localhost:8085 in the browser)
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local  # Names the Kafka cluster in the UI as 'local'
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092  # Connects the UI to the Kafka broker
+      DYNAMIC_CONFIG_ENABLED: 'true'  # Enables dynamic configuration in the UI
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:6.0.14  # Zookeeper image for managing Kafka configurations and metadata
+    platform: linux/amd64  # Ensures compatibility with AMD64 architecture
+    ports:
+      - '22181:2181'  # Exposes Zookeeper on port 2181 for external access
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181  # Default client port for Zookeeper communication
+      ZOOKEEPER_TICK_TIME: 2000  # Zookeeper heartbeat interval in milliseconds
+
+volumes:
+  kafka_data:
+    driver: local  # Define a Docker volume to persist Kafka data

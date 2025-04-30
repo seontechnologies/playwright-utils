@@ -2,6 +2,9 @@
   "name": "@seontechnologies/playwright-utils",
   "version": "0.1.14",
   "description": "A collection of utilities for Playwright.",
+  "workspaces": [
+    "sample-app"
+  ],
   "author": "Murat Ozcan",
   "license": "UNLICENSED",
   "main": "dist/playwright-utils.js",
@@ -83,6 +86,8 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
+    "start:sample-app": "cd sample-app && npm run start",
+    "postinstall": "npm run build",
     "publish:local": "./scripts/publish.sh",
     "build": "rm -rf dist && tsc -p tsconfig-build.json",
     "prettier": "prettier --ignore-path .gitignore \"**/*.+(js|ts|json)\"",
@@ -101,6 +106,7 @@
   "devDependencies": {
     "@faker-js/faker": "9.7.0",
     "@playwright/test": "^1.52.0",
+    "@types/express-serve-static-core": "^5.0.6",
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.16",
     "@types/node": "22.15.2",
@@ -117,6 +123,7 @@
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-no-only-tests": "3.3.0",
     "eslint-plugin-prettier": "5.2.6",
+    "is-ci": "^4.0.0",
     "jest": "29.7.0",
     "lodash": "4.17.21",
     "npm-run-all2": "7.0.2",
@@ -127,6 +134,7 @@
     "typescript": "5.8.3"
   },
   "dependencies": {
+    "@types/express": "^4.17.21",
     "deepmerge": "^4.3.1",
     "picomatch": "^4.0.2",
     "uuid": "^11.1.0"
