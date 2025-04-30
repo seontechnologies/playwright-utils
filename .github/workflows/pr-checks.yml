@@ -32,7 +32,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        
+
+      # Prisma needs to generate TypeScript types from our schema before typechecking runs
+      # Locally, this happens when we start the app.
       - name: Generate Prisma types
         run: cd sample-app && npx prisma generate
 
