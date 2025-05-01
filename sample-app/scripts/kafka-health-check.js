@@ -26,7 +26,8 @@ const CONFIG = {
     'events-kafka-ui-1'
   ],
   kafkaPort: 29092,
-  kafkaHost: '127.0.0.1',
+  // Try multiple host options for better cross-environment compatibility
+  kafkaHosts: ['127.0.0.1', 'localhost', 'kafka'],
   dockerComposeFile: path.resolve(__dirname, '../src/events/kafka-cluster.yml'),
   initWaitTime: 15000, // Wait 15 seconds for containers to fully initialize
   retries: 5,
@@ -150,80 +151,117 @@ async function restartKafkaStack() {
  * Test Kafka connectivity by connecting, listing topics, and sending a test message
  */
 async function testKafkaConnectivity() {
-  // Configure Kafka client
-  const kafka = new Kafka({
+  // List of potential broker configs to try - will attempt each one until successful
+  const brokerConfigs = CONFIG.kafkaHosts.map((host) => ({
     clientId: 'kafka-health-check',
-    // Use only localhost which matches the EXTERNAL advertised listener
-    brokers: ['localhost:29092'],
+    brokers: [`${host}:${CONFIG.kafkaPort}`],
     retry: {
       retries: CONFIG.retries,
       initialRetryTime: 500,
       maxRetryTime: CONFIG.maxRetryTime
     },
     connectionTimeout: 10000
-  })
+  }))
 
-  const producer = kafka.producer()
-  const admin = kafka.admin()
+  // Try each broker configuration - following functional programming principles
+  let lastError = null
 
-  try {
-    // Test admin connectivity
-    logger.info('Testing Kafka admin connectivity...')
-    await admin.connect()
-    logger.success('Connected to Kafka admin')
+  // Use a for-of loop for better error handling with async/await
+  for (const brokerConfig of brokerConfigs) {
+    try {
+      logger.warn(
+        `Attempting to connect to Kafka with brokers: ${JSON.stringify(brokerConfig.brokers)}`
+      )
+      const kafka = new Kafka(brokerConfig)
 
-    // List topics
-    const topics = await admin.listTopics()
-    logger.success(`Found ${topics.length} topics: ${topics.join(', ')}`)
+      const producer = kafka.producer()
+      const admin = kafka.admin()
 
-    // Create test topic if needed
-    const testTopicName = 'health-check-topic'
-    if (!topics.includes(testTopicName)) {
-      logger.info(`Creating test topic '${testTopicName}'...`)
-      await admin.createTopics({
-        topics: [
-          { topic: testTopicName, numPartitions: 1, replicationFactor: 1 }
-        ]
-      })
-      logger.success(`Created '${testTopicName}' topic`)
-    }
+      try {
+        // Test admin connectivity
+        logger.info('Testing Kafka admin connectivity...')
+        await admin.connect()
+        logger.success('Connected to Kafka admin')
 
-    // Test producer connectivity
-    logger.info('Testing Kafka producer...')
-    await producer.connect()
-    logger.success('Connected to Kafka producer')
+        // List topics
+        const topics = await admin.listTopics()
+        logger.success(`Found ${topics.length} topics: ${topics.join(', ')}`)
 
-    // Send test message
-    const testMessage = {
-      id: Date.now(),
-      message: 'Kafka health check',
-      timestamp: new Date().toISOString()
-    }
-
-    await producer.send({
-      topic: testTopicName,
-      messages: [
-        {
-          key: 'health-check',
-          value: JSON.stringify(testMessage)
+        // Create test topic if needed
+        const testTopicName = 'health-check-topic'
+        if (!topics.includes(testTopicName)) {
+          logger.info(`Creating test topic '${testTopicName}'...`)
+          await admin.createTopics({
+            topics: [
+              { topic: testTopicName, numPartitions: 1, replicationFactor: 1 }
+            ]
+          })
+          logger.success(`Created '${testTopicName}' topic`)
         }
-      ]
-    })
 
-    logger.success('Test message sent successfully')
+        // Test producer connectivity
+        logger.info('Testing Kafka producer...')
+        await producer.connect()
+        logger.success('Connected to Kafka producer')
 
-    // Clean up connections
-    await producer.disconnect()
-    await admin.disconnect()
+        // Send test message
+        const testMessage = {
+          id: Date.now(),
+          message: 'Kafka health check',
+          timestamp: new Date().toISOString()
+        }
 
-    logger.highlight('🎉 Kafka connectivity test completed successfully')
-    return true
-  } catch (error) {
-    logger.error(`Kafka connectivity test failed: ${error.message}`)
-    if (admin.isConnected()) await admin.disconnect().catch(() => {})
-    if (producer.isConnected()) await producer.disconnect().catch(() => {})
-    throw error
+        await producer.send({
+          topic: testTopicName,
+          messages: [
+            {
+              key: 'health-check',
+              value: JSON.stringify(testMessage)
+            }
+          ]
+        })
+
+        logger.success('Test message sent successfully')
+
+        // Clean up connections
+        await producer.disconnect()
+        await admin.disconnect()
+
+        logger.highlight('🎉 Kafka connectivity test completed successfully')
+        return true // Success! Return early from the function
+      } catch (innerError) {
+        // Something went wrong, but we'll try other brokers
+        logger.warn(
+          `Failed with broker ${brokerConfig.brokers[0]}: ${innerError.message}`
+        )
+
+        // Clean up connections safely
+        try {
+          if (admin && admin.disconnect)
+            await admin.disconnect().catch(() => {})
+        } catch {}
+        try {
+          if (producer && producer.disconnect)
+            await producer.disconnect().catch(() => {})
+        } catch {}
+
+        // Store this error in case all brokers fail
+        lastError = innerError
+      }
+    } catch (outerError) {
+      // Kafka client initialization failed
+      logger.warn(
+        `Failed to create Kafka client with broker ${brokerConfig.brokers[0]}: ${outerError.message}`
+      )
+      lastError = outerError
+    }
   }
+
+  // If we reach here, all brokers failed
+  logger.error(
+    `❌ Kafka connectivity test failed: ${lastError?.message || 'Unknown error'}`
+  )
+  throw lastError || new Error('Failed to connect to any Kafka broker')
 }
 
 // Execute the health check
