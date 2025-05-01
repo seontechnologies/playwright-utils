@@ -72,8 +72,19 @@ jobs:
           npx playwright install --with-deps chromium
           npx playwright install --with-deps chrome
 
+      # Start Kafka
+      - name: Start Kafka
+        continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
+        run: docker compose -f ./src/events/kafka-cluster.yml up -d --no-recreate
+
       - name: Run Playwright tests
         run: ${{ needs.vars.outputs.test_command }} -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
+      # Stop Kafka after tests
+      - name: Stop Kafka
+        continue-on-error: true
+        if: always()
+        run: docker compose -f ./src/events/kafka-cluster.yml down
 
       - name: Copy trace files to blob-report
         run: |

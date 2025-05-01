@@ -26,10 +26,18 @@ log.configure({
   }
 })
 
+const BASE_URL = 'http://localhost:3001'
+
 export default defineConfig(
   merge({}, baseConfig, {
     use: {
-      baseURL: 'http://localhost:3001' // case sensitive
+      baseURL: BASE_URL // case sensitive
+    },
+    webServer: {
+      command: 'npm run start:sample-app',
+      url: BASE_URL,
+      reuseExistingServer: !process.env.CI,
+      stdout: 'pipe'
     },
     // Add the special project to your config
     projects: [...(baseConfig.projects || [])]
