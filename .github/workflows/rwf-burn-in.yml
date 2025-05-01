@@ -127,6 +127,11 @@ jobs:
           npx playwright install --with-deps chromium
           npx playwright install --with-deps chrome
 
+      # Start Kafka before tests (we need it for eventual consistency in local tests)
+      - name: Start Kafka
+        continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
+        run: docker compose -f ./sample-app/src/events/kafka-cluster.yml up -d --no-recreate
+
       - name: Run Burn-in
         id: burn-in-step
         run: |
@@ -138,6 +143,12 @@ jobs:
             --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           PW_BURN_IN: true
+
+      # Stop Kafka after tests
+      - name: Stop Kafka
+        continue-on-error: true
+        if: always()
+        run: docker compose -f ./sample-app/src/events/kafka-cluster.yml down
 
       - name: Update runE2E based on burn-in result
         if: always()

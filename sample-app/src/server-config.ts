@@ -5,7 +5,7 @@ import { moviesRoute } from './routes'
 const server = express()
 server.use(
   cors({
-    origin: 'http://localhost:3000' // allow only your React app, add other urls if you have deployments
+    origin: 'http://localhost:3001' // allow only your React app, add other urls if you have deployments
   })
 )
 

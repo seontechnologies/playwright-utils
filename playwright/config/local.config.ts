@@ -26,9 +26,19 @@ log.configure({
   }
 })
 
+const BASE_URL = 'http://localhost:3001'
+
 export default defineConfig(
   merge({}, baseConfig, {
-    use: { baseUrl: 'https://test-api.k6.io' },
+    use: {
+      baseURL: BASE_URL // case sensitive
+    },
+    webServer: {
+      command: 'npm run start:sample-app',
+      url: BASE_URL,
+      reuseExistingServer: !process.env.CI,
+      stdout: 'pipe'
+    },
     // Add the special project to your config
     projects: [...(baseConfig.projects || [])]
   })

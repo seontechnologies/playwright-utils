@@ -6,11 +6,10 @@ dotenvConfig({
 })
 
 const envConfigMap = {
-  dev: require('./playwright/config/dev.config').default
-  // add envs as needed
+  local: require('./playwright/config/local.config').default
 }
 
-const environment = process.env.TEST_ENV || 'dev'
+const environment = process.env.TEST_ENV || 'local'
 
 // Validate environment config
 if (!Object.keys(envConfigMap).includes(environment)) {

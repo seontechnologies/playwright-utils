@@ -4,7 +4,7 @@ info:
   version: 11.0.0
   description: API for managing movies
 servers:
-  - url: http://localhost:3000
+  - url: http://localhost:3001
     description: Local development server
   - url: https://api.myapp.com
     description: Production server

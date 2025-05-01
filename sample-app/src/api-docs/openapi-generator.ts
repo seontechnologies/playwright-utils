@@ -197,7 +197,7 @@ export const openApiDoc = generator.generateDocument({
   },
   servers: [
     {
-      url: 'http://localhost:3000',
+      url: 'http://localhost:3001',
       description: 'Local development server'
     },
     {
@@ -250,7 +250,7 @@ import { openApiDoc } from './@types' // Import the generated OpenAPI doc
 
 server.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDoc))
 
-By visiting http://localhost:3000/api-docs, you’ll be able to view the documentation in a browser 
+By visiting http://localhost:3001/api-docs, you’ll be able to view the documentation in a browser 
 and interact with the API using Swagger's UI interface.
 
 4.c) Generating and Serving in Lambda (or Serverless Environments): For Lambda, or any serverless environment, 
