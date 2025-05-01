@@ -53,7 +53,7 @@ npm run test:pw-ui    # Run Playwright tests with UI
 
 The overall testing approach:
 
-1. **Deployed Apps Tests** - Some tests use deployed apps (`log`, `interceptNetworkCall`):
+1. **Deployed Apps Tests** - Some tests use Playwright's deployed apps to keep things familiar (`log`, `interceptNetworkCall`):
 
    - `playwright/tests/network-mock-original.spec.ts`
    - `playwright/tests/todo-with-logs.spec.ts`
@@ -63,6 +63,7 @@ The overall testing approach:
    - API request automation
    - Recursion and retry patterns
    - Authentication flows
+   - Future: feature flag testing, email testing, etc.
 
 See [sample-app/README.md](./sample-app/README.md) for details on running and testing the sample app. TL, DR; `npm run start:sample-app`.
 

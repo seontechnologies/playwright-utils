@@ -28,7 +28,9 @@ log.configure({
 
 export default defineConfig(
   merge({}, baseConfig, {
-    use: { baseUrl: 'https://test-api.k6.io' },
+    use: {
+      baseURL: 'http://localhost:3001' // case sensitive
+    },
     // Add the special project to your config
     projects: [...(baseConfig.projects || [])]
   })
