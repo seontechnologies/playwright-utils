@@ -125,12 +125,12 @@ jobs:
 
           # Create .npmrc file with authentication token directly
           echo "@seontechnologies:registry=https://npm.pkg.github.com/" > .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.PCKG_PUBLISHER }}" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.PERSONAL_GITHUB_TOKEN }}" >> .npmrc
 
           # Publish with the explicit .npmrc file
           npm publish
         env:
-          GITHUB_TOKEN: ${{ secrets.PCKG_PUBLISHER }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
 
       # 9. Create git commit, tag and branch
       - name: Create commit and branch
@@ -152,7 +152,7 @@ jobs:
       - name: Create pull request
         if: steps.version.outputs.skip != 'true'
         env:
-          GH_TOKEN: ${{ secrets.PCKG_PUBLISHER }}
+          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
         run: |
           echo "Creating pull request for version ${{ steps.version.outputs.new_version }}"
 
