@@ -37,7 +37,8 @@ export default defineConfig(
       command: 'npm run start:sample-app',
       url: BASE_URL,
       reuseExistingServer: !process.env.CI,
-      stdout: 'pipe'
+      stdout: 'pipe',
+      timeout: 600000 // Increase timeout to 10 minutes to handle container downloads
     },
     // Add the special project to your config
     projects: [...(baseConfig.projects || [])]

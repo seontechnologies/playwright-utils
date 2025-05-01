@@ -127,6 +127,18 @@ jobs:
           npx playwright install --with-deps chromium
           npx playwright install --with-deps chrome
 
+      # Start Kafka
+      - name: Start Kafka
+        continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
+        run: docker compose -f ./sample-app/src/events/kafka-cluster.yml up -d --no-recreate
+
+      # Add a health check wait for Kafka to be ready
+      - name: Wait for Kafka
+        continue-on-error: true
+        run: |
+          echo "Waiting for Kafka to be ready..."
+          npx wait-on tcp:localhost:29092 -t 120000 || echo "Kafka may not be fully ready, but proceeding with tests"
+
       - name: Run Burn-in
         id: burn-in-step
         run: |
@@ -138,6 +150,11 @@ jobs:
             --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           PW_BURN_IN: true
+
+      - name: Stop Kafka
+        continue-on-error: true
+        if: always()
+        run: docker compose -f ./sample-app/src/events/kafka-cluster.yml down
 
       - name: Update runE2E based on burn-in result
         if: always()
