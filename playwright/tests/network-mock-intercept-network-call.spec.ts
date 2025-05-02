@@ -1,4 +1,4 @@
-import { test, expect } from '../support/fixtures'
+import { test, expect } from '../support/merged-fixtures'
 
 test.describe('describe network interception', () => {
   test('Spy on the network', async ({ page, interceptNetworkCall }) => {

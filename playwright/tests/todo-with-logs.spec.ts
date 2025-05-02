@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { test, expect } from '../support/fixtures'
+import { test, expect } from '../support/merged-fixtures'
 import {
   log,
   methodTestStep,
