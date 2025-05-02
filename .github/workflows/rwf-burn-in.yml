@@ -131,9 +131,47 @@ jobs:
       - name: Start Kafka
         continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
         run: docker compose -f ./sample-app/src/events/kafka-cluster.yml up -d --no-recreate
+      
+      # Add robust waiting for Kafka to be ready with health checks
+      - name: Wait for Kafka to be ready
+        continue-on-error: true # Tests can still run without Kafka
+        run: |
+          echo "Waiting for Kafka containers to initialize..."
+          # First wait for containers to fully start up (30 seconds max)
+          sleep 5
+          for i in {1..5}; do
+            echo "Attempt $i: Checking if Kafka containers are running..."
+            if docker ps | grep -q "events-kafka"; then
+              echo "Kafka container is running"
+              break
+            fi
+            sleep 5
+          done
+          
+          # Now wait for Kafka to be responsive (allow up to 3 failures)
+          for i in {1..3}; do
+            echo "Attempt $i: Checking Kafka connectivity..."
+            if node ./sample-app/scripts/kafka-health-check.js; then
+              echo "✅ Kafka is ready!"
+              break
+            else
+              echo "⚠️ Kafka health check failed on attempt $i, retrying..."
+              # Give Kafka a bit more time to initialize
+              sleep 10
+            fi
+          done
+          
+          echo "Proceeding with tests (Kafka may or may not be fully ready)"
 
       - name: Run Burn-in
         id: burn-in-step
+        env:
+          # Set env variables to indicate we're in CI (used by Kafka health check)
+          CI: 'true'
+          # Ensure tests don't fail due to Kafka issues
+          ALLOW_KAFKA_FAILURE: 'true'
+          # Enable burn-in mode
+          PW_BURN_IN: true
         run: |
           git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
           ${{ inputs.test-command }} \
@@ -141,8 +179,6 @@ jobs:
             --repeat-each=${{ inputs.repeat-count }} \
             --retries=${{ inputs.retry-count }} \
             --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-        env:
-          PW_BURN_IN: true
 
       # Stop Kafka after tests
       - name: Stop Kafka
