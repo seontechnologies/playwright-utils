@@ -13,6 +13,7 @@ import type {
 } from './types'
 import { getGlobalAuthOptions } from './auth-configure'
 import { getAuthProvider } from './auth-provider'
+import { applyAuthToBrowserContext as applyAuthToBrowserContextCore } from '../core'
 
 // Public API is now exclusively in core.ts
 
@@ -25,6 +26,9 @@ export const defaultTokenFormatter: TokenDataFormatter = (
   createdAt: new Date().toISOString(),
   expiresAt: null
 })
+
+// Re-export the function from core to avoid circular dependencies
+export const applyAuthToBrowserContext = applyAuthToBrowserContextCore
 
 export class AuthSessionManager {
   private static instance: AuthSessionManager
@@ -54,7 +58,7 @@ export class AuthSessionManager {
             method: 'GET',
             body: null,
             path: '/auth/fake-token',
-            baseUrl: `http://localhost:${process.env.PORT || 3000}`
+            baseUrl: `http://localhost:${process.env.PORT || 3001}`
           }
 
     // create the final options by removing tokenFetch to avoid duplicates
@@ -180,20 +184,35 @@ export class AuthSessionManager {
 
   /**
    * Clear the token from storage
+   * @returns Boolean indicating whether a token was successfully cleared
    */
-  public clearToken(): void {
+  public clearToken(): boolean {
     try {
+      // Track if a token was actually cleared
+      let tokenCleared = false
+
+      // Clear from file storage if exists
       if (fs.existsSync(this.storageFile)) {
         fs.unlinkSync(this.storageFile)
+        tokenCleared = true
       }
+
+      // Clear from memory if exists
+      if (this.hasToken) {
+        tokenCleared = true
+      }
+
       this.token = null
       this.hasToken = false
 
       if (this.options.debug) {
         console.log('Token cleared from storage')
       }
+
+      return tokenCleared
     } catch (error) {
       console.error('Error clearing token from storage:', error)
+      return false
     }
   }
 
@@ -271,8 +290,11 @@ export class AuthSessionManager {
     return token
   }
 
-  /** Get a token, fetching a new one if needed */
-  public async getToken(request: APIRequestContext): Promise<string> {
+  /**
+   * Manage the complete authentication token lifecycle
+   * Handles checking existing tokens, fetching new ones if needed, and persistence
+   */
+  public async manageAuthToken(request: APIRequestContext): Promise<string> {
     if (this.hasToken && this.token) {
       if (this.options.debug) {
         console.log('Using cached token')

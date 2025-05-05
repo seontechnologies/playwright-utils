@@ -11,7 +11,6 @@ import {
 } from '@playwright/test'
 import { getAuthProvider } from './internal/auth-provider'
 import { getStorageStatePath } from './internal/auth-storage-utils'
-import { getBaseUrl } from './internal/url-utils'
 import type { AuthIdentifiers, AuthOptions } from './internal/types'
 
 /**
@@ -31,6 +30,11 @@ export function createAuthFixtures() {
      * @default { environment: process.env.TEST_ENV || 'local', userRole: 'default' }     */
     authOptions: [defaultAuthOptions, { option: true }],
 
+    /** Toggle to enable/disable authentication session
+     * When false, auth token acquisition and applying to browser context will be skipped
+     * @default true */
+    authSessionEnabled: [true, { option: true }],
+
     /**
      * Authentication token fixture that reuses tokens across tests
      * @example
@@ -46,12 +50,24 @@ export function createAuthFixtures() {
     authToken: async (
       {
         request,
-        authOptions
-      }: { request: APIRequestContext; authOptions: AuthOptions },
+        authOptions,
+        authSessionEnabled
+      }: {
+        request: APIRequestContext
+        authOptions: AuthOptions
+        authSessionEnabled: boolean
+      },
       use: (token: string) => Promise<void>
     ) => {
+      // Skip auth token acquisition if auth session is disabled
+      if (!authSessionEnabled) {
+        console.log('Auth session disabled - skipping token acquisition')
+        await use('') // Return empty token if auth is disabled
+        return
+      }
+
       // Get token using the auth provider
-      const token = await authProvider.getToken(request, authOptions)
+      const token = await authProvider.manageAuthToken(request, authOptions)
       await use(token)
     },
 
@@ -70,25 +86,40 @@ export function createAuthFixtures() {
       {
         browser,
         request,
-        authOptions
-      }: { browser: any; request: APIRequestContext; authOptions: AuthOptions },
+        authOptions,
+        authSessionEnabled
+      }: {
+        browser: any
+        request: APIRequestContext
+        authOptions: AuthOptions
+        authSessionEnabled: boolean
+      },
       use: (context: BrowserContext) => Promise<void>
     ) => {
-      // get token using the auth provider
-      const token = await authProvider.getToken(request, authOptions)
-
-      // TODO: revisit getBaseUrl when url-utils is refactored
-      // create and configure browser context with environment-aware baseUrl
+      // Create context with user-provided baseURL directly
       const context = await browser.newContext({
-        baseURL: getBaseUrl({
-          environment: authOptions.environment || 'local',
-          baseUrl: authOptions.baseUrl
-        }),
-        storageState: getStorageStatePath(authOptions)
+        // User can provide baseURL in test configuration or through authOptions
+        baseURL: authOptions.baseUrl || undefined,
+        // Only use storage state if auth session is enabled
+        ...(authSessionEnabled
+          ? {
+              storageState: getStorageStatePath(authOptions)
+            }
+          : {})
       })
 
-      // apply auth token to browser context
-      await authProvider.applyToBrowserContext(context, token, authOptions)
+      // Only apply auth if session is enabled
+      if (authSessionEnabled) {
+        // Get token using the auth provider
+        const token = await authProvider.manageAuthToken(request, authOptions)
+
+        // Apply auth token to browser context
+        await authProvider.applyToBrowserContext(context, token, authOptions)
+      } else {
+        console.log(
+          'Auth session disabled - skipping token application to browser context'
+        )
+      }
 
       // use and clean up
       await use(context)

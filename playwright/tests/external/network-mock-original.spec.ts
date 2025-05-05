@@ -1,4 +1,10 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../../support/merged-fixtures'
+
+// Disable auth session for external tests that don't need authentication
+// This prevents navigation errors when applying auth to non-auth URLs
+test.use({
+  authSessionEnabled: false
+})
 
 test.describe('describe network interception - original', () => {
   test('Spy on the network - original', async ({ page }) => {

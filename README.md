@@ -14,6 +14,7 @@ All utilities can be used as Playwright fixtures by importing the test object
     - [Logging](#logging)
     - [Network Interception](#network-interception)
     - [Auth Session](#auth-session)
+      - [Implementation Steps](#implementation-steps)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
@@ -246,29 +247,164 @@ A robust authentication session management system for Playwright tests that pers
 - Support for both UI and API testing
 - Session storage management
 
+#### Implementation Steps
+
+1. **Configure Global Setup** - Create `playwright/support/global-setup.ts` and add it to your Playwright config
+   - Sets up authentication storage and initializes the auth provider
+   - Nearly identical across all applications
+
 ```typescript
-// Configure auth once in your global setup
+// 1. Configure Global Setup (playwright/support/global-setup.ts)
 import {
+  authStorageInit,
+  setAuthProvider,
   configureAuthSession,
-  setAuthProvider
+  authGlobalInit
+} from '@seontechnologies/playwright-utils/auth-session'
+import myCustomProvider from './auth/custom-auth-provider'
+
+async function globalSetup() {
+  // Ensure storage directories exist
+  authStorageInit()
+
+  // STEP 1: Configure minimal auth storage settings
+  configureAuthSession({
+    // store auth tokens anywhere you want, and remember to gitignore the directory
+    authStoragePath: process.cwd() + '/playwright/auth-sessions',
+    debug: true
+  })
+
+  // STEP 2: Set up custom auth provider
+  // This defines HOW authentication tokens are acquired and used
+  setAuthProvider(myCustomProvider)
+
+  // Optional: pre-fetch all tokens in the beginning
+  await authGlobalInit()
+}
+
+export default globalSetup
+```
+
+2. **Create Auth Fixture** - Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures
+
+   - Provides standardized Playwright test fixtures for authentication
+   - Generally reusable across applications without modification
+
+```typescript
+// 2. Create Auth Fixture (playwright/support/auth/auth-fixture.ts)
+import { test as base } from '@playwright/test'
+import {
+  createAuthFixtures,
+  type AuthOptions,
+  type AuthFixtures
 } from '@seontechnologies/playwright-utils/auth-session'
 
-configureAuthSession({
-  storageDir: '.auth-sessions',
-  debug: process.env.DEBUG === 'true'
+// Default auth options using the current environment
+const defaultAuthOptions: AuthOptions = {
+  environment: process.env.TEST_ENV || 'local',
+  userRole: 'default'
+}
+
+// Get the fixtures from the factory function
+const fixtures = createAuthFixtures()
+
+// Export the test object with auth fixtures
+export const test = base.extend<AuthFixtures>({
+  // For authOptions, we need to define it directly using the Playwright array format
+  authOptions: [defaultAuthOptions, { option: true }],
+
+  // Use the other fixtures directly
+  authToken: fixtures.authToken,
+  context: fixtures.context,
+  page: fixtures.page
 })
+```
 
-setAuthProvider(createDefaultAuthProvider())
+3. **Implement Custom Auth Provider** - Create `playwright/support/auth/custom-auth-provider.ts`
+   - Application-specific implementation with your custom token acquisition logic
+   - The main customization point where you implement your auth flow
 
-// TODO: use real test example from this repo when we have tests
-// In your tests
-import { test } from '@playwright/test'
-import { createAuthFixtures } from '@seontechnologies/playwright-utils/auth-session'
+```typescript
+// 3. Implement Custom Auth Provider (playwright/support/auth/custom-auth-provider.ts)
+import {
+  type AuthProvider,
+  loadTokenFromStorage,
+  saveTokenToStorage,
+  getTokenFilePath,
+  authStorageInit
+} from '@seontechnologies/playwright-utils/auth-session'
+import { acquireToken } from './acquire-token'
 
-const authTest = test.extend(createAuthFixtures())
+const myCustomProvider: AuthProvider = {
+  // Get environment from options, env vars or default
+  getEnvironment(options = {}) {
+    return options.environment || process.env.TEST_ENV || 'local'
+  },
 
-authTest('access protected resources', async ({ page, authToken }) => {
-  // Use authToken for API calls or page is already authenticated
+  // Get user role based on environment and options
+  getUserRole(options = {}) {
+    const environment = this.getEnvironment(options)
+    let defaultRole = 'regular'
+    if (environment === 'staging') defaultRole = 'tester'
+    if (environment === 'production') defaultRole = 'readonly'
+    return options.userRole || process.env.TEST_USER_ROLE || defaultRole
+  },
+
+  /**
+   * Manage the complete authentication token lifecycle
+   * This method handles the entire token management process
+   */
+  async manageAuthToken(request, options = {}) {
+    // Get environment and role consistently
+    const environment = this.getEnvironment(options)
+    const userRole = this.getUserRole(options)
+    const tokenPath = getTokenFilePath({
+      environment,
+      userRole,
+      tokenFileName: 'custom-auth-token.json'
+    })
+
+    // STEP 1: Check for existing token first
+    const existingToken = loadTokenFromStorage(tokenPath, true)
+    if (existingToken) {
+      return existingToken
+    }
+
+    // STEP 2: Initialize storage directories if needed
+    authStorageInit({ environment, userRole })
+
+    // STEP 3: Acquire a new token using our custom auth flow
+    const token = await acquireToken(request, environment, userRole, options)
+
+    // STEP 4: Save the token with metadata for future reuse
+    saveTokenToStorage(
+      tokenPath,
+      token,
+      { environment, userRole, source: 'custom-provider' },
+      true
+    )
+    return token
+  }
+
+  // Other required methods - applyToBrowserContext, clearToken...
+}
+
+export default myCustomProvider
+```
+
+4. **Use the Auth Session in Your Tests**
+
+```typescript
+// Usage in your tests
+import { test } from '../support/auth/auth-fixture'
+
+test('access protected resources', async ({ page, authToken }) => {
+  // API calls with token
+  const response = await request.get('/api/protected', {
+    headers: { Authorization: `Bearer ${authToken}` }
+  })
+
+  // Or use the pre-authenticated page
   await page.goto('/protected-area')
 })
 ```

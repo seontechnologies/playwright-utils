@@ -7,6 +7,8 @@
 
 // Import using ES modules syntax
 import { apiRequest, recurse, log, interceptNetworkCall } from './index'
+// Auth session is imported separately as it's not part of the main exports
+import { configureAuthSession, getAuthToken } from './auth-session'
 
 // Import modules directly to verify they're the same instance
 import * as apiUtils from './api-request'
@@ -17,6 +19,8 @@ import * as logUtils from './log/index'
 import * as logFixtures from './log/fixtures'
 import * as interceptUtils from './intercept-network-call'
 import * as interceptFixtures from './intercept-network-call/fixtures'
+import * as authSessionUtils from './auth-session'
+import * as authSessionFixtures from './auth-session/fixtures'
 
 describe('sanity tests', () => {
   describe('API exports', () => {
@@ -81,6 +85,23 @@ describe('sanity tests', () => {
       // Verify fixtures are exported
       expect(interceptFixtures).toBeDefined()
       expect(interceptFixtures.test).toBeDefined()
+    })
+
+    it('should properly export auth-session utilities', () => {
+      // Test main export functions exist
+      expect(typeof configureAuthSession).toBe('function')
+      expect(typeof getAuthToken).toBe('function')
+
+      // Verify same instance as direct import
+      expect(configureAuthSession).toBe(authSessionUtils.configureAuthSession)
+      expect(getAuthToken).toBe(authSessionUtils.getAuthToken)
+    })
+
+    it('should properly export auth-session fixtures', () => {
+      // Verify fixtures are exported
+      expect(authSessionFixtures).toBeDefined()
+      expect(authSessionFixtures.createAuthFixtures).toBeDefined()
+      expect(authSessionFixtures.createRoleSpecificTest).toBeDefined()
     })
   })
 

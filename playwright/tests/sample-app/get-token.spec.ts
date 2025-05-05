@@ -1,4 +1,10 @@
-import { test, expect } from '../support/merged-fixtures'
+import { test, expect } from '../../support/merged-fixtures'
+
+// Disable auth session for these tests since we're testing token acquisition
+// This prevents the global auth from interfering with these tests
+test.use({
+  authSessionEnabled: false
+})
 
 test.describe('token acquisition', () => {
   test('sanity', async ({ apiRequest }) => {

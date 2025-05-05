@@ -1,0 +1,53 @@
+/**
+ * Global setup script for Playwright testing
+ *
+ * This script handles initial setup tasks before tests run:
+ * Explicitly configures authentication through a two-step process:
+ *    - Step 1: Configure auth storage settings with configureAuthSession
+ *    - Step 2: Register an auth provider implementation with setAuthProvider
+ *
+ * To use this, add to your playwright config:
+ * ```
+ * globalSetup: '../support/global-setup.ts'
+ * ```
+ */
+
+import {
+  authStorageInit,
+  setAuthProvider,
+  configureAuthSession,
+  authGlobalInit
+} from '../../src/auth-session'
+
+// Uncomment to use the custom auth provider
+import myCustomProvider from './auth/custom-auth-provider'
+
+/**
+ * Global setup function that runs before tests
+ */
+async function globalSetup() {
+  console.log('Running global setup')
+
+  // Ensure storage directories exist (required for both auth approaches)
+  authStorageInit()
+
+  // ========================================================================
+  // STEP 1: Configure minimal auth storage settings
+  // ========================================================================
+  // This just sets up where tokens will be stored and debug options
+  configureAuthSession({
+    debug: true
+  })
+
+  // ========================================================================
+  // STEP 2: Set up custom auth provider
+  // ========================================================================
+  // This defines HOW authentication tokens are acquired and used
+
+  setAuthProvider(myCustomProvider)
+
+  // Optional: pre-fetch all tokens in the beginning
+  await authGlobalInit()
+}
+
+export default globalSetup

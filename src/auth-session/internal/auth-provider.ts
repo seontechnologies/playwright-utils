@@ -22,11 +22,16 @@ export interface AuthProvider {
    * @returns The current user role to use */
   getUserRole(options?: Partial<AuthOptions>): string
 
-  /** Get authentication token for API requests
+  /** Manage the complete authentication token lifecycle
+   * This method handles the entire token management process:
+   * 1. Check for existing token in storage first (avoid unnecessary auth)
+   * 2. Initialize storage directories if needed
+   * 3. Acquire a new token only if no valid token exists
+   * 4. Save the token with metadata for future reuse
    * @param request Playwright APIRequestContext for making HTTP requests
    * @param options Optional auth options that might override defaults
    * @returns Promise resolving to the authentication token */
-  getToken(
+  manageAuthToken(
     request: APIRequestContext,
     options?: Partial<AuthOptions>
   ): Promise<string>
@@ -83,7 +88,7 @@ function createDefaultAuthProvider(
     getEnvironment,
     getUserRole,
 
-    getToken: async (request, requestOptions = {}) => {
+    manageAuthToken: async (request, requestOptions = {}) => {
       // Get environment and role from provider methods
       const environment = getEnvironment(requestOptions)
       const userRole = getUserRole(requestOptions)
@@ -108,9 +113,9 @@ function createDefaultAuthProvider(
 
       // Get token directly from the manager using the authSession module
       const token =
-        await authSession.AuthSessionManager.getInstance(authOptions).getToken(
-          request
-        )
+        await authSession.AuthSessionManager.getInstance(
+          authOptions
+        ).manageAuthToken(request)
 
       // Ensure we're returning a string
       return typeof token === 'string'

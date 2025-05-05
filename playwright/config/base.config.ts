@@ -25,6 +25,8 @@ dotenvConfig({
 })
 
 export const baseConfig = defineConfig({
+  globalSetup: path.resolve(__dirname, '../support/global-setup.ts'),
+
   testDir: './playwright/tests',
 
   testMatch: '**/*.spec.ts',

@@ -25,3 +25,4 @@ node_modules/
 /playwright/.cache/
 downloads
 sample-app/test-events/movie-events.log
+.auth-sessions
