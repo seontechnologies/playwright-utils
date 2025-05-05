@@ -271,8 +271,11 @@ export class AuthSessionManager {
     return token
   }
 
-  /** Get a token, fetching a new one if needed */
-  public async getToken(request: APIRequestContext): Promise<string> {
+  /**
+   * Manage the complete authentication token lifecycle
+   * Handles checking existing tokens, fetching new ones if needed, and persistence
+   */
+  public async manageAuthToken(request: APIRequestContext): Promise<string> {
     if (this.hasToken && this.token) {
       if (this.options.debug) {
         console.log('Using cached token')

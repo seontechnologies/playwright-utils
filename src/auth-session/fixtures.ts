@@ -51,7 +51,7 @@ export function createAuthFixtures() {
       use: (token: string) => Promise<void>
     ) => {
       // Get token using the auth provider
-      const token = await authProvider.getToken(request, authOptions)
+      const token = await authProvider.manageAuthToken(request, authOptions)
       await use(token)
     },
 
@@ -75,7 +75,7 @@ export function createAuthFixtures() {
       use: (context: BrowserContext) => Promise<void>
     ) => {
       // get token using the auth provider
-      const token = await authProvider.getToken(request, authOptions)
+      const token = await authProvider.manageAuthToken(request, authOptions)
 
       // TODO: revisit getBaseUrl when url-utils is refactored
       // create and configure browser context with environment-aware baseUrl

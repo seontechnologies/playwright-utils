@@ -55,6 +55,8 @@ export const baseConfig = defineConfig({
     timeout: 10000
   },
 
+  globalSetup: '../support/global-setup.ts',
+
   /* Shared settings for all the projects below */
   use: {
     trace: 'retain-on-first-failure'

@@ -151,7 +151,7 @@ export async function getAuthToken(
   }
 
   // Step 3: Use the custom provider with configuration from both sources
-  return provider.getToken(request, {
+  return provider.manageAuthToken(request, {
     environment: options?.environment,
     userRole: options?.userRole
   })
