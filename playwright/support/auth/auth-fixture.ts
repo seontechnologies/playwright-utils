@@ -27,6 +27,10 @@ export const test = base.extend<AuthFixtures>({
   // For authOptions, we need to define it directly using the Playwright array format
   authOptions: [defaultAuthOptions, { option: true }],
 
+  // Auth session toggle - enables/disables auth functionality completely
+  // Default: true (auth enabled)
+  authSessionEnabled: [true, { option: true }],
+
   // Use the other fixtures directly
   authToken: fixtures.authToken,
   context: fixtures.context,

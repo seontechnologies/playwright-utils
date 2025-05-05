@@ -1,11 +1,12 @@
 import type { Page } from '@playwright/test'
-import { test, expect } from '../support/merged-fixtures'
-import {
-  log,
-  methodTestStep,
-  functionTestStep
-  // captureTestContext
-} from '../../src'
+import { test, expect } from '../../support/merged-fixtures'
+import { log, methodTestStep, functionTestStep } from '../../../src'
+
+// Disable auth session for external tests that don't need authentication
+// This prevents navigation errors when applying auth to non-auth URLs
+test.use({
+  authSessionEnabled: false
+})
 
 // IMPORTANT:we can even overwrite fileLogging in the the test file,
 // BUT, this setting needs to be uniform between test files

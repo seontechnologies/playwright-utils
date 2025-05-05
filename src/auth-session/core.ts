@@ -223,14 +223,14 @@ export async function applyAuthToBrowserContext(
     // Save to temporary file first
     await context.storageState({ path: tmpStatePath })
 
-    // Read the temporary file
-    const stateData = safeReadJsonFile(tmpStatePath, {
+    // Read the temporary file - await the async operation
+    const stateData = await safeReadJsonFile(tmpStatePath, {
       cookies: [],
       origins: []
     })
 
-    // Write atomically to the final location
-    safeWriteJsonFile(statePath, stateData)
+    // Write atomically to the final location - await the async operation
+    await safeWriteJsonFile(statePath, stateData)
 
     // Clean up temp file
     if (fs.existsSync(tmpStatePath)) {
@@ -286,14 +286,14 @@ export async function applyAuthToBrowserContext(
     // Save to temporary file first
     await context.storageState({ path: finalStatePath })
 
-    // Read the temporary file
-    const stateData = safeReadJsonFile(finalStatePath, {
+    // Read the temporary file - await the async operation
+    const stateData = await safeReadJsonFile(finalStatePath, {
       cookies: [],
       origins: []
     })
 
-    // Write atomically to the final location
-    safeWriteJsonFile(statePath, stateData)
+    // Write atomically to the final location - await the async operation
+    await safeWriteJsonFile(statePath, stateData)
 
     // Clean up temp file
     if (fs.existsSync(finalStatePath)) {

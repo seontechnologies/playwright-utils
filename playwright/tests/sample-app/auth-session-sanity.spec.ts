@@ -1,6 +1,6 @@
-import { log } from '../../src/log'
-import { clearAuthToken } from '../../src/auth-session'
-import { test, expect } from '../support/merged-fixtures'
+import { log } from '../../../src/log'
+import { clearAuthToken } from '../../../src/auth-session'
+import { test, expect } from '../../support/merged-fixtures'
 
 /**
  * Create a preview of a token that's safe for logging
@@ -10,10 +10,10 @@ import { test, expect } from '../support/merged-fixtures'
 const createTokenPreview = (token: string): string =>
   token.substring(0, 10) + '...' + token.substring(token.length - 5)
 
+// Configure tests to run in serial mode (sequentially, not in parallel)
+// This is required for properly testing auth token reuse between tests
+test.describe.configure({ mode: 'serial' })
 test.describe('Auth Session Example', () => {
-  // Configure tests to run in serial mode (sequentially, not in parallel)
-  // This is required for properly testing auth token reuse between tests
-  test.describe.configure({ mode: 'serial' })
   // This test just demonstrates that we get a token
   test('should have auth token available', async ({ authToken }) => {
     // Token is already obtained via the fixture

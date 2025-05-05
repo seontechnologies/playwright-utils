@@ -33,9 +33,6 @@ export {
   getTokenFilePath
 } from './internal/auth-storage-utils'
 
-// URL utilities
-export { getBaseUrl, getAuthBaseUrl } from './internal/url-utils'
-
 // Global initialization utilities
 export { authStorageInit, authGlobalInit } from './internal/auth-global-setup'
 

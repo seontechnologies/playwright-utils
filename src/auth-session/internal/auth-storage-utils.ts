@@ -10,8 +10,9 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-require-imports */
-import fs from 'node:fs'
-import path from 'node:path'
+import * as fs from 'fs'
+import * as path from 'path'
+import * as lockfile from 'proper-lockfile'
 import type { StoragePaths, AuthIdentifiers, StorageOptions } from './types'
 
 /**  Default environment when none is specified */
@@ -122,18 +123,18 @@ export const storageDir = getStorageDir()
  * @returns Object containing the created storage paths
  */
 /**
- * Safely write a JSON file using an atomic write operation
+ * Safely write a JSON file using file locking and atomic operations
  * This prevents file corruption during concurrent access
  *
  * @param filePath Path to the JSON file
  * @param data Data to write
  * @param pretty Whether to pretty-print the JSON
  */
-export function safeWriteJsonFile<T>(
+export async function safeWriteJsonFile<T>(
   filePath: string,
   data: T,
   pretty = true
-): void {
+): Promise<void> {
   const dir = path.dirname(filePath)
 
   // Ensure directory exists
@@ -144,7 +145,29 @@ export function safeWriteJsonFile<T>(
   // Generate temporary file path
   const tmpFilePath = `${filePath}.${Date.now()}.tmp`
 
+  // Ensure directory exists before attempting to acquire a lock
+  if (!fs.existsSync(path.dirname(filePath))) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  }
+
+  let release: (() => Promise<void>) | null = null
+
   try {
+    // Acquire a lock on the destination file
+    release = await lockfile.lock(filePath, {
+      retries: {
+        retries: 5,
+        factor: 2,
+        minTimeout: 50,
+        maxTimeout: 500
+      },
+      // Create an empty file if it doesn't exist yet
+      realpath: false,
+      onCompromised: (err) => {
+        console.warn(`Lock was compromised for ${filePath}:`, err.message)
+      }
+    })
+
     // Write to temporary file first
     fs.writeFileSync(
       tmpFilePath,
@@ -154,71 +177,103 @@ export function safeWriteJsonFile<T>(
 
     // Rename temp file to target file (atomic operation on most filesystems)
     fs.renameSync(tmpFilePath, filePath)
+
+    // Release the lock
+    if (release) await release()
+    release = null
   } catch (err) {
     // Clean up temp file if something went wrong
     if (fs.existsSync(tmpFilePath)) {
       try {
         fs.unlinkSync(tmpFilePath)
-      } catch (e) {
+      } catch {
         // Ignore cleanup errors
       }
     }
+
+    // Always release lock if we have one
+    if (release) {
+      try {
+        await release()
+      } catch {
+        // Ignore release errors
+      }
+    }
+
     throw err
   }
 }
 
 /**
- * Safely read a JSON file with retry mechanism and fallback for corrupted files
+ * Safely read a JSON file using file locking with retry mechanism and fallback for corrupted files
  *
  * @param filePath Path to the JSON file
  * @param defaultValue Default value to return if file doesn't exist or is corrupted
  * @param maxRetries Maximum number of retries
  * @returns Parsed JSON data or default value
  */
-export function safeReadJsonFile<T>(
+export async function safeReadJsonFile<T>(
   filePath: string,
   defaultValue: T,
   maxRetries = 3
-): T {
+): Promise<T> {
   if (!fs.existsSync(filePath)) {
     return defaultValue
   }
 
   let lastError: Error | null = null
+  let release: (() => Promise<void>) | null = null
 
-  // Try a few times in case the file is being written to by another process
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const data = fs.readFileSync(filePath, 'utf8')
-      return JSON.parse(data) as T
-    } catch (err) {
-      lastError = err as Error
-
-      // Small backoff between retries
-      if (i < maxRetries - 1) {
-        // Simple synchronous sleep
-        const startTime = Date.now()
-        while (Date.now() - startTime < 100 * (i + 1)) {
-          // Empty loop for a simple delay
-        }
-      }
-    }
-  }
-
-  // If we get here, all retries failed
-  console.warn(
-    `Failed to read JSON file ${filePath} after ${maxRetries} attempts. Using default value.`
-  )
-  console.warn(`Last error: ${lastError?.message}`)
-
-  // Create a fresh file with the default value to prevent future errors
   try {
-    safeWriteJsonFile(filePath, defaultValue)
-  } catch (e) {
-    // Ignore errors during recovery
-  }
+    // Note: proper-lockfile doesn't support shared locks in this version
+    // We're using exclusive locks for both reading and writing
+    release = await lockfile.lock(filePath, {
+      retries: {
+        retries: 5,
+        factor: 2,
+        minTimeout: 50,
+        maxTimeout: 500
+      },
+      realpath: false,
+      onCompromised: (err) => {
+        console.warn(`Lock was compromised for ${filePath}:`, err.message)
+      }
+    })
 
-  return defaultValue
+    // Read the file with lock held
+    const data = fs.readFileSync(filePath, 'utf8')
+    const result = JSON.parse(data) as T
+
+    // Release lock before returning
+    if (release) await release()
+    release = null
+
+    return result
+  } catch (err) {
+    lastError = err as Error
+
+    // Always release lock if we have one
+    if (release) {
+      try {
+        await release()
+      } catch {
+        // Ignore release errors
+      }
+      release = null
+    }
+
+    // If read failed with lock, log the error
+    console.warn(`Error reading ${filePath}: ${lastError.message}`)
+
+    // Create a fresh file with the default value to prevent future errors
+    try {
+      await safeWriteJsonFile(filePath, defaultValue)
+    } catch {
+      // Ignore errors during recovery
+    }
+
+    return defaultValue
+  }
 }
 
 export function authStorageInit(options?: AuthIdentifiers): StoragePaths {
@@ -229,13 +284,15 @@ export function authStorageInit(options?: AuthIdentifiers): StoragePaths {
     fs.mkdirSync(dir, { recursive: true })
   }
 
-  // Safely write storage state file using atomic operations to prevent corruption
-  safeWriteJsonFile(
-    statePath,
-    // Default empty storage state in Playwright's expected format
-    // See: https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state
-    { cookies: [], origins: [] }
-  )
+  // We need to ensure the storage state file exists synchronously
+  // for Playwright to function correctly
+  if (!fs.existsSync(statePath)) {
+    // Create an empty storage state in Playwright's expected format
+    const emptyState = { cookies: [], origins: [] }
+    // Create file synchronously for initial setup
+    fs.writeFileSync(statePath, JSON.stringify(emptyState), 'utf8')
+  }
 
+  // Return the paths for the caller to use
   return { storageDir: dir, storageStatePath: statePath }
 }

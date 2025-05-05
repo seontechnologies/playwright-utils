@@ -550,11 +550,12 @@ import type { APIRequestContext } from '@playwright/test'
 /**
  * Application-specific auth URL construction based on environment
  */
-const getAuthBaseUrl = (environment: string, customUrl?: string): string => {
+// Configure your authentication URL based on the environment
+const getAuthUrl = (environment: string, customUrl?: string): string => {
   // Override with custom URL if provided
   if (customUrl) return customUrl
 
-  // Support for environment variables
+  // Support for environment variables from Playwright config
   if (process.env.AUTH_BASE_URL) return process.env.AUTH_BASE_URL
 
   // Environment-specific URL mapping (customize for your application)
@@ -599,7 +600,7 @@ export const acquireToken = async (
   options: Record<string, string | undefined> = {}
 ): Promise<string> => {
   // Get auth URL based on environment
-  const authBaseUrl = getAuthBaseUrl(
+  const authBaseUrl = getAuthUrl(
     environment.toLowerCase(),
     options.authBaseUrl
   )
@@ -694,12 +695,13 @@ The authentication library exposes the following functions:
 
 - `createAuthFixtures`: Creates Playwright test fixtures with authentication support.
 - `createRoleSpecificTest`: Creates role-specific test fixtures for specialized testing.
+- `authSessionEnabled`: A boolean fixture to enable/disable authentication entirely for specific tests.
 
 ### Utility Functions
 
-- `getBaseUrl`: Gets the base URL for the current environment.
-- `getAuthBaseUrl`: Gets the authentication base URL for the current environment.
 - `getStorageStatePath`: Gets the path for storing browser storage state.
+- `safeWriteJsonFile`: Atomically writes a JSON file with proper locking to prevent corruption.
+- `safeReadJsonFile`: Safely reads a JSON file with retries and proper error handling.
 
 ---
 
@@ -735,7 +737,9 @@ test('access protected page', async ({ page }) => {
   // Behind the scenes in our implementation:
   // 1. Gets a token using the auth provider
   // 2. Creates a new browser context
-  // 3. Calls authProvider.applyToBrowserContext(context, token, options)
+  // 3. Calls authProvider.applyToBrowserContext(context, token, {
+  //    navigationUrl: '/some-path' // Can be set to null to skip navigation entirely
+  // })
   // 4. Creates a page from that authenticated context
 
   // Simply navigate to your protected page - you're already authenticated!
@@ -783,7 +787,7 @@ test('specific environment token clearing', async ({ request }) => {
 
 ### Testing Against Different Deployment Environments
 
-The auth library supports testing against different deployment environments through the enhanced `AuthOptions` interface. You can specify the environment directly, and the base URL will be determined automatically using the `getBaseUrl` utility:
+The auth library supports testing against different deployment environments through the enhanced `AuthOptions` interface. You can specify the environment directly in your test configuration:
 
 ```typescript
 // Create a test for a specific environment
@@ -798,6 +802,55 @@ stagingTest('should work in staging', async ({ page }) => {
   // ...
 })
 ```
+
+### Disabling Authentication for Specific Tests
+
+In some scenarios, you may want to completely disable authentication for specific tests. This is particularly useful for:
+
+- Tests that are explicitly testing token acquisition
+- Tests that don't need authentication at all
+- Tests that use external sites where auth navigation would cause errors
+
+You can easily disable the auth session with the `authSessionEnabled` fixture:
+
+```typescript
+// Disable auth session for these tests
+test.use({
+  authSessionEnabled: false
+})
+
+test.describe('example tests without auth', () => {
+  test('testing token acquisition', async ({ apiRequest }) => {
+    // Auth session is disabled, so no tokens will be automatically fetched
+    // or applied to the browser context
+    const response = await apiRequest({ path: '/auth/token' })
+    
+    // Now you can test the token acquisition process directly
+    expect(response.status).toBe(200)
+    expect(response.body.token).toBeDefined()
+  })
+})
+```
+
+When `authSessionEnabled` is set to `false`:
+
+- No auth tokens will be fetched automatically
+- Tokens won't be applied to browser contexts
+- Navigation for cookie setup will be skipped
+- The `authToken` fixture will return an empty string
+
+This toggle provides a clean way to opt out of authentication when it's not needed, avoiding unnecessary API calls and potential navigation errors.
+
+### Robust File Storage with Locking
+
+To prevent file corruption during concurrent access (particularly in parallel test execution), the auth session library implements a robust file locking mechanism:
+
+- **Atomic File Operations**: Files are written to a temporary location first, then atomically moved into place once fully written
+- **File Locking**: The `proper-lockfile` package is used to coordinate access between processes
+- **Error Recovery**: If a file is corrupted, the system can recover gracefully
+- **Retry Logic**: File operations include automatic retry logic for transient errors
+
+This implementation ensures that even when multiple worker processes attempt to read or write to the same storage files simultaneously, data integrity is maintained.
 
 You can also explicitly override the base URL for specific deployments:
 
@@ -883,7 +936,8 @@ import {
 	authStorageInit
 } from './auth/internal/auth-storage-utils'
 import { loadTokenFromStorage, saveTokenToStorage } from './auth/core'
-import { getAuthBaseUrl } from './auth/internal/url-utils'
+// Define your own auth URL helper based on your application needs
+const getAuthUrl = (env: string, customUrl?: string) => customUrl || process.env.AUTH_BASE_URL || `https://auth-${env}.example.com`
 
 /**
  * Utility function to get credentials for a specific user role using a functional approach
@@ -965,10 +1019,7 @@ const myCustomProvider: AuthProvider = {
 			`[Custom Auth] Fetching new token for ${environment}/${userRole}`
 		)
 		// Use the authBaseUrl utility to get the environment-appropriate auth URL
-		const authBaseUrl = getAuthBaseUrl({
-			environment,
-			authBaseUrl: options.authBaseUrl
-		})
+		const authBaseUrl = getAuthUrl(environment, options?.authBaseUrl)
 		// Get the endpoint (could also be environment-specific if needed)
 		const endpoint = process.env.AUTH_TOKEN_ENDPOINT || '/token'
 		const authUrl = `${authBaseUrl}${endpoint}`
@@ -990,16 +1041,15 @@ const myCustomProvider: AuthProvider = {
 		// Use the core utility to save the token with metadata
 		// We turn on debug mode to get logging
 		console.log(`[Custom Auth] Saving token to ${tokenPath}`)
-		saveTokenToStorage(
+		saveTokenToStorage({
 			tokenPath,
 			token,
-			{
+			metadata: {
 				environment,
 				userRole,
 				source: 'custom-provider'
-			},
-			true
-		)
+			}
+		})
 		return token
 	},
 
