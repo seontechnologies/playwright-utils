@@ -10,13 +10,10 @@ import { test, expect } from '../support/merged-fixtures'
 const createTokenPreview = (token: string): string =>
   token.substring(0, 10) + '...' + token.substring(token.length - 5)
 
-/**
- * This test demonstrates how auth sessions work:
- * - The first test gets a token using the authToken fixture
- * - The second test reuses the same token without making another request
- * - The session is preserved across test runs as well
- */
 test.describe('Auth Session Example', () => {
+  // Configure tests to run in serial mode (sequentially, not in parallel)
+  // This is required for properly testing auth token reuse between tests
+  test.describe.configure({ mode: 'serial' })
   // This test just demonstrates that we get a token
   test('should have auth token available', async ({ authToken }) => {
     // Token is already obtained via the fixture

@@ -261,12 +261,14 @@ async function testKafkaConnectivity() {
   logger.error(
     `❌ Kafka connectivity test failed: ${lastError?.message || 'Unknown error'}`
   )
-  
+
   // In CI, don't fail the build - just warn and continue with file-only logging
   if (process.env.CI === 'true') {
-    logger.warn('Running in CI environment - continuing despite Kafka connection failure')
+    logger.warn(
+      'Running in CI environment - continuing despite Kafka connection failure'
+    )
     logger.warn('Events will be logged to file only, without Kafka publishing')
-    return false  // Return false instead of throwing to indicate degraded but acceptable state
+    return false // Return false instead of throwing to indicate degraded but acceptable state
   } else {
     // In development, we still want to fail to alert developers
     throw lastError || new Error('Failed to connect to any Kafka broker')

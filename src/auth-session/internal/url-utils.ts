@@ -1,4 +1,9 @@
-// TODO: it is best if the user implements this in their own code, these are different everywhere
+/**
+ * URL utility functions for auth session management
+ *
+ * IMPORTANT: These should be configured by the user in their own implementation.
+ * The default implementations here only provide a basic structure and fallbacks.
+ */
 
 /**
  * Get the application base URL for a specific environment
@@ -13,7 +18,6 @@ export function getBaseUrl(options: {
   // Priority order:
   // 1. Explicitly provided baseUrl in options
   // 2. Environment variable BASE_URL
-  // 3. Environment-specific URL mapping
 
   // First priority: explicit baseUrl from options
   if (options.baseUrl) {
@@ -25,27 +29,18 @@ export function getBaseUrl(options: {
     return process.env.BASE_URL
   }
 
-  // Third priority: environment-specific mapping
-  const { environment } = options
+  // Fallback with warning: In a library, we shouldn't hardcode URLs
+  console.warn(
+    `[Auth] No baseUrl provided for environment '${options.environment}'. ` +
+      'You should either:' +
+      '\n  1. Pass baseUrl in options' +
+      '\n  2. Set process.env.BASE_URL' +
+      '\n  3. Implement your own auth provider with getBaseUrl override'
+  )
 
-  // Map environments to base URLs
-  // This could be extended with more environments or moved to configuration
-  switch (environment) {
-    case 'local':
-      return `http://localhost:${process.env.PORT || '8080'}`
-    case 'dev':
-      return 'https://dev.example.com'
-    case 'staging':
-      return 'https://staging.example.com'
-    case 'production':
-      return 'https://example.com'
-    default:
-      // If unknown environment, use local as fallback with warning
-      console.warn(
-        `[Auth] Unknown environment '${environment}', falling back to localhost`
-      )
-      return `http://localhost:${process.env.PORT || '8080'}`
-  }
+  // Use an empty string as fallback - this will cause navigation to fail with
+  // a clear error rather than silently using a hardcoded URL
+  return ''
 }
 
 /**
@@ -63,7 +58,7 @@ export function getAuthBaseUrl(options: {
   // Priority order:
   // 1. Explicitly provided authBaseUrl in options
   // 2. Environment variable AUTH_BASE_URL
-  // 3. Environment-specific auth URL mapping
+  // 3. Fall back to baseUrl with a specific auth path
 
   // First priority: explicit authBaseUrl from options
   if (options.authBaseUrl) {
@@ -75,25 +70,21 @@ export function getAuthBaseUrl(options: {
     return process.env.AUTH_BASE_URL
   }
 
-  // Third priority: environment-specific mapping
-  const { environment } = options
-
-  // Map environments to auth base URLs
-  // This could be extended with more environments or moved to configuration
-  switch (environment) {
-    case 'local':
-      return `http://localhost:${process.env.AUTH_PORT || '8081'}/auth`
-    case 'dev':
-      return 'https://auth.dev.example.com'
-    case 'staging':
-      return 'https://auth.staging.example.com'
-    case 'production':
-      return 'https://auth.example.com'
-    default:
-      // If unknown environment, use local as fallback with warning
-      console.warn(
-        `[Auth] Unknown environment '${environment}' for auth URL, falling back to localhost`
-      )
-      return `http://localhost:${process.env.AUTH_PORT || '8081'}/auth`
+  // Third priority: try to use BASE_URL with auth path
+  if (process.env.BASE_URL) {
+    return `${process.env.BASE_URL}/auth`
   }
+
+  // Fallback with warning: In a library, we shouldn't hardcode URLs
+  console.warn(
+    `[Auth] No authBaseUrl provided for environment '${options.environment}'. ` +
+      'You should either:' +
+      '\n  1. Pass authBaseUrl in options' +
+      '\n  2. Set process.env.AUTH_BASE_URL' +
+      '\n  3. Implement your own auth provider with getAuthBaseUrl override'
+  )
+
+  // Use an empty string as fallback - this will cause navigation to fail with
+  // a clear error rather than silently using a hardcoded URL
+  return ''
 }

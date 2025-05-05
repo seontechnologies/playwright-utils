@@ -25,6 +25,8 @@ dotenvConfig({
 })
 
 export const baseConfig = defineConfig({
+  globalSetup: path.resolve(__dirname, '../support/global-setup.ts'),
+
   testDir: './playwright/tests',
 
   testMatch: '**/*.spec.ts',
@@ -54,8 +56,6 @@ export const baseConfig = defineConfig({
   expect: {
     timeout: 10000
   },
-
-  globalSetup: '../support/global-setup.ts',
 
   /* Shared settings for all the projects below */
   use: {

@@ -15,7 +15,7 @@ const getAuthBaseUrl = (environment: string, customUrl?: string) => {
 
   // Environment-specific URL mapping (customize as needed for your application)
   const urlMap: Record<string, string> = {
-    local: 'http://localhost:3000/api',
+    local: 'http://localhost:3001',
     dev: 'https://dev.example.com/api',
     staging: 'https://staging.example.com/api',
     qa: 'https://qa.example.com/api',
@@ -24,35 +24,6 @@ const getAuthBaseUrl = (environment: string, customUrl?: string) => {
 
   // Return mapped URL or fallback to local if environment not recognized
   return urlMap[environment] || urlMap.local
-}
-
-/** Utility function to get credentials for a specific user role */
-const getCredentialsForRole = (
-  role: string
-): { username: string; password: string } => {
-  const credentialMap: Record<string, { username: string; password: string }> =
-    {
-      admin: {
-        username: process.env.ADMIN_USERNAME || 'admin@example.com',
-        password: process.env.ADMIN_PASSWORD || 'admin123'
-      },
-      regular: {
-        username: process.env.USER_USERNAME || 'user@example.com',
-        password: process.env.USER_PASSWORD || 'user123'
-      },
-      guest: {
-        username: process.env.GUEST_USERNAME || 'guest@example.com',
-        password: process.env.GUEST_PASSWORD || 'guest123'
-      }
-    }
-  // Ensure we always return a valid credential object
-  return (
-    credentialMap[role] ||
-    credentialMap.default || {
-      username: process.env.DEFAULT_USERNAME || 'default@example.com',
-      password: process.env.DEFAULT_PASSWORD || 'default123'
-    }
-  )
 }
 
 /**
@@ -73,20 +44,16 @@ export const acquireToken = async (
   )
 
   // Get the endpoint (could also be environment-specific if needed)
-  const endpoint = process.env.AUTH_TOKEN_ENDPOINT || '/token'
+  const endpoint = process.env.AUTH_TOKEN_ENDPOINT || '/auth/fake-token'
   const authUrl = `${authBaseUrl}${endpoint}`
   console.log(`[Custom Auth] Requesting token from ${authUrl}`)
 
-  // Get immutable credentials object for the current role
-  const credentials = getCredentialsForRole(userRole)
+  // Note: For a real implementation, we'd use credentials from getCredentialsForRole(userRole)
+  // But the fake token endpoint doesn't require credentials
 
-  // Make the authentication request with the appropriate credentials
-  const response = await request.post(authUrl, {
-    data: credentials,
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  })
+  // Make the authentication request - using GET for the fake token endpoint
+  // In a real implementation this would likely be a POST with credentials
+  const response = await request.get(authUrl)
 
   // Extract token from response - customize based on your API response format
   const data = await response.json()

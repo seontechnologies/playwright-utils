@@ -8,6 +8,7 @@ import {
   getStorageStatePath
 } from './auth-storage-utils'
 import type { StoragePaths, AuthIdentifiers } from './types'
+// No filesystem operations needed with simplified implementation
 
 /** Initialize auth session storage directories and files.
  * Creates necessary directories and empty storage state files for Playwright.
@@ -32,7 +33,7 @@ export async function authGlobalInit(): Promise<boolean> {
 
   // Create a request context with storageState option for auth persistence
   const requestContext = await request.newContext({
-    // TODO: here we should use the base url from  Playwright config, we do this in a few other places in playwright-utils
+    // TODO: here we should use the base url from Playwright config, we do this in a few other places in playwright-utils
     baseURL: process.env.BASE_URL || `http://localhost:${process.env.PORT}`,
     storageState: getStorageStatePath()
   })

@@ -9,7 +9,11 @@ import {
   configureAuthSession as configureAuth,
   getGlobalAuthOptions
 } from './internal/auth-configure'
-import { getStorageStatePath } from './internal/auth-storage-utils'
+import {
+  getStorageStatePath,
+  safeWriteJsonFile,
+  safeReadJsonFile
+} from './internal/auth-storage-utils'
 import * as fs from 'fs'
 import * as path from 'path'
 import type {
@@ -78,12 +82,22 @@ export function loadTokenFromStorage(
  * @param metadata Additional metadata to store with the token
  * @param debug Whether to log debug information
  */
-export function saveTokenToStorage(
-  tokenPath: string,
-  token: string,
-  metadata: Record<string, unknown> = {},
-  debug = false
-): void {
+/**
+ * Save an authentication token to storage with metadata
+ *
+ * @param options Configuration options
+ */
+export function saveTokenToStorage(options: {
+  /** Path to save the token file */
+  tokenPath: string
+  /** The authentication token */
+  token: string
+  /** Optional metadata to include with the token */
+  metadata?: Record<string, unknown>
+  /** Enable debug logging */
+  debug?: boolean
+}): void {
+  const { tokenPath, token, metadata = {}, debug = false } = options
   try {
     const storageDir = path.dirname(tokenPath)
 
@@ -160,8 +174,9 @@ export async function getAuthToken(
 /**
  * Clear the authentication token from storage
  * @param options Optional environment and user role overrides
+ * @returns Boolean indicating whether a token was successfully cleared
  */
-export function clearAuthToken(options?: AuthIdentifiers): void {
+export function clearAuthToken(options?: AuthIdentifiers): boolean {
   // Get global auth options
   const globalOptions = getGlobalAuthOptions()
   if (!globalOptions) {
@@ -177,7 +192,8 @@ export function clearAuthToken(options?: AuthIdentifiers): void {
   }
 
   const authManager = AuthSessionManager.getInstance(fullOptions)
-  authManager.clearToken()
+  // Return success indicator
+  return authManager.clearToken()
 }
 
 /**
@@ -190,25 +206,109 @@ export function clearAuthToken(options?: AuthIdentifiers): void {
 export async function applyAuthToBrowserContext(
   context: BrowserContext,
   token: string,
-  options?: AuthIdentifiers
+  options?: AuthIdentifiers & {
+    /**
+     * URL to navigate to for initializing auth (defaults to '/' using baseURL from context)
+     * Set to null to skip navigation entirely
+     */
+    navigationUrl?: string | null
+  }
 ): Promise<void> {
   const statePath = getStorageStatePath(options)
 
-  // save the current state
-  await context.storageState({ path: statePath })
+  // Save the current state to a temporary path first to avoid race conditions
+  const tmpStatePath = `${statePath}.${Date.now()}.tmp`
 
-  // add the auth token to localStorage
+  try {
+    // Save to temporary file first
+    await context.storageState({ path: tmpStatePath })
+
+    // Read the temporary file
+    const stateData = safeReadJsonFile(tmpStatePath, {
+      cookies: [],
+      origins: []
+    })
+
+    // Write atomically to the final location
+    safeWriteJsonFile(statePath, stateData)
+
+    // Clean up temp file
+    if (fs.existsSync(tmpStatePath)) {
+      fs.unlinkSync(tmpStatePath)
+    }
+  } catch (err) {
+    const error = err as Error
+    console.warn(`Error saving storage state: ${error.message}`)
+    // Clean up temp file if it exists
+    if (fs.existsSync(tmpStatePath)) {
+      try {
+        fs.unlinkSync(tmpStatePath)
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
+  // Add the auth token to localStorage using an init script
   await context.addInitScript((token: string) => {
     window.localStorage.setItem('authToken', token)
   }, token)
 
-  // TODO: Make the navigation URL configurable. In a library context, users should
-  // be able to specify which URL to navigate to for initializing auth, or we should
-  // make this step optional with clear documentation about the consequences.
-  const page = await context.newPage()
-  await page.goto('/')
-  await page.close()
+  // Skip navigation if explicitly set to null
+  if (options?.navigationUrl !== null) {
+    // Create a new page for token initialization
+    const page = await context.newPage()
 
-  // Save the state with the token
-  await context.storageState({ path: statePath })
+    try {
+      // Navigate to the specified URL or default to root
+      const url = options?.navigationUrl || '/'
+      await page.goto(url, { timeout: 10000 }).catch((error) => {
+        console.warn(`Navigation to ${url} failed: ${error.message}`)
+        console.warn('Auth token was added via script, but navigation failed.')
+        console.warn(
+          'This may affect cookies. Consider using options.navigationUrl to specify a valid URL.'
+        )
+      })
+    } finally {
+      // Always close the page, even if navigation fails
+      await page.close()
+    }
+  } else {
+    console.log(
+      'Navigation skipped (options.navigationUrl=null). Token added via script only.'
+    )
+  }
+
+  // Save the state with the token using safe file operations
+  const finalStatePath = `${statePath}.${Date.now()}.tmp`
+
+  try {
+    // Save to temporary file first
+    await context.storageState({ path: finalStatePath })
+
+    // Read the temporary file
+    const stateData = safeReadJsonFile(finalStatePath, {
+      cookies: [],
+      origins: []
+    })
+
+    // Write atomically to the final location
+    safeWriteJsonFile(statePath, stateData)
+
+    // Clean up temp file
+    if (fs.existsSync(finalStatePath)) {
+      fs.unlinkSync(finalStatePath)
+    }
+  } catch (err) {
+    const error = err as Error
+    console.warn(`Error saving storage state: ${error.message}`)
+    // Clean up temp file if it exists
+    if (fs.existsSync(finalStatePath)) {
+      try {
+        fs.unlinkSync(finalStatePath)
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
 }

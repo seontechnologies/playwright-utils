@@ -4,7 +4,7 @@
  * This demonstrates how to create a fully custom authentication provider
  * that can handle specialized auth flows beyond the default implementation.
  *
- * The provider is now the source of truth for environment and role information.
+ * The provider is the source of truth for environment and role information.
  */
 import {
   type AuthProvider,
@@ -38,7 +38,7 @@ const myCustomProvider: AuthProvider = {
     // 2. Default role based on environment
     const environment = this.getEnvironment(options)
     // You could implement environment-specific default roles
-    let defaultRole = 'regular' // Default role is 'regular' user
+    let defaultRole = 'default' // Match the core library default role
     if (environment === 'staging') defaultRole = 'tester'
     if (environment === 'production') defaultRole = 'readonly'
     return options.userRole || process.env.TEST_USER_ROLE || defaultRole
@@ -56,11 +56,12 @@ const myCustomProvider: AuthProvider = {
     // Use our own methods to ensure consistency
     const environment = this.getEnvironment(options)
     const userRole = this.getUserRole(options)
-    // Use the utility functions to get standardized paths
+
+    // Use the utility functions to get standardized paths with the fixed storage location
     const tokenPath = getTokenFilePath({
       environment,
       userRole,
-      tokenFileName: 'custom-auth-token.json'
+      tokenFileName: 'auth-token.json'
     })
     // STEP 1: Check if we already have a valid token using the core utility
     console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
@@ -83,16 +84,12 @@ const myCustomProvider: AuthProvider = {
     // STEP 4: Save the token with metadata for future reuse
     // We turn on debug mode to get logging
     console.log(`[Custom Auth] Saving token to ${tokenPath}`)
-    saveTokenToStorage(
+    // Save token with debug logging enabled
+    saveTokenToStorage({
       tokenPath,
       token,
-      {
-        environment,
-        userRole,
-        source: 'custom-provider'
-      },
-      true
-    )
+      debug: true // Enable logging
+    })
     return token
   },
   /**
@@ -141,7 +138,7 @@ const myCustomProvider: AuthProvider = {
     const tokenPath = getTokenFilePath({
       environment,
       userRole,
-      tokenFileName: 'custom-auth-token.json'
+      tokenFileName: 'auth-token.json'
     })
     // Delete the token file if it exists
     if (fs.existsSync(tokenPath)) {

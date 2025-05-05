@@ -45,8 +45,8 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-        - [Our Enhanced Approach](#our-enhanced-approach)
+      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+      - [Our Enhanced Approach](#our-enhanced-approach)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
   - [Implementation Details](#implementation-details)
     - [Storage Structure](#storage-structure)
@@ -273,7 +273,7 @@ test('access dashboard page', async ({ page }) => {
 >
 > **Our authentication library provides this worker-specific functionality automatically:**
 >
-> 1. We use the worker ID to generate unique storage paths
+> 1. We use a fixed path at the repo root (.auth-sessions) to store authentication data
 > 2. We handle the token storage and retrieval without custom fixtures
 > 3. Our solution works for both browser tests and API tests with the same code
 > 4. We add in-memory caching for better performance
@@ -339,8 +339,10 @@ async function globalSetup() {
   // Ensure storage directories exist
   authStorageInit()
 
-  // STEP 1: Configure minimal auth storage settings
+  // STEP 1: Configure minimal auth settings
   configureAuthSession({
+    // Auth sessions are stored in a fixed location (.auth-sessions) at the repo root
+    // Make sure to add this directory to your .gitignore file
     debug: true
   })
 

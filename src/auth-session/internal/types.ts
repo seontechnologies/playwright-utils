@@ -10,7 +10,17 @@ type TokenFetchOptions = {
   headers?: Record<string, string>
 }
 
-/** Auth token storage format *
+/**
+ * Storage configuration options for flexibility across different project structures
+ */
+export type StorageOptions = {
+  /** Root directory for auth session storage (fixed at process.cwd()/.auth-sessions) */
+  storageDir?: string
+  /** Debug mode to enable additional logging */
+  debug?: boolean
+}
+
+/** Auth token storage format
  * Extensible to support different authentication systems and token formats.
  * Only 'token' and 'createdAt' are required, all other fields are optional. */
 export type AuthTokenData = {
@@ -28,7 +38,7 @@ export type TokenDataFormatter = (token: string) => AuthTokenData
 
 /** Options for the auth session */
 export type AuthSessionOptions = {
-  /** Root directory for auth session storage (default: pw/.auth-sessions)
+  /** Root directory for auth session storage (default: process.cwd()/.auth-sessions)
    * Note: The environment and user role will be appended to this path by the provider */
   storageDir?: string
   /** Token filename (default: auth-token.json) */
