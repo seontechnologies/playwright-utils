@@ -192,7 +192,10 @@ test('demonstrates post callback', async ({ recurse }) => {
 ### Integration with API Request
 
 ```typescript
-test('demonstrates integratest('wait for resource creation', async ({ recurse, apiRequest }) => {
+test('demonstrates wait for resource creation', async ({
+  recurse,
+  apiRequest
+}) => {
   // Create a resource first
   const { body: createResponse } = await apiRequest({
     method: 'POST',
@@ -204,10 +207,11 @@ test('demonstrates integratest('wait for resource creation', async ({ recurse, a
 
   // Wait for the resource to be fully processed (async operation)
   const { body: resource } = await recurse(
-    () => apiRequest({
-      method: 'GET',
-      url: `/api/resources/${resourceId}`
-    }),
+    () =>
+      apiRequest({
+        method: 'GET',
+        url: `/api/resources/${resourceId}`
+      }),
     (response) => response.body.status === 'READY',
     {
       timeout: 30000,
@@ -262,3 +266,102 @@ test('waits for dynamic UI changes', async ({ page, recurse }) => {
   )
 })
 ```
+
+### Event-Based Systems and Message Queues
+
+The `recurse` utility is particularly valuable for event-based systems like Kafka, where you need to wait for asynchronous events to be processed. This real-world example demonstrates waiting for Kafka events in a CRUD workflow:
+
+```typescript
+test('CRUD operations with Kafka event verification', async ({
+  addMovie,
+  updateMovie,
+  deleteMovie,
+  authToken,
+  recurse
+}) => {
+  // Create a resource with an API call
+  const { body: createResponse } = await addMovie(authToken, movie)
+  const movieId = createResponse.data.id
+
+  // Wait for the creation event to appear in Kafka
+  await recurse(
+    async () => {
+      const topic = 'movie-created'
+      // Parse events from Kafka log
+      return await parseKafkaEvent(movieId, topic)
+    },
+    // Using assertions directly in predicate function
+    (event) =>
+      expect(event).toEqual([
+        {
+          topic: 'movie-created',
+          key: String(movieId),
+          movie: {
+            id: movieId,
+            // Other expected properties
+            name: movie.name,
+            year: movie.year
+          }
+        }
+      ]),
+    {
+      timeout: 10000,
+      interval: 500,
+      log: 'Waiting for movie-created event'
+    }
+  )
+
+  // Later in the test lifecycle - after updating the movie
+  await updateMovie(authToken, movieId, updatedMovie)
+
+  // Wait for the update event
+  await recurse(
+    async () => {
+      const topic = 'movie-updated'
+      return await parseKafkaEvent(movieId, topic)
+    },
+    (event) => {
+      expect(event).toEqual([
+        {
+          topic: 'movie-updated',
+          key: String(movieId),
+          movie: {
+            id: movieId,
+            // Updated properties
+            name: updatedMovie.name
+          }
+        }
+      ])
+    },
+    { timeout: 10000, interval: 500, log: 'Waiting for movie-updated event' }
+  )
+
+  // After deletion - verify the deletion event
+  await deleteMovie(authToken, movieId)
+
+  await recurse(
+    async () => {
+      const topic = 'movie-deleted'
+      return await parseKafkaEvent(movieId, topic)
+    },
+    (event) => {
+      expect(event).toEqual([
+        {
+          topic: 'movie-deleted',
+          key: String(movieId),
+          movie: { id: movieId }
+        }
+      ])
+    },
+    { timeout: 10000, interval: 500, log: 'Waiting for movie-deleted event' }
+  )
+})
+```
+
+This pattern is extremely useful for:
+
+- Testing event-driven architectures
+- Verifying event payloads match expectations
+- Ensuring end-to-end data consistency
+- Validating asynchronous workflows
+- Testing CQRS (Command Query Responsibility Segregation) systems

@@ -1,6 +1,7 @@
 import type { Movie } from '@prisma/client'
 import { test as baseApiRequestFixture } from '../../../src/api-request/fixtures'
 import type { ApiRequestResponse } from '../../../src/api-request'
+import { functionTestStep } from '../../../src/log'
 import type {
   DeleteMovieResponse,
   CreateMovieResponse,
@@ -47,7 +48,8 @@ const commonHeaders = (token: string) => ({
 
 export const test = baseApiRequestFixture.extend<AddMovieParams>({
   addMovie: async ({ apiRequest }, use) => {
-    const addMovie = async (
+    // Create the base function
+    const addMovieBase = async (
       token: string,
       body: Omit<Movie, 'id'>,
       baseUrl?: string
@@ -59,33 +61,46 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
         body,
         headers: commonHeaders(token)
       })
+
+    // Wrap it with the functionTestStep decorator
+    const addMovie = functionTestStep('Add Movie', addMovieBase)
+
     await use(addMovie)
   },
 
   getAllMovies: async ({ apiRequest }, use) => {
-    const getAllMovies = async (token: string, baseUrl?: string) =>
+    const getAllMoviesBase = async (token: string, baseUrl?: string) =>
       apiRequest<GetMovieResponse>({
         method: 'GET',
         path: '/movies',
         baseUrl,
         headers: commonHeaders(token)
       })
+
+    const getAllMovies = functionTestStep('Get All Movies', getAllMoviesBase)
+
     await use(getAllMovies)
   },
 
   getMovieById: async ({ apiRequest }, use) => {
-    const getMovieById = async (token: string, id: number, baseUrl?: string) =>
+    const getMovieByIdBase = async (
+      token: string,
+      id: number,
+      baseUrl?: string
+    ) =>
       apiRequest<GetMovieResponse>({
         method: 'GET',
         path: `/movies/${id}`,
         baseUrl,
         headers: commonHeaders(token)
       })
+
+    const getMovieById = functionTestStep('Get Movie By ID', getMovieByIdBase)
     await use(getMovieById)
   },
 
   getMovieByName: async ({ apiRequest }, use) => {
-    const getMovieByName = async (
+    const getMovieByNameBase = async (
       token: string,
       name: string,
       baseUrl?: string
@@ -93,15 +108,22 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
       apiRequest<GetMovieResponse>({
         method: 'GET',
         path: '/movies',
-        params: { name },
         baseUrl,
+        params: {
+          name
+        },
         headers: commonHeaders(token)
       })
+
+    const getMovieByName = functionTestStep(
+      'Get Movie By Name',
+      getMovieByNameBase
+    )
     await use(getMovieByName)
   },
 
   updateMovie: async ({ apiRequest }, use) => {
-    const updateMovie = async (
+    const updateMovieBase = async (
       token: string,
       id: number,
       body: Partial<Movie>,
@@ -114,17 +136,25 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
         body,
         headers: commonHeaders(token)
       })
+
+    const updateMovie = functionTestStep('Update Movie', updateMovieBase)
     await use(updateMovie)
   },
 
   deleteMovie: async ({ apiRequest }, use) => {
-    const deleteMovie = async (token: string, id: number, baseUrl?: string) =>
+    const deleteMovieBase = async (
+      token: string,
+      id: number,
+      baseUrl?: string
+    ) =>
       apiRequest<DeleteMovieResponse>({
         method: 'DELETE',
         path: `/movies/${id}`,
         baseUrl,
         headers: commonHeaders(token)
       })
+
+    const deleteMovie = functionTestStep('Delete Movie', deleteMovieBase)
     await use(deleteMovie)
   }
 })
