@@ -1,5 +1,4 @@
 import { test, expect } from '../../support/merged-fixtures'
-import { runCommand } from '../../support/utils/run-command'
 import { generateMovieWithoutId } from '../../support/utils/movie-factories'
 import { parseKafkaEvent } from '../../support/utils/parse-kafka-event'
 import { recurse } from '../../../src/recurse'
@@ -63,7 +62,7 @@ test.describe('CRUD movie', () => {
             }
           }
         ]),
-      { timeout: 10000, interval: 500 }
+      { timeout: 10000, interval: 500, log: 'Waiting for movie-created event' }
     )
 
     // Get all movies and verify that the movie exists
@@ -134,7 +133,7 @@ test.describe('CRUD movie', () => {
           }
         ])
       },
-      { timeout: 10000, interval: 500 }
+      { timeout: 10000, interval: 500, log: 'Waiting for movie-updated event' }
     )
 
     // Delete the movie
@@ -164,7 +163,7 @@ test.describe('CRUD movie', () => {
           }
         ])
       },
-      { timeout: 10000, interval: 500 }
+      { timeout: 10000, interval: 500, log: 'Waiting for movie-deleted event' }
     )
 
     // Verify the movie no longer exists
