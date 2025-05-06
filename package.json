@@ -96,10 +96,12 @@
     "test": "jest --detectOpenHandles --verbose --silent --config jest.config.ts",
     "test:watch": "jest --watch --config jest.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:clear-cache": "find . -name \"*.tsbuildinfo\" -delete && rm -rf node_modules/.cache/typescript",
     "lint": "eslint . --cache-location node_modules/.cache/eslint --fix",
     "test:pw": "TEST_ENV=local npx playwright test",
     "test:pw-ui": "TEST_ENV=local npx playwright test --ui",
-    "typescript:clear-cache": "find . -name \"*.tsbuildinfo\" -delete && rm -rf node_modules/.cache/typescript"
+    "test:pw:burn-in": "PW_BURN_IN=true npx playwright test --repeat-each=3 --retries=0",
+    "test:pw:burn-in-changed": "PW_BURN_IN=true npx playwright test --only-changed=main --repeat-each=3 --retries=0"
   },
   "peerDependencies": {
     "@playwright/test": "^1.52.0"

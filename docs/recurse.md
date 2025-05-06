@@ -65,18 +65,18 @@ test('should wait for resource to be ready', async ({
 ```typescript
 async function recurse<T>(
   command: () => Promise<T>,
-  predicate: (value: T) => boolean,
+  predicate: (value: T) => boolean | void,
   options?: RecurseOptions
 ): Promise<T>
 ```
 
 ### Parameters
 
-| Parameter | Type                    | Description                                                                                     |
-| --------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
-| command   | `() => Promise<T>`      | A function that returns a Promise. This is the operation you want to retry.                     |
-| predicate | `(value: T) => boolean` | A function that tests the result from the command. Return true when the condition is satisfied. |
-| options   | `RecurseOptions`        | Optional configuration for timeout, interval, and logging.                                      |
+| Parameter | Type                            | Description                                                                                                           |
+| --------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| command   | `() => Promise<T>`              | A function that returns a Promise. This is the operation you want to retry.                                           |
+| predicate | `(value: T) => boolean \| void` | A function that tests the result from the command. Can either return a boolean or use assertions (expect statements). |
+| options   | `RecurseOptions`                | Optional configuration for timeout, interval, and logging.                                                            |
 
 ### RecurseOptions
 
@@ -87,6 +87,35 @@ async function recurse<T>(
 | log      | boolean \| string \| function | false             | Enables logging with default or custom messages      |
 | error    | string                        | (default message) | Custom error message if timeout is reached           |
 | post     | function                      | undefined         | Callback function that runs after successful polling |
+
+### Working with Assertions
+
+The recurse utility also supports using assertions directly in your predicate function. This makes your testing code more expressive and reduces boilerplate.
+
+```typescript
+// Using assertions in the predicate
+await recurse(
+  async () => {
+    const event = await fetchEvent(eventId)
+    return event
+  },
+  (event) => {
+    // No need to return true/false - assertions work directly!
+    expect(event).toEqual({
+      id: eventId,
+      status: 'completed',
+      timestamp: expect.any(String)
+    })
+  },
+  { timeout: 10000, interval: 500 }
+)
+```
+
+Internally, the utility handles assertion errors gracefully:
+
+- If the assertions pass, the predicate is considered successful
+- If any assertion fails, the predicate is considered unsuccessful and will retry
+- You can still return boolean values if preferred
 
 ### Return Type
 

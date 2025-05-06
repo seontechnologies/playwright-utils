@@ -6,7 +6,7 @@ import { MovieAdapter } from './movie-adapter'
 import {
   generateMovieWithId,
   generateMovieWithoutId
-} from './test-helpers/factories'
+} from '../../playwright/support/utils/movie-factories'
 
 // In this test suite, we are testing the Adapter,
 // which is responsible for interacting with the data source (Prisma).
