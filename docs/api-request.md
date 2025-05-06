@@ -198,25 +198,221 @@ test('demonstrates URL resolution', async ({ apiRequest }) => {
   // Results in: https://api.explicit.com/users
 
   // 2. Falls back to configBaseUrl if no explicit baseUrl
+  await apiRequest({})
+})
+```
+
+## Real-World Examples
+
+### CRUD Operations with Typed Fixtures
+
+The API request utility shines when used with fixtures for CRUD operations. This example shows a real implementation using proper typing and SEON's functional approach:
+
+```typescript
+// From playwright/support/fixtures/crud-helper-fixture.ts
+export const test = baseApiRequestFixture.extend<CrudParams>({
+  // Create movie API fixture with proper typing
+  addMovie: async ({ apiRequest }, use) => {
+    const addMovieBase = async (
+      token: string,
+      body: Omit<Movie, 'id'>,
+      baseUrl?: string
+    ) =>
+      apiRequest<CreateMovieResponse>({
+        method: 'POST',
+        path: '/movies',
+        baseUrl,
+        body,
+        headers: { Authorization: token }
+      })
+
+    // Enhanced with test step for better reporting
+    const addMovie = functionTestStep('Add Movie', addMovieBase)
+    await use(addMovie)
+  },
+
+  // Get movie by ID with proper typing
+  getMovieById: async ({ apiRequest }, use) => {
+    const getMovieByIdBase = async (
+      token: string,
+      id: string,
+      baseUrl?: string
+    ) =>
+      apiRequest<GetMovieResponse>({
+        method: 'GET',
+        path: `/movies/${id}`,
+        baseUrl,
+        headers: { Authorization: token }
+      })
+
+    const getMovieById = functionTestStep('Get Movie By ID', getMovieByIdBase)
+    await use(getMovieById)
+  },
+
+  // Additional operations follow the same pattern
+  updateMovie: async ({ apiRequest }, use) => {
+    // Implementation with proper typing and test step decoration
+    await use(functionTestStep('Update Movie', updateMovieBase))
+  },
+
+  deleteMovie: async ({ apiRequest }, use) => {
+    // Implementation with proper typing and test step decoration
+    await use(functionTestStep('Delete Movie', deleteMovieBase))
+  }
+})
+```
+
+### Usage in Tests
+
+Usage in tests is clean, type-safe, and follows functional programming principles:
+
+```typescript
+// From playwright/tests/sample-app/crud-movie-event.spec.ts
+test('should perform CRUD operations', async ({
+  addMovie,
+  getMovieById,
+  updateMovie,
+  deleteMovie,
+  authToken
+}) => {
+  // Create a movie
+  const { body: createResponse, status } = await addMovie(authToken, {
+    name: 'Test Movie',
+    genre: 'Action',
+    year: 2023
+  })
+  const movieId = createResponse.data.id
+  expect(status).toBe(200)
+
+  // Get the movie by ID and verify
+  const { body: getResponse } = await getMovieById(authToken, movieId)
+  expect(getResponse.data.name).toBe('Test Movie')
+
+  // Update the movie
+  const { status: updateStatus } = await updateMovie(authToken, movieId, {
+    name: 'Updated Movie',
+    genre: 'Comedy',
+    year: 2023
+  })
+  expect(updateStatus).toBe(200)
+
+  // Delete the movie
+  const { status: deleteStatus } = await deleteMovie(authToken, movieId)
+  expect(deleteStatus).toBe(200)
+})
+```
+
+### Benefits of this Pattern
+
+This approach offers several advantages aligned with SEON's development principles:
+
+- **Type Safety**: Full TypeScript support through generics
+- **Reusability**: Fixtures are reusable across all test files
+- **Function Composition**: Enhanced with logging via `functionTestStep`
+- **Clean Separation**: API client logic is separate from test logic
+- **Maintainability**: Changes to endpoints only need to be updated in one place
+- **Readability**: Tests clearly express intent without implementation details
+
+### Integration with Auth Session
+
+The API request utility works seamlessly with the Auth Session manager:
+
+```typescript
+test('should use cached auth token', async ({
+  apiRequest,
+  authToken // From auth session fixture
+}) => {
+  // The authToken is retrieved from cache if available
+  // Only fetched from API if needed/invalid
+  const { status, body } = await apiRequest({
+    method: 'GET',
+    path: '/api/protected-resource',
+    headers: {
+      Authorization: `Bearer ${authToken}`
+    }
+  })
+
+  expect(status).toBe(200)
+})
+```
+
+### Working with Async Operations and Polling
+
+Combining with the `recurse` utility for polling async operations:
+
+```typescript
+test('should wait for resource creation', async ({
+  apiRequest,
+  authToken,
+  recurse
+}) => {
+  // Create a resource that triggers an async process
+  const { body: createResponse } = await apiRequest({
+    method: 'POST',
+    path: '/api/resources',
+    body: { name: 'Async Resource' },
+    headers: { Authorization: `Bearer ${authToken}` }
+  })
+
+  const resourceId = createResponse.id
+
+  // Poll until the resource is in the desired state
+  await recurse(
+    async () => {
+      const { body } = await apiRequest({
+        method: 'GET',
+        path: `/api/resources/${resourceId}`,
+        headers: { Authorization: `Bearer ${authToken}` }
+      })
+
+      // Can use assertions directly in the predicate
+      expect(body.status).toBe('COMPLETED')
+    },
+    {
+      interval: 1000,
+      timeout: 30000,
+      timeoutMessage: `Resource ${resourceId} did not complete in time`
+    }
+  )
+})
+```
+
+## URL Resolution Strategy Examples
+
+```typescript
+import { test } from '@seon/playwright-utils/api-request/fixtures'
+
+test('demonstrates URL resolution', async ({ apiRequest }) => {
+  // 1. Explicit baseUrl takes precedence
+  await apiRequest({
+    method: 'GET',
+    path: '/users',
+    baseUrl: 'https://api.explicit.com', // This will be used
+    configBaseUrl: 'https://api.config.com'
+  })
+  // Results in: <https://api.explicit.com/users>
+
+  // 2. Falls back to configBaseUrl if no explicit baseUrl
   await apiRequest({
     method: 'GET',
     path: '/users',
     configBaseUrl: 'https://api.config.com'
   })
-  // Results in: https://api.config.com/users
+  // Results in: <https://api.config.com/users>
+})
 
   // 3. Uses Playwright config's baseURL if available
   await apiRequest({
     method: 'GET',
     path: '/users'
   })
-  // Results in: https://your-playwright-config-baseurl.com/users (from playwright.config.ts)
+  // Results in: <https://your-playwright-config-baseurl.com/users> (from playwright.config.ts)
 
   // 4. Works with absolute URLs in path
   await apiRequest({
     method: 'GET',
     path: 'https://api.absolute.com/users'
   })
-  // Results in: https://api.absolute.com/users
+  // Results in: <https://api.absolute.com/users>
 })
 ```

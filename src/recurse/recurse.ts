@@ -39,7 +39,7 @@ type RecurseOptions = {
 /** state object that contains all shared polling information */
 type RecurseState<T> = {
   command: () => Promise<T>
-  predicate: (value: T) => boolean
+  predicate: (value: T) => boolean | void
   options: RecurseOptions
   timeout: number
   interval: number
@@ -61,7 +61,7 @@ type RecurseState<T> = {
  */
 const createPollingState = <T>(
   command: () => Promise<T>,
-  predicate: (value: T) => boolean,
+  predicate: (value: T) => boolean | void,
   options: RecurseOptions = {}
 ): RecurseState<T> => ({
   command,
@@ -200,7 +200,18 @@ const executePolling = async <T>(state: RecurseState<T>) => {
         const value = await state.command()
         state.lastValue = value
 
-        const successful = state.predicate(value)
+        let successful = false
+        try {
+          // Handle both boolean returns and assertions that might throw
+          const result = state.predicate(value)
+          // If predicate doesn't return anything but has assertions,
+          // treat as true since it didn't throw
+          successful = result === undefined ? true : !!result
+        } catch {
+          // If assertion fails, treat as false
+          successful = false
+        }
+
         await logAttempt(state, value, successful)
 
         if (successful) {
@@ -222,7 +233,7 @@ const executePolling = async <T>(state: RecurseState<T>) => {
 // Legacy type for compatibility with existing code that might use it
 export type RecurseParams<T> = {
   command: () => Promise<T>
-  predicate: (value: T) => boolean
+  predicate: (value: T) => boolean | void
   options?: RecurseOptions
 }
 
@@ -271,7 +282,7 @@ export type RecurseParams<T> = {
  */
 export async function recurse<T>(
   command: () => Promise<T>,
-  predicate: (value: T) => boolean,
+  predicate: (value: T) => boolean | void,
   options: RecurseOptions = {}
 ): Promise<T> {
   // create the shared polling state

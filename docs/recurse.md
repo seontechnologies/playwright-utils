@@ -65,18 +65,18 @@ test('should wait for resource to be ready', async ({
 ```typescript
 async function recurse<T>(
   command: () => Promise<T>,
-  predicate: (value: T) => boolean,
+  predicate: (value: T) => boolean | void,
   options?: RecurseOptions
 ): Promise<T>
 ```
 
 ### Parameters
 
-| Parameter | Type                    | Description                                                                                     |
-| --------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
-| command   | `() => Promise<T>`      | A function that returns a Promise. This is the operation you want to retry.                     |
-| predicate | `(value: T) => boolean` | A function that tests the result from the command. Return true when the condition is satisfied. |
-| options   | `RecurseOptions`        | Optional configuration for timeout, interval, and logging.                                      |
+| Parameter | Type                            | Description                                                                                                           |
+| --------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| command   | `() => Promise<T>`              | A function that returns a Promise. This is the operation you want to retry.                                           |
+| predicate | `(value: T) => boolean \| void` | A function that tests the result from the command. Can either return a boolean or use assertions (expect statements). |
+| options   | `RecurseOptions`                | Optional configuration for timeout, interval, and logging.                                                            |
 
 ### RecurseOptions
 
@@ -87,6 +87,35 @@ async function recurse<T>(
 | log      | boolean \| string \| function | false             | Enables logging with default or custom messages      |
 | error    | string                        | (default message) | Custom error message if timeout is reached           |
 | post     | function                      | undefined         | Callback function that runs after successful polling |
+
+### Working with Assertions
+
+The recurse utility also supports using assertions directly in your predicate function. This makes your testing code more expressive and reduces boilerplate.
+
+```typescript
+// Using assertions in the predicate
+await recurse(
+  async () => {
+    const event = await fetchEvent(eventId)
+    return event
+  },
+  (event) => {
+    // No need to return true/false - assertions work directly!
+    expect(event).toEqual({
+      id: eventId,
+      status: 'completed',
+      timestamp: expect.any(String)
+    })
+  },
+  { timeout: 10000, interval: 500 }
+)
+```
+
+Internally, the utility handles assertion errors gracefully:
+
+- If the assertions pass, the predicate is considered successful
+- If any assertion fails, the predicate is considered unsuccessful and will retry
+- You can still return boolean values if preferred
 
 ### Return Type
 
@@ -163,7 +192,10 @@ test('demonstrates post callback', async ({ recurse }) => {
 ### Integration with API Request
 
 ```typescript
-test('demonstrates integratest('wait for resource creation', async ({ recurse, apiRequest }) => {
+test('demonstrates wait for resource creation', async ({
+  recurse,
+  apiRequest
+}) => {
   // Create a resource first
   const { body: createResponse } = await apiRequest({
     method: 'POST',
@@ -175,10 +207,11 @@ test('demonstrates integratest('wait for resource creation', async ({ recurse, a
 
   // Wait for the resource to be fully processed (async operation)
   const { body: resource } = await recurse(
-    () => apiRequest({
-      method: 'GET',
-      url: `/api/resources/${resourceId}`
-    }),
+    () =>
+      apiRequest({
+        method: 'GET',
+        url: `/api/resources/${resourceId}`
+      }),
     (response) => response.body.status === 'READY',
     {
       timeout: 30000,
@@ -233,3 +266,102 @@ test('waits for dynamic UI changes', async ({ page, recurse }) => {
   )
 })
 ```
+
+### Event-Based Systems and Message Queues
+
+The `recurse` utility is particularly valuable for event-based systems like Kafka, where you need to wait for asynchronous events to be processed. This real-world example demonstrates waiting for Kafka events in a CRUD workflow:
+
+```typescript
+test('CRUD operations with Kafka event verification', async ({
+  addMovie,
+  updateMovie,
+  deleteMovie,
+  authToken,
+  recurse
+}) => {
+  // Create a resource with an API call
+  const { body: createResponse } = await addMovie(authToken, movie)
+  const movieId = createResponse.data.id
+
+  // Wait for the creation event to appear in Kafka
+  await recurse(
+    async () => {
+      const topic = 'movie-created'
+      // Parse events from Kafka log
+      return await parseKafkaEvent(movieId, topic)
+    },
+    // Using assertions directly in predicate function
+    (event) =>
+      expect(event).toEqual([
+        {
+          topic: 'movie-created',
+          key: String(movieId),
+          movie: {
+            id: movieId,
+            // Other expected properties
+            name: movie.name,
+            year: movie.year
+          }
+        }
+      ]),
+    {
+      timeout: 10000,
+      interval: 500,
+      log: 'Waiting for movie-created event'
+    }
+  )
+
+  // Later in the test lifecycle - after updating the movie
+  await updateMovie(authToken, movieId, updatedMovie)
+
+  // Wait for the update event
+  await recurse(
+    async () => {
+      const topic = 'movie-updated'
+      return await parseKafkaEvent(movieId, topic)
+    },
+    (event) => {
+      expect(event).toEqual([
+        {
+          topic: 'movie-updated',
+          key: String(movieId),
+          movie: {
+            id: movieId,
+            // Updated properties
+            name: updatedMovie.name
+          }
+        }
+      ])
+    },
+    { timeout: 10000, interval: 500, log: 'Waiting for movie-updated event' }
+  )
+
+  // After deletion - verify the deletion event
+  await deleteMovie(authToken, movieId)
+
+  await recurse(
+    async () => {
+      const topic = 'movie-deleted'
+      return await parseKafkaEvent(movieId, topic)
+    },
+    (event) => {
+      expect(event).toEqual([
+        {
+          topic: 'movie-deleted',
+          key: String(movieId),
+          movie: { id: movieId }
+        }
+      ])
+    },
+    { timeout: 10000, interval: 500, log: 'Waiting for movie-deleted event' }
+  )
+})
+```
+
+This pattern is extremely useful for:
+
+- Testing event-driven architectures
+- Verifying event payloads match expectations
+- Ensuring end-to-end data consistency
+- Validating asynchronous workflows
+- Testing CQRS (Command Query Responsibility Segregation) systems
