@@ -7,7 +7,7 @@ import {
   authStorageInit as initStorage,
   getStorageStatePath
 } from './auth-storage-utils'
-import type { StoragePaths, AuthIdentifiers } from './types'
+import type { AuthSessionConfig, AuthIdentifiers } from './types'
 // No filesystem operations needed with simplified implementation
 
 /** Initialize auth session storage directories and files.
@@ -16,7 +16,7 @@ import type { StoragePaths, AuthIdentifiers } from './types'
  *
  * @param options Optional environment and user role overrides
  * @returns Object containing created storage paths */
-export const authStorageInit = (options?: AuthIdentifiers): StoragePaths =>
+export const authStorageInit = (options?: AuthIdentifiers): AuthSessionConfig =>
   initStorage(options)
 
 /**  Pre-fetch authentication token during global setup
@@ -27,14 +27,25 @@ export const authStorageInit = (options?: AuthIdentifiers): StoragePaths =>
  * Use this in your global setup to improve test performance by
  * avoiding repeated token fetches.
  *
- * @returns Promise that resolves when auth initialization is complete */
-export async function authGlobalInit(): Promise<boolean> {
+ * @param options Configuration options
+ * @param options.baseURL Application base URL (defaults to process.env.BASE_URL)
+ * @param options.authBaseURL Authentication service base URL (defaults to options.baseURL or process.env.AUTH_BASE_URL)
+ * @returns Promise that resolves when auth initialization is complete
+ */
+export async function authGlobalInit(options?: {
+  baseURL?: string
+  authBaseURL?: string
+}): Promise<boolean> {
   console.log('Initializing auth token')
+
+  // Determine the effective base URLs with proper fallback chain
+  const appBaseURL = options?.baseURL || process.env.BASE_URL
+  const authBaseURL =
+    options?.authBaseURL || process.env.AUTH_BASE_URL || appBaseURL
 
   // Create a request context with storageState option for auth persistence
   const requestContext = await request.newContext({
-    // TODO: here we should use the base url from Playwright config, we do this in a few other places in playwright-utils
-    baseURL: process.env.BASE_URL || `http://localhost:${process.env.PORT}`,
+    baseURL: authBaseURL, // Use auth URL for the request context since we're fetching a token
     storageState: getStorageStatePath()
   })
 

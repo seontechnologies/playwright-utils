@@ -11,9 +11,9 @@ type TokenFetchOptions = {
 }
 
 /**
- * Storage configuration options for flexibility across different project structures
+ * Authentication storage configuration options for flexibility across different project structures
  */
-export type StorageOptions = {
+export type AuthStorageConfig = {
   /** Root directory for auth session storage (fixed at process.cwd()/.auth-sessions) */
   storageDir?: string
   /** Debug mode to enable additional logging */
@@ -104,7 +104,7 @@ export type AuthIdentifiers = {
  * Result of storage path resolution
  * Contains the actual filesystem paths for auth storage
  */
-export type StoragePaths = {
+export type AuthSessionConfig = {
   /** Resolved directory for auth storage files */
   storageDir: string
 

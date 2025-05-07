@@ -68,10 +68,13 @@ function createDefaultAuthProvider(
     tokenDataFormatter?: TokenDataFormatter
   } = {}
 ): AuthProvider {
-  // Import implementation details here, not in consumer code
-  // Use dynamic import to avoid circular dependencies
-  const authSession = require('./auth-session')
-  const { clearAuthToken, applyAuthToBrowserContext } = authSession
+  // Import from core directly - this avoids directly importing from internal/auth-session
+  // which helps reduce the public API surface
+  const {
+    AuthSessionManager,
+    clearAuthToken,
+    applyAuthToBrowserContext
+  } = require('../core')
 
   // Define the provider methods first to avoid 'this' reference issues
   const getEnvironment = (requestOptions: Partial<AuthOptions> = {}): string =>
@@ -111,11 +114,9 @@ function createDefaultAuthProvider(
         debug: options.sessionOptions?.debug ?? false
       }
 
-      // Get token directly from the manager using the authSession module
-      const token =
-        await authSession.AuthSessionManager.getInstance(
-          authOptions
-        ).manageAuthToken(request)
+      // Get token directly from the AuthSessionManager
+      const authManagerInstance = AuthSessionManager.getInstance(authOptions)
+      const token = await authManagerInstance.manageAuthToken(request)
 
       // Ensure we're returning a string
       return typeof token === 'string'

@@ -48,6 +48,11 @@ async function globalSetup() {
 
   // Optional: pre-fetch all tokens in the beginning
   await authGlobalInit()
+  // if the authUrl is different from the appUrl, you can pass it as an option
+  // by default it takes AUTH_BASE_URL (if it exists) or baseURL/BASE_URL
+  // await authGlobalInit({
+  //   authBaseURL: 'https://auth.example.com'
+  // })
 }
 
 export default globalSetup
