@@ -285,10 +285,13 @@ async function globalSetup() {
 export default globalSetup
 ```
 
+> **⚠️ IMPORTANT:** The order of function calls in your global setup is critical. Always register your auth provider with `setAuthProvider()` after configuring the session. This ensures the auth provider is properly initialized.
+
 2. **Create Auth Fixture** - Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures
 
    - Provides standardized Playwright test fixtures for authentication
    - Generally reusable across applications without modification
+   - **CRITICAL: Register auth provider early to ensure it's always available**
 
 ```typescript
 // 2. Create Auth Fixture (playwright/support/auth/auth-fixture.ts)
@@ -296,8 +299,16 @@ import { test as base } from '@playwright/test'
 import {
   createAuthFixtures,
   type AuthOptions,
-  type AuthFixtures
+  type AuthFixtures,
+  setAuthProvider // Import the setAuthProvider function
 } from '@seontechnologies/playwright-utils/auth-session'
+
+// Import your custom auth provider
+import myCustomProvider from './custom-auth-provider'
+
+// CRITICAL: Register the custom auth provider early to ensure it's available for all tests
+// This provides a safeguard in case the global setup doesn't run or complete properly
+setAuthProvider(myCustomProvider)
 
 // Default auth options using the current environment
 const defaultAuthOptions: AuthOptions = {

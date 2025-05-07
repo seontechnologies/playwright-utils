@@ -10,8 +10,15 @@ import { test as base } from '@playwright/test'
 import {
   createAuthFixtures,
   type AuthOptions,
-  type AuthFixtures
+  type AuthFixtures,
+  setAuthProvider
 } from '../../../src/auth-session'
+
+// Import our custom auth provider
+import myCustomProvider from './custom-auth-provider'
+
+// Register the custom auth provider early to ensure it's available for all tests
+setAuthProvider(myCustomProvider)
 
 // Default auth options using the current environment
 const defaultAuthOptions: AuthOptions = {

@@ -366,8 +366,16 @@ import { test as base } from '@playwright/test'
 import {
   createAuthFixtures,
   type AuthOptions,
-  type AuthFixtures
+  type AuthFixtures,
+  setAuthProvider // Import the setAuthProvider function
 } from '@seontechnologies/playwright-utils/auth-session'
+
+// Import your custom auth provider
+import myCustomProvider from './custom-auth-provider'
+
+// CRITICAL: Register the custom auth provider early to ensure it's available for all tests
+// This provides a safeguard in case the global setup doesn't run or complete properly
+setAuthProvider(myCustomProvider)
 
 // Default auth options using the current environment
 const defaultAuthOptions: AuthOptions = {
@@ -389,6 +397,12 @@ export const test = base.extend<AuthFixtures>({
   page: fixtures.page
 })
 ```
+
+⚠️ **IMPORTANT**: Registering the auth provider in both global setup AND your auth fixture ensures your tests will work reliably. This dual registration approach prevents issues when:
+
+1. The global setup doesn't complete properly
+2. Tests are run directly without executing the global setup
+3. Running in UI mode where global setup execution differs
 
 ### 3. Implement Custom Auth Provider
 
@@ -986,18 +1000,18 @@ const getCredentialsForRole = (
 // Create a fully custom provider implementation
 const myCustomProvider: AuthProvider = {
 
-	getEnvironment(options = {}) { .. },
+  getEnvironment(options = {}) { .. },
 
-	getUserRole(options = {}) { .. },
+  getUserRole(options = {}) { .. },
 
-	async getToken(request, options = {}) {
-		// Use our own methods to ensure consistency
-		const environment = this.getEnvironment(options)
-		const userRole = this.getUserRole(options)
-		// Use the utility functions to get standardized paths
-		const tokenPath = getTokenFilePath({
-			environment,
-			userRole,
+  async getToken(request, options = {}) {
+    // Use our own methods to ensure consistency
+    const environment = this.getEnvironment(options)
+    const userRole = this.getUserRole(options)
+    // Use the utility functions to get standardized paths
+    const tokenPath = getTokenFilePath({
+      environment,
+      userRole,
 			tokenFileName: 'custom-auth-token.json'
 		})
 		// Check if we already have a valid token using the core utility
