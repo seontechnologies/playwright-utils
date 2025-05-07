@@ -4,7 +4,7 @@
 import { config as dotenvConfig } from 'dotenv'
 import path from 'node:path'
 import { getStorageDir } from './auth-storage-utils'
-import type { AuthSessionOptions, StorageOptions } from './types'
+import type { AuthSessionOptions, AuthStorageConfig } from './types'
 import fs from 'node:fs'
 // eslint-disable-next-line import/named
 import { v4 as uuidv4 } from 'uuid'
@@ -24,7 +24,7 @@ dotenvConfig({
  * @param options Configuration options including storage paths and debug settings
  */
 export function configureAuthSession(
-  options: Partial<AuthSessionOptions & StorageOptions> = {}
+  options: Partial<AuthSessionOptions & AuthStorageConfig> = {}
 ) {
   // Get the storage directory
   const storageDir = getStorageDir()

@@ -42,38 +42,14 @@ export class AuthSessionManager {
     // get global options as fallback
     const mergedOptions = { ...getGlobalAuthOptions(), ...options }
 
-    // TODO: Remove fallback to fake token endpoint. In a library context,
-    // users should be required to provide their own token fetch configuration or implement a custom auth provider.
-    // first, gather the defaults and merge with options
-    const defaultTokenFetch: AuthSessionOptions['tokenFetch'] =
-      mergedOptions.tokenFetch
-        ? {
-            method: mergedOptions.tokenFetch.method || 'GET',
-            body: mergedOptions.tokenFetch.body || null,
-            path: mergedOptions.tokenFetch.path,
-            baseUrl: mergedOptions.tokenFetch.baseUrl,
-            headers: mergedOptions.tokenFetch.headers
-          }
-        : {
-            method: 'GET',
-            body: null,
-            path: '/auth/fake-token',
-            baseUrl: `http://localhost:${process.env.PORT || 3001}`
-          }
+    // Users must implement and set a custom AuthProvider through setAuthProvider()
+    // This simplifies the design and makes responsibilities clearer
 
-    // create the final options by removing tokenFetch to avoid duplicates
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { tokenFetch: _, ...restOptions } = mergedOptions
-
-    // merge everything together with proper typing
+    // Set up the options with sensible defaults
     this.options = {
       debug: false,
       tokenFileName: 'auth-token.json',
-      // TODO: Require users to provide their own token extractor
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tokenExtractor: (data: any) => data.token,
-      tokenFetch: defaultTokenFetch,
-      ...restOptions
+      ...mergedOptions // Apply any user-provided options
     }
 
     // get the auth provider for environment and role information
@@ -217,73 +193,34 @@ export class AuthSessionManager {
   }
 
   /**
-   * Fetch a new token
+   * Get a new token using the AuthProvider
+   *
+   * @param request The Playwright API request context
+   * @returns A promise that resolves to the authentication token
    */
-  private async fetchToken(request: APIRequestContext): Promise<string> {
-    // Check if tokenFetch is available
-    if (!this.options.tokenFetch) {
+  private async getTokenFromProvider(
+    request: APIRequestContext
+  ): Promise<string> {
+    // Get the auth provider
+    const provider = getAuthProvider()
+
+    if (!provider) {
       throw new Error(
-        'Token fetch configuration is not available. Use setAuthProvider with a custom provider instead.'
+        'No auth provider configured. You must call setAuthProvider() with your custom provider.'
       )
     }
-
-    // Now we know tokenFetch exists, we can safely destructure it
-    const {
-      path,
-      baseUrl,
-      method = 'GET',
-      body,
-      headers
-    } = this.options.tokenFetch
 
     if (this.options.debug) {
-      console.log(
-        `Fetching token from ${baseUrl || 'baseURL'}${path} with method ${method}`
-      )
+      console.log('Delegating token acquisition to AuthProvider')
     }
 
-    // Construct the full URL if baseUrl is provided
-    const fullUrl = baseUrl ? `${baseUrl}${path}` : path
+    // Use the provider to get the token
+    // We don't need to pass environment/userRole options because the provider will use what it has configured
+    const token = await provider.manageAuthToken(request, {})
 
-    const requestMethod = method.toLowerCase() as 'get' | 'post'
-
-    // Handle GET vs POST differently - GET requests shouldn't have a body
-    let response
-    if (requestMethod === 'get') {
-      response = await request.get(fullUrl, {
-        headers: headers || {}
-      })
-    } else {
-      response = await request[requestMethod](fullUrl, {
-        data: body,
-        headers: headers || { 'Content-Type': 'application/json' }
-      })
-    }
-
-    if (!response.ok()) {
+    if (!token) {
       throw new Error(
-        `Failed to fetch token: ${response.status()} ${await response.text()}`
-      )
-    }
-
-    let responseData
-    const contentType = response.headers()['content-type'] || ''
-
-    if (contentType.includes('application/json')) {
-      responseData = await response.json()
-    } else {
-      responseData = await response.text()
-    }
-
-    // Extract token using the token extractor or default to the response itself
-    const token =
-      typeof responseData === 'string'
-        ? responseData
-        : this.options.tokenExtractor?.(responseData) || responseData
-
-    if (!token || token === '') {
-      throw new Error(
-        'Failed to extract token from response - token is empty or undefined'
+        'AuthProvider.manageAuthToken returned an empty or undefined token'
       )
     }
 
@@ -302,7 +239,8 @@ export class AuthSessionManager {
       return this.token
     }
 
-    const token = await this.fetchToken(request)
+    // Get token from the auth provider
+    const token = await this.getTokenFromProvider(request)
     this.token = token
     this.hasToken = true
     this.saveTokenToStorage(token)

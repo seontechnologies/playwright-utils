@@ -34,6 +34,8 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Clearing Tokens When Needed](#clearing-tokens-when-needed)
   - [Advanced Usage](#advanced-usage)
     - [Testing Against Different Deployment Environments](#testing-against-different-deployment-environments)
+    - [Disabling Authentication for Specific Tests](#disabling-authentication-for-specific-tests)
+    - [Robust File Storage with Locking](#robust-file-storage-with-locking)
     - [Separate Auth and Application URLs](#separate-auth-and-application-urls)
       - [Configuring URL Settings in Your Fixtures](#configuring-url-settings-in-your-fixtures)
     - [Multi-Role Support](#multi-role-support)
@@ -45,8 +47,8 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-      - [Our Enhanced Approach](#our-enhanced-approach)
+        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+        - [Our Enhanced Approach](#our-enhanced-approach)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
   - [Implementation Details](#implementation-details)
     - [Storage Structure](#storage-structure)
@@ -119,8 +121,6 @@ export default defineConfig({
 })
 ```
 
-</details>
-
 #### Approach 2: Global Setup Function
 
 Alternatively, you can use a global setup function that runs once before all tests:
@@ -181,8 +181,6 @@ export default defineConfig({
 })
 ```
 
-</details>
-
 #### 3. Write tests that use the authenticated state
 
 <details><summary><strong>Expand for details:</strong></summary>
@@ -200,8 +198,6 @@ test('access dashboard page', async ({ page }) => {
   await expect(page.locator('h1')).toHaveText('Dashboard')
 })
 ```
-
-</details>
 
 ### Limitations of Playwright’s Approach vs. What This Library Adds
 
@@ -249,8 +245,6 @@ test('access dashboard page', async ({ page }) => {
 >
 > Essentially, our solution treats authentication as a seamless part of the test execution instead of a separate setup step. Since it's integrated with the normal test fixtures and flow, UI Mode "just works" without any special handling.
 
-</details>
-
 <details><summary><strong>More on parallel worker authentication:</strong></summary>
 
 > ### Playwright's Parallel Worker Authentication
@@ -280,8 +274,6 @@ test('access dashboard page', async ({ page }) => {
 >
 > This is a key advantage of our approach - **getting the same benefits with significantly less code and complexity**.
 
-</details>
-
 <details><summary><strong>More on performance and simplicity benefits:</strong></summary>
 
 > ### More on performance and simplicity benefits:
@@ -309,8 +301,6 @@ test('access dashboard page', async ({ page }) => {
 >    - No need for different setup approaches based on authentication method
 >
 > The system is designed to be compatible with Playwright's recommended patterns for authentication in both API testing and UI testing contexts while solving the performance and usability limitations of the built-in approach.
-
-</details>
 
 ---
 
@@ -357,6 +347,15 @@ async function globalSetup() {
 export default globalSetup
 ```
 
+⚠️ **IMPORTANT**: The order of function calls in your global setup is critical:
+
+1. `authStorageInit()` - First ensure storage directories exist
+2. `configureAuthSession()` - Then configure auth settings
+3. `setAuthProvider()` - Then set the provider implementation
+4. `authGlobalInit()` - Finally initialize tokens (optional)
+
+This order resolves dependencies correctly and ensures each function has the necessary configuration from previous steps.
+
 ### 2. Create Auth Fixture
 
 Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures:
@@ -367,8 +366,16 @@ import { test as base } from '@playwright/test'
 import {
   createAuthFixtures,
   type AuthOptions,
-  type AuthFixtures
+  type AuthFixtures,
+  setAuthProvider // Import the setAuthProvider function
 } from '@seontechnologies/playwright-utils/auth-session'
+
+// Import your custom auth provider
+import myCustomProvider from './custom-auth-provider'
+
+// CRITICAL: Register the custom auth provider early to ensure it's available for all tests
+// This provides a safeguard in case the global setup doesn't run or complete properly
+setAuthProvider(myCustomProvider)
 
 // Default auth options using the current environment
 const defaultAuthOptions: AuthOptions = {
@@ -390,6 +397,12 @@ export const test = base.extend<AuthFixtures>({
   page: fixtures.page
 })
 ```
+
+⚠️ **IMPORTANT**: Registering the auth provider in both global setup AND your auth fixture ensures your tests will work reliably. This dual registration approach prevents issues when:
+
+1. The global setup doesn't complete properly
+2. Tests are run directly without executing the global setup
+3. Running in UI mode where global setup execution differs
 
 ### 3. Implement Custom Auth Provider
 
@@ -600,10 +613,7 @@ export const acquireToken = async (
   options: Record<string, string | undefined> = {}
 ): Promise<string> => {
   // Get auth URL based on environment
-  const authBaseUrl = getAuthUrl(
-    environment.toLowerCase(),
-    options.authBaseUrl
-  )
+  const authBaseUrl = getAuthUrl(environment.toLowerCase(), options.authBaseUrl)
 
   // Get endpoint path
   const endpoint = process.env.AUTH_TOKEN_ENDPOINT || '/token'
@@ -824,7 +834,7 @@ test.describe('example tests without auth', () => {
     // Auth session is disabled, so no tokens will be automatically fetched
     // or applied to the browser context
     const response = await apiRequest({ path: '/auth/token' })
-    
+
     // Now you can test the token acquisition process directly
     expect(response.status).toBe(200)
     expect(response.body.token).toBeDefined()
@@ -990,18 +1000,18 @@ const getCredentialsForRole = (
 // Create a fully custom provider implementation
 const myCustomProvider: AuthProvider = {
 
-	getEnvironment(options = {}) { .. },
+  getEnvironment(options = {}) { .. },
 
-	getUserRole(options = {}) { .. },
+  getUserRole(options = {}) { .. },
 
-	async getToken(request, options = {}) {
-		// Use our own methods to ensure consistency
-		const environment = this.getEnvironment(options)
-		const userRole = this.getUserRole(options)
-		// Use the utility functions to get standardized paths
-		const tokenPath = getTokenFilePath({
-			environment,
-			userRole,
+  async getToken(request, options = {}) {
+    // Use our own methods to ensure consistency
+    const environment = this.getEnvironment(options)
+    const userRole = this.getUserRole(options)
+    // Use the utility functions to get standardized paths
+    const tokenPath = getTokenFilePath({
+      environment,
+      userRole,
 			tokenFileName: 'custom-auth-token.json'
 		})
 		// Check if we already have a valid token using the core utility

@@ -27,8 +27,9 @@ import {
 } from './internal/auth-session'
 import { getAuthProvider } from './internal/auth-provider'
 
-// Re-export the default token formatter for users to extend
-export { defaultTokenFormatter }
+// Re-export the default token formatter and AuthSessionManager class
+// AuthSessionManager is exported for internal usage only (not part of public API)
+export { defaultTokenFormatter, AuthSessionManager }
 
 // Re-export set auth provider for token operations
 export { setAuthProvider } from './internal/auth-provider'

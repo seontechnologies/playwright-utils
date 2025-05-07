@@ -2,18 +2,12 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-type TokenFetchOptions = {
-  path: string
-  baseUrl?: string
-  method?: 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD'
-  body?: any
-  headers?: Record<string, string>
-}
+// We're removing TokenFetchOptions since we're making AuthProvider the only pattern for token acquisition
 
 /**
- * Storage configuration options for flexibility across different project structures
+ * Authentication storage configuration options for flexibility across different project structures
  */
-export type StorageOptions = {
+export type AuthStorageConfig = {
   /** Root directory for auth session storage (fixed at process.cwd()/.auth-sessions) */
   storageDir?: string
   /** Debug mode to enable additional logging */
@@ -43,12 +37,8 @@ export type AuthSessionOptions = {
   storageDir?: string
   /** Token filename (default: auth-token.json) */
   tokenFileName?: string
-  /** Function to extract the token from a response */
-  tokenExtractor?: (data: any) => string
   /** Custom token data formatter to control how tokens are saved */
   tokenDataFormatter?: TokenDataFormatter
-  /** Token fetch configuration */
-  tokenFetch?: TokenFetchOptions
   /** Debug mode (default: false) */
   debug?: boolean
 }
@@ -104,7 +94,7 @@ export type AuthIdentifiers = {
  * Result of storage path resolution
  * Contains the actual filesystem paths for auth storage
  */
-export type StoragePaths = {
+export type AuthSessionConfig = {
   /** Resolved directory for auth storage files */
   storageDir: string
 

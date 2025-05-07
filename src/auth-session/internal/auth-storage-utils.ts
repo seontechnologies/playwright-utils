@@ -13,7 +13,11 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as lockfile from 'proper-lockfile'
-import type { StoragePaths, AuthIdentifiers, StorageOptions } from './types'
+import type {
+  AuthSessionConfig,
+  AuthIdentifiers,
+  AuthStorageConfig
+} from './types'
 
 /**  Default environment when none is specified */
 const DEFAULT_ENVIRONMENT = 'local'
@@ -63,7 +67,7 @@ const getCurrentUserRole = (options?: { userRole?: string }): string => {
  */
 // Simple fixed directory for auth storage
 export const getStorageDir = (
-  options?: AuthIdentifiers & StorageOptions
+  options?: AuthIdentifiers & AuthStorageConfig
 ): string => {
   // Always use a fixed path at repo root, organized by environment and role
   return path.join(
@@ -83,7 +87,7 @@ export const getStorageDir = (
  * @returns Path to the storage state file
  */
 export const getStorageStatePath = (
-  options?: AuthIdentifiers & StorageOptions
+  options?: AuthIdentifiers & AuthStorageConfig
 ): string => path.join(getStorageDir(options), 'storage-state.json')
 
 /**
@@ -98,7 +102,7 @@ export const getStorageStatePath = (
  */
 export function getTokenFilePath(
   options?: AuthIdentifiers &
-    StorageOptions & {
+    AuthStorageConfig & {
       tokenFileName?: string
       useDirectStoragePath?: boolean
     }
@@ -276,7 +280,7 @@ export async function safeReadJsonFile<T>(
   }
 }
 
-export function authStorageInit(options?: AuthIdentifiers): StoragePaths {
+export function authStorageInit(options?: AuthIdentifiers): AuthSessionConfig {
   const dir = getStorageDir(options)
   const statePath = getStorageStatePath(options)
 
