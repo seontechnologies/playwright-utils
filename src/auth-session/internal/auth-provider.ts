@@ -23,6 +23,24 @@ export interface AuthProvider {
   getUserRole(options?: Partial<AuthOptions>): string
 
   /**
+   * Extract the raw token from formatted token data
+   * This allows providers to access tokens from their specific formats
+   *
+   * @param tokenData The formatted token data
+   * @returns The raw token string or null if not extractable
+   */
+  extractToken(tokenData: Record<string, unknown>): string | null
+
+  /**
+   * Check if a token is expired
+   * This allows providers to implement custom expiration logic
+   *
+   * @param rawToken The raw token string to check for expiration
+   * @returns True if the token is expired, false otherwise
+   */
+  isTokenExpired?(rawToken: string): boolean
+
+  /**
    * Manage authentication token lifecycle
    * This handles checking storage, acquiring tokens when needed, and saving tokens
    *

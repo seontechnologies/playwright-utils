@@ -14,21 +14,22 @@ export type AuthStorageConfig = {
   debug?: boolean
 }
 
-/** Auth token storage format
- * Extensible to support different authentication systems and token formats.
- * Only 'token' and 'createdAt' are required, all other fields are optional. */
-export type AuthTokenData = {
-  token: string
-  createdAt: string
-  expiresAt?: string | null
-  refreshToken?: string
-  tokenType?: string
-  [key: string]: unknown
-}
-
 /** Function type for customizing how token data is formatted before storage
- * This allows for complete customization of the token storage format */
-export type TokenDataFormatter = (token: string) => AuthTokenData
+ * This allows for complete customization of the token storage format
+ *
+ * Token data can be any format that the auth provider supports:
+ * - Simple Bearer tokens (string)
+ * - Playwright storage state (object with cookies and origins)
+ * - Custom token formats from auth providers
+ *
+ * NOTE: For UI testing with Playwright's built-in storage state, this formatter is often
+ * unnecessary and can be omitted entirely. The default implementation simply passes
+ * the token through without modification.
+ *
+ * @param token The raw token data (could be string, object, etc.)
+ * @returns Formatted token data ready for storage
+ */
+export type TokenDataFormatter = (token: unknown) => unknown
 
 /** Options for the auth session */
 export type AuthSessionOptions = {

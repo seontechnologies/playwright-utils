@@ -5,7 +5,6 @@
 
 // Public Types
 export type {
-  AuthTokenData,
   TokenDataFormatter,
   AuthSessionOptions,
   AuthOptions,
@@ -17,11 +16,7 @@ export {
   configureAuthSession,
   getAuthToken,
   clearAuthToken,
-  applyAuthToBrowserContext,
-  defaultTokenFormatter,
-  // Token utility functions
-  loadTokenFromStorage,
-  saveTokenToStorage
+  applyAuthToBrowserContext
 } from './core'
 
 // Global setup helper (optional)
