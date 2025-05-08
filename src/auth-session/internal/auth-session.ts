@@ -6,26 +6,22 @@ import type { APIRequestContext } from '@playwright/test'
 import { getStorageDir, getTokenFilePath } from './auth-storage-utils'
 import * as fs from 'fs'
 import * as path from 'path'
-import type {
-  AuthSessionOptions,
-  AuthTokenData,
-  TokenDataFormatter
-} from './types'
+import type { AuthSessionOptions, TokenDataFormatter } from './types'
 import { getGlobalAuthOptions } from './auth-configure'
 import { getAuthProvider } from './auth-provider'
-import { applyAuthToBrowserContext as applyAuthToBrowserContextCore } from '../core'
+import {
+  applyAuthToBrowserContext as applyAuthToBrowserContextCore,
+  loadTokenFromStorage,
+  saveTokenToStorage
+} from '../core'
 
-// Public API is now exclusively in core.ts
-
-/** Default token data formatter that creates the basic token structure
- * Can be overridden by providing a custom formatter in AuthSessionOptions */
 export const defaultTokenFormatter: TokenDataFormatter = (
-  token: string
-): AuthTokenData => ({
-  token,
-  createdAt: new Date().toISOString(),
-  expiresAt: null
-})
+  tokenData: unknown
+): unknown => {
+  // Return the token as-is without any modification
+  // This works with any token format (string, object, Playwright storage state, etc.)
+  return tokenData
+}
 
 // Re-export the function from core to avoid circular dependencies
 export const applyAuthToBrowserContext = applyAuthToBrowserContextCore
@@ -113,22 +109,11 @@ export class AuthSessionManager {
   /** Load token from storage if it exists */
   private loadTokenFromStorage(): void {
     try {
-      if (fs.existsSync(this.storageFile)) {
-        const data = fs.readFileSync(this.storageFile, 'utf8')
-        const parsed = JSON.parse(data) as AuthTokenData
+      // Use core loadTokenFromStorage function with token expiration check
+      const token = loadTokenFromStorage(this.storageFile, true)
 
-        // Check if token is expired
-        if (
-          parsed.expiresAt &&
-          new Date(parsed.expiresAt).getTime() < Date.now()
-        ) {
-          if (this.options.debug) {
-            console.log('Token expired, will fetch a new one')
-          }
-          return
-        }
-
-        this.token = parsed.token
+      if (token) {
+        this.token = token
         this.hasToken = true
 
         if (this.options.debug) {
@@ -143,16 +128,24 @@ export class AuthSessionManager {
   /** Save token to storage */
   private saveTokenToStorage(token: string): void {
     try {
-      // Use custom formatter if provided or default formatter
+      // Create metadata using the token formatter
       const tokenFormatter =
         this.options.tokenDataFormatter || defaultTokenFormatter
       const data = tokenFormatter(token)
 
-      fs.writeFileSync(this.storageFile, JSON.stringify(data, null, 2))
+      // Since token data can be any format now, we need to handle it properly
+      // The core saveTokenToStorage expects a string token and object metadata
 
-      if (this.options.debug) {
-        console.log('Token saved to storage')
-      }
+      // Store the formatted data directly as JSON
+      const jsonContent = JSON.stringify(data, null, 2)
+
+      // Use core saveTokenToStorage function
+      saveTokenToStorage({
+        tokenPath: this.storageFile,
+        token: jsonContent, // Pass the stringified version of the data
+        metadata: {}, // Empty object for metadata (type-safe)
+        debug: this.options.debug
+      })
     } catch (error) {
       console.error('Error saving token to storage:', error)
     }
@@ -228,15 +221,62 @@ export class AuthSessionManager {
   }
 
   /**
+   * Check if a token is expired
+   * Relies on loadTokenFromStorage which uses the registered token expiration function
+   */
+  private isTokenExpired(): boolean {
+    // Check if the token exists in memory first
+    if (!this.hasToken || this.token === null) {
+      return true
+    }
+
+    // Try to load from storage - this will apply our expiration check
+    // If loadTokenFromStorage returns null, the token is considered expired
+    const token = loadTokenFromStorage(this.storageFile, true)
+    const isExpired = token === null
+
+    if (this.options.debug && isExpired) {
+      console.log('Token expired according to expiration check function')
+    }
+
+    return isExpired
+  }
+
+  /**
+   * Refresh the token if it's expired
+   *
+   * @param request The Playwright API request context
+   * @returns A promise that resolves to the refreshed token
+   */
+  private async refreshTokenIfNeeded(
+    request: APIRequestContext
+  ): Promise<string> {
+    if (this.isTokenExpired()) {
+      if (this.options.debug) {
+        console.log('Token expired, refreshing...')
+      }
+
+      // Get token from the auth provider
+      const token = await this.getTokenFromProvider(request)
+      this.token = token
+      this.hasToken = true
+      this.saveTokenToStorage(token)
+
+      return token
+    }
+
+    // Token is still valid
+    return this.token as string
+  }
+
+  /**
    * Manage the complete authentication token lifecycle
    * Handles checking existing tokens, fetching new ones if needed, and persistence
    */
   public async manageAuthToken(request: APIRequestContext): Promise<string> {
     if (this.hasToken && this.token) {
-      if (this.options.debug) {
-        console.log('Using cached token')
-      }
-      return this.token
+      // Even if we have a token, check if it's expired and refresh if needed
+      return this.refreshTokenIfNeeded(request)
     }
 
     // Get token from the auth provider

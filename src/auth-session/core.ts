@@ -16,75 +16,112 @@ import {
 } from './internal/auth-storage-utils'
 import * as fs from 'fs'
 import * as path from 'path'
-import type {
-  AuthSessionOptions,
-  AuthTokenData,
-  AuthIdentifiers
-} from './internal/types'
-import {
-  AuthSessionManager,
-  defaultTokenFormatter
-} from './internal/auth-session'
+import type { AuthSessionOptions, AuthIdentifiers } from './internal/types'
+import { AuthSessionManager } from './internal/auth-session'
 import { getAuthProvider } from './internal/auth-provider'
 
-// Re-export the default token formatter and AuthSessionManager class
-// AuthSessionManager is exported for internal usage only (not part of public API)
-export { defaultTokenFormatter, AuthSessionManager }
+// Export AuthSessionManager class for internal usage only (not part of public API)
+export { AuthSessionManager }
 
 // Re-export set auth provider for token operations
 export { setAuthProvider } from './internal/auth-provider'
 
+/** Extract the raw token from provider-specific token data
+ * Uses the provider's knowledge of its own token format */
+function extractTokenFromData(
+  tokenData: Record<string, unknown>
+): string | null {
+  try {
+    // Use the provider to extract the token
+    const provider = require('./internal/auth-provider').getAuthProvider()
+
+    // Provider must implement extractToken method
+    if (provider && typeof provider.extractToken === 'function') {
+      return provider.extractToken(tokenData)
+    }
+
+    // No extractToken method implemented
+    console.warn('Provider does not implement extractToken method')
+    return null
+  } catch (error) {
+    console.error('Error extracting token:', error)
+    return null
+  }
+}
+
+/** Internal function to check if a token is expired
+ * Uses the provider's isTokenExpired method if implemented */
+function checkTokenExpiration(tokenData: Record<string, unknown>): boolean {
+  try {
+    // Extract the raw token first
+    const rawToken = extractTokenFromData(tokenData)
+    if (rawToken === null) {
+      console.warn('Cannot extract token, considering expired')
+      return true // Can't extract token, consider expired
+    }
+
+    // Use provider's isTokenExpired if implemented
+    const provider = require('./internal/auth-provider').getAuthProvider()
+    if (provider && typeof provider.isTokenExpired === 'function') {
+      return provider.isTokenExpired(rawToken)
+    }
+
+    // If the provider doesn't implement isTokenExpired, consider the token valid
+    // This encourages implementing the method in the provider
+    return false
+  } catch (error) {
+    console.error('Error checking token expiration:', error)
+    return true // Consider token expired if we encounter an error
+  }
+}
+
 /**
  * Load a token from storage if one exists
- * Handles token expiration checking
+ * Handles token expiration checking using registered token expiration function
  *
  * @param tokenPath Path to the token file
- * @param debug Whether to log debug information
- * @returns The token if valid, or null if not found or expired
+ * @param checkExpiration Whether to check if the token is expired (defaults to true)
  */
 export function loadTokenFromStorage(
   tokenPath: string,
-  debug = false
+  checkExpiration: boolean = true
 ): string | null {
-  if (fs.existsSync(tokenPath)) {
-    try {
-      const data = fs.readFileSync(tokenPath, 'utf8')
-      const tokenData = JSON.parse(data) as AuthTokenData
+  // Check if token file exists
+  if (!fs.existsSync(tokenPath)) {
+    // No token file exists
+    return null
+  }
 
-      // Check if token is expired
-      if (tokenData.expiresAt && new Date(tokenData.expiresAt) < new Date()) {
-        if (debug) {
-          console.log(
-            `Token expired at ${tokenData.expiresAt}, will fetch new one`
-          )
-        }
-        return null
-      }
+  try {
+    const rawData = fs.readFileSync(tokenPath, 'utf8')
+    const tokenData = JSON.parse(rawData)
 
-      if (debug) {
-        console.log(`Loaded token from ${tokenPath}`)
-      }
+    // Extract token using provider-specific extraction logic
+    const token = extractTokenFromData(tokenData)
+    if (token === null) {
+      return null // Could not extract token
+    }
 
-      return tokenData.token
-    } catch (error) {
-      console.error(`Error loading token from ${tokenPath}:`, error)
+    // Skip expiration check if explicitly disabled
+    if (!checkExpiration) {
+      return token
+    }
+
+    // Check if token is expired using provider-specific expiration logic
+    if (checkTokenExpiration(tokenData)) {
+      // Token is expired
       return null
     }
+
+    return token
+  } catch (err) {
+    console.error(`Error loading token from ${tokenPath}:`, err)
+    return null
   }
-  return null
 }
 
 /**
  * Save a token to storage with optional metadata
- * Ensures the storage directory exists
- *
- * @param tokenPath Path to save the token file
- * @param token The token string to save
- * @param metadata Additional metadata to store with the token
- * @param debug Whether to log debug information
- */
-/**
- * Save an authentication token to storage with metadata
  *
  * @param options Configuration options
  */
@@ -99,6 +136,7 @@ export function saveTokenToStorage(options: {
   debug?: boolean
 }): void {
   const { tokenPath, token, metadata = {}, debug = false } = options
+
   try {
     const storageDir = path.dirname(tokenPath)
 
@@ -110,13 +148,20 @@ export function saveTokenToStorage(options: {
       }
     }
 
-    // Save token with metadata
+    // Create a simple token data structure
+    // Each provider will extract the token using its extractToken method
+    const tokenData: Record<string, unknown> = {
+      token,
+      createdAt: new Date().toISOString(),
+      ...metadata // Include any additional metadata
+    }
+
+    // Save token with metadata (both from provider and passed in)
     fs.writeFileSync(
       tokenPath,
       JSON.stringify(
         {
-          token,
-          createdAt: new Date().toISOString(),
+          ...tokenData,
           ...metadata
         },
         null,
