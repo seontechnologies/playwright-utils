@@ -300,6 +300,96 @@ test('example test', async () => {
 
 ## API Reference
 
+### Logging Methods
+
+The logging utility provides two sets of methods for different use cases:
+
+#### Asynchronous Methods (Standard)
+
+These methods integrate with Playwright's test steps and should be used in test contexts:
+
+```typescript
+await log.info('Starting test')
+await log.step('Login to application')
+await log.success('Successfully completed action')
+await log.warning('Potential issue detected')
+await log.error('An error occurred')
+await log.debug('Debug information', { console: { enabled: true } })
+```
+
+#### Synchronous Methods
+
+These methods provide identical formatting and features but can be used in synchronous contexts where async/await is not available, such as utility functions, global setup/teardown, or static configuration:
+
+```typescript
+log.infoSync('Initializing configuration')
+log.stepSync('Setting up environment')
+log.successSync('Environment configured successfully')
+log.warningSync('Config parameter missing, using default')
+log.errorSync('Failed to initialize component')
+log.debugSync('Debug information', { console: { enabled: true } })
+```
+
+Synchronous methods maintain consistent formatting while avoiding async operations, making them ideal for global setup scripts, auth providers, and other utilities where test.step() is not available.
+
+> **Note**: Unlike async methods, sync methods have no Playwright test step integration, as they're primarily for scenarios where such integration isn't required or possible.
+
+### Global Log Toggling
+
+You can globally enable or disable all logging with a single configuration call:
+
+```typescript
+// Disable all logging
+log.configure({
+  console: { enabled: false },
+  fileLogging: { enabled: false },
+  testStep: { enabled: false }
+})
+
+// Re-enable all logging
+log.configure({
+  console: { enabled: true },
+  fileLogging: { enabled: true },
+  testStep: { enabled: true }
+})
+```
+
+#### Environment Variable Control
+
+You can also toggle logging via environment variables in your config file:
+
+```typescript
+// Check environment variables for log configuration
+const DISABLE_LOGS = process.env.DISABLE_LOGS === 'true'
+const DISABLE_FILE_LOGS = process.env.DISABLE_FILE_LOGS === 'true' || DISABLE_LOGS
+const DISABLE_CONSOLE_LOGS = process.env.DISABLE_CONSOLE_LOGS === 'true' || DISABLE_LOGS
+
+log.configure({
+  console: {
+    enabled: !DISABLE_CONSOLE_LOGS
+  },
+  fileLogging: {
+    enabled: !DISABLE_FILE_LOGS,
+    // other file logging options...
+  }
+})
+```
+
+This allows you to toggle logs from the command line:
+
+```bash
+# Disable all logs
+DISABLE_LOGS=true npx playwright test
+
+# Disable only file logs
+DISABLE_FILE_LOGS=true npx playwright test
+
+# Disable only console logs
+DISABLE_CONSOLE_LOGS=true npx playwright test
+```
+
+This is particularly useful for CI/CD pipelines where you may want to adjust verbosity based on the environment.
+
 ### Log Levels
 
 | Level     | Description         | Console Method | Visual Indicator |

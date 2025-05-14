@@ -17,6 +17,7 @@ import {
   loadStorageState,
   getStorageDir
 } from '../../../src/auth-session'
+import { log } from '../../../src/log'
 import { acquireToken } from './acquire-token'
 
 // Create a fully custom provider implementation
@@ -77,7 +78,7 @@ const myCustomProvider: AuthProvider = {
       return String(tokenData.token)
     }
 
-    console.warn('Unknown token format, cannot extract')
+    log.warningSync('Unknown token format, cannot extract')
     return null
   },
 
@@ -105,12 +106,14 @@ const myCustomProvider: AuthProvider = {
         diffInSeconds >= 0 && diffInSeconds <= timeoutInSeconds
       )
 
-      // Use console.log for synchronous context
-      console.log(`Token age: ${diffInSeconds} seconds, expired: ${isExpired}`)
+      // Use synchronous logging
+      log.infoSync(`Token age: ${diffInSeconds} seconds, expired: ${isExpired}`)
       return isExpired
     } catch (error) {
-      // Use console.error for synchronous context
-      console.error('Error checking token expiration:', error)
+      // Use synchronous error logging
+      log.errorSync(
+        `Error checking token expiration: ${error instanceof Error ? error.message : String(error)}`
+      )
       return true // Fail safe: consider expired if validation fails
     }
   },
@@ -137,19 +140,19 @@ const myCustomProvider: AuthProvider = {
     })
 
     // STEP 1: Check if we already have a valid token using the enhanced utility
-    console.log(`ℹ Checking for existing token at ${tokenPath}`)
+    log.infoSync(`ℹ Checking for existing token at ${tokenPath}`)
     const existingStorageState = loadStorageState(tokenPath, true)
     if (existingStorageState) {
-      console.log(`✓ Using existing token from ${tokenPath}`)
+      log.infoSync(`✓ Using existing token from ${tokenPath}`)
       return existingStorageState
     }
 
     // STEP 2: Initialize storage directories using the core utility
-    console.log('==== Initializing storage directories ====')
+    log.infoSync('==== Initializing storage directories ====')
     authStorageInit({ environment, userRole, userIdentifier })
 
     // STEP 3: Acquire a new token (since no valid token exists)
-    console.log(`==== Fetching new token for ${environment}/${userRole} ====`)
+    log.infoSync(`==== Fetching new token for ${environment}/${userRole} ====`)
     const rawToken = await acquireToken(request, environment, userRole, options)
 
     // STEP 3.5: Format token in the Playwright-compatible format
@@ -177,7 +180,7 @@ const myCustomProvider: AuthProvider = {
       storageDir: path.dirname(tokenPath)
     })
     authManager.saveToken(storageState)
-    console.log(`✓ Token saved to ${tokenPath}`)
+    log.successSync(`Token saved to ${tokenPath}`)
 
     // Return the object directly for use with Playwright APIs
     return storageState
@@ -203,9 +206,8 @@ const myCustomProvider: AuthProvider = {
     })
 
     // Use the AuthSessionManager's clearToken method
-    console.log(
-      `Clearing token for ${environment}/${userRole}` +
-        (userIdentifier ? `/${userIdentifier}` : '')
+    log.infoSync(
+      `Clearing token for ${environment}/${userRole}${userIdentifier ? `/${userIdentifier}` : ''}`
     )
     authManager.clearToken()
 

@@ -10,6 +10,7 @@ import { getStorageDir } from './auth-storage-utils'
 import { getGlobalAuthOptions } from './auth-configure'
 import { getAuthProvider } from './auth-provider'
 import type { AuthSessionOptions, TokenDataFormatter } from './types'
+import { log } from '../../log'
 
 // Token cache for improved performance and reduced file I/O
 // Maps storage path to token data with expiration time
@@ -220,7 +221,7 @@ export class AuthSessionManager {
     this.loadTokenFromStorage()
 
     if (this.options.debug) {
-      console.log(
+      log.infoSync(
         `Auth session manager initialized with storage at: ${this.storageFile}`
       )
     }
@@ -232,7 +233,7 @@ export class AuthSessionManager {
    */
   public saveToken(token: string | Record<string, unknown>): void {
     if (!token) {
-      console.warn('Attempted to save empty token')
+      log.warningSync('Attempted to save empty token')
       return
     }
 
@@ -259,7 +260,7 @@ export class AuthSessionManager {
       AuthSessionManager.instance = new AuthSessionManager(resolvedOptions)
     } else if (options) {
       // If new options are provided, warn that they won't be used as instance already exists
-      console.warn(
+      log.warningSync(
         'Auth session manager already initialized - new options ignored'
       )
     }
@@ -280,7 +281,7 @@ export class AuthSessionManager {
         this.hasToken = true
 
         if (this.options.debug) {
-          console.log('Token loaded from memory cache')
+          log.infoSync('Token loaded from memory cache')
         }
         return
       }
@@ -305,7 +306,9 @@ export class AuthSessionManager {
             provider.isTokenExpired(token)
           ) {
             if (this.options.debug) {
-              console.log('Token from storage is expired, will fetch a new one')
+              log.infoSync(
+                'Token from storage is expired, will fetch a new one'
+              )
             }
             return
           }
@@ -318,15 +321,19 @@ export class AuthSessionManager {
             this.cacheToken(token)
 
             if (this.options.debug) {
-              console.log('Token loaded from storage')
+              log.infoSync('Token loaded from storage')
             }
           }
         } catch (error) {
-          console.error('Error parsing token data:', error)
+          log.errorSync(
+            `Error parsing token data: ${error instanceof Error ? error.message : String(error)}`
+          )
         }
       }
     } catch (error) {
-      console.error('Error loading token from storage:', error)
+      log.errorSync(
+        `Error loading token from storage: ${error instanceof Error ? error.message : String(error)}`
+      )
       // Continue with null token - will trigger fresh token acquisition
     }
   }
@@ -351,12 +358,14 @@ export class AuthSessionManager {
       }
 
       if (this.options.debug) {
-        console.log(
+        log.infoSync(
           `Token cached in memory until ${new Date(now + expiresIn).toISOString()}`
         )
       }
     } catch (error) {
-      console.error('Error caching token:', error)
+      log.errorSync(
+        `Error caching token: ${error instanceof Error ? error.message : String(error)}`
+      )
       // Continue without caching
     }
   }
@@ -392,7 +401,7 @@ export class AuthSessionManager {
         fs.renameSync(tempFile, this.storageFile)
 
         if (this.options.debug) {
-          console.log('Token saved to storage with file locking')
+          log.infoSync('Token saved to storage with file locking')
         }
       } finally {
         // Always clean up - remove lock file and temp file if they exist
@@ -412,13 +421,15 @@ export class AuthSessionManager {
         : `${environment}/${userRole}`
 
       if (this.options.debug) {
-        console.log(
+        log.warningSync(
           `Could not save token for ${userInfo} to storage at ${this.storageFile}, using in-memory version`
         )
-        console.error('Detailed error information:', error)
+        log.errorSync(
+          `Detailed error information: ${error instanceof Error ? error.message : String(error)}`
+        )
       } else {
         // Limited logging in non-debug mode to avoid exposing sensitive info
-        console.error(
+        log.errorSync(
           `Error saving token to storage for ${userInfo}: ${error instanceof Error ? error.message : String(error)}`
         )
       }
@@ -442,19 +453,19 @@ export class AuthSessionManager {
       if (fs.existsSync(this.storageFile)) {
         fs.unlinkSync(this.storageFile)
         if (this.options.debug) {
-          console.log(
+          log.infoSync(
             `[Auth Session] Token for user ${userInfo} deleted: ${this.storageFile}`
           )
         }
       } else if (this.options.debug) {
-        console.log(
+        log.infoSync(
           `[Auth Session] No token for user ${userInfo} found at: ${this.storageFile}`
         )
       }
 
       // Clear from memory if exists
       if (this.hasToken && this.options.debug) {
-        console.log('[Auth Session] Token cleared from memory')
+        log.infoSync('[Auth Session] Token cleared from memory')
       }
 
       // Reset internal state
@@ -462,14 +473,16 @@ export class AuthSessionManager {
       this.hasToken = false
 
       if (this.options.debug) {
-        console.log('[Auth Session] Token cleared successfully')
+        log.successSync('[Auth Session] Token cleared successfully')
       }
 
       // Always return true for better developer experience
       // This allows tests and scripts to proceed without having to check if a token existed
       return true
     } catch (error) {
-      console.error('[Auth Session] Error clearing token:', error)
+      log.errorSync(
+        `[Auth Session] Error clearing token: ${error instanceof Error ? error.message : String(error)}`
+      )
       // Even in case of error, we consider the operation successful from a user's perspective
       // since the token state in memory has been reset
       return true
@@ -495,7 +508,7 @@ export class AuthSessionManager {
     }
 
     if (this.options.debug) {
-      console.log('Delegating token acquisition to AuthProvider')
+      log.infoSync('Delegating token acquisition to AuthProvider')
     }
 
     // Use the provider to get the token - now returns a storage state object
@@ -556,7 +569,7 @@ export class AuthSessionManager {
 
     const isExpired = cachedData.expires <= now
     if (this.options.debug && isExpired) {
-      console.log('Token expired according to in-memory cache')
+      log.infoSync('Token expired according to in-memory cache')
     }
 
     return isExpired
@@ -575,12 +588,14 @@ export class AuthSessionManager {
       ) {
         const isExpired = provider.isTokenExpired(this.token)
         if (this.options.debug && isExpired) {
-          console.log('Token expired according to provider check')
+          log.infoSync('Token expired according to provider check')
         }
         return isExpired
       }
     } catch (error) {
-      console.error('Error using provider to check token expiration:', error)
+      log.errorSync(
+        `Error using provider to check token expiration: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
     return false
   }
@@ -608,20 +623,22 @@ export class AuthSessionManager {
           provider.isTokenExpired(extractedToken)
         ) {
           if (this.options.debug) {
-            console.log('Token expired according to storage check')
+            log.infoSync('Token expired according to storage check')
           }
           return true
         }
 
         token = extractedToken
       } catch (error) {
-        console.error('Error reading token from storage:', error)
+        log.errorSync(
+          `Error reading token from storage: ${error instanceof Error ? error.message : String(error)}`
+        )
       }
     }
 
     const isExpired = token === null
     if (this.options.debug && isExpired) {
-      console.log('No valid token found in storage')
+      log.infoSync('No valid token found in storage')
     }
 
     return isExpired
@@ -637,7 +654,7 @@ export class AuthSessionManager {
   ): Promise<string> {
     if (this.isTokenExpired()) {
       if (this.options.debug) {
-        console.log('Token expired, refreshing...')
+        log.infoSync('Token expired, refreshing...')
       }
 
       // Get token from the auth provider
@@ -666,7 +683,7 @@ export class AuthSessionManager {
     if (cachedData && cachedData.expires > now) {
       // Token exists in cache and is not expired
       if (this.options.debug) {
-        console.log('Using cached token')
+        log.infoSync('Using cached token')
       }
 
       // Update in-memory state

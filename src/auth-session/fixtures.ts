@@ -12,6 +12,7 @@ import {
 import { getAuthProvider } from './internal/auth-provider'
 import { getStorageStatePath } from './internal/auth-storage-utils'
 import type { AuthIdentifiers, AuthOptions } from './internal/types'
+import { log } from '../log'
 
 /**
  * Creates auth fixtures that can be used to extend Playwright's test object
@@ -126,7 +127,7 @@ export function createAuthFixtures() {
         // Playwright's native storage state functionality handles this automatically
         // through the storageState option when creating the context
       } else {
-        console.log(
+        log.infoSync(
           'Auth session disabled - skipping token application to browser context'
         )
       }
