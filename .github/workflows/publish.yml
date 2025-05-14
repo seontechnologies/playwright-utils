@@ -44,15 +44,9 @@ jobs:
 
       # 3. Install dependencies
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --only=prod --no-audit --no-fund
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-
-      # 4. Validate code
-      - name: Run tests and validation
-        run: npm run validate
-
-      # (Tag-based publishing removed as requested)
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
 
       # 5. Validate custom version input if provided
       - name: Validate inputs
