@@ -9,6 +9,7 @@ import {
   getStorageStatePath
 } from './auth-storage-utils'
 import type { AuthSessionConfig, AuthIdentifiers } from './types'
+import { log } from '../../log'
 // No filesystem operations needed with simplified implementation
 
 /** Initialize auth session storage directories and files.
@@ -41,7 +42,7 @@ export async function authGlobalInit(options?: {
   userRoles?: string[]
   environment?: string
 }): Promise<boolean> {
-  console.log('Initializing auth token')
+  log.infoSync('Initializing auth token')
 
   // Determine the effective base URLs with proper fallback chain
   const appBaseURL = options?.baseURL || process.env.BASE_URL
@@ -85,7 +86,9 @@ export async function authGlobalInit(options?: {
       fs.writeFileSync(storageStatePath, JSON.stringify(emptyState))
       return emptyState
     } catch (fsError) {
-      console.error('Error handling storage state:', fsError)
+      log.errorSync(
+        `Error handling storage state: ${fsError instanceof Error ? fsError.message : String(fsError)}`
+      )
       return createEmptyStorageState()
     }
   }
@@ -102,23 +105,22 @@ export async function authGlobalInit(options?: {
   try {
     // If userRoles is provided, initialize tokens for each role
     if (options?.userRoles && options.userRoles.length > 0) {
-      console.log(
+      log.infoSync(
         `Initializing tokens for roles: ${options.userRoles.join(', ')}`
       )
 
       // Initialize tokens for each specified role
       for (const role of options.userRoles) {
         try {
-          console.log(`Initializing token for role: ${role}`)
+          log.infoSync(`Initializing token for role: ${role}`)
           await getAuthToken(requestContext, {
             userRole: role,
             environment: options.environment
           })
-          console.log(`Token for role '${role}' initialized successfully`)
+          log.successSync(`Token for role '${role}' initialized successfully`)
         } catch (roleError) {
-          console.error(
-            `Failed to initialize token for role '${role}':`,
-            roleError
+          log.errorSync(
+            `Failed to initialize token for role '${role}': ${roleError instanceof Error ? roleError.message : String(roleError)}`
           )
           // Continue with other roles even if one fails
         }
@@ -128,11 +130,13 @@ export async function authGlobalInit(options?: {
       await getAuthToken(requestContext, {
         environment: options?.environment
       })
-      console.log('Default auth token initialized successfully')
+      log.successSync('Default auth token initialized successfully')
     }
     return true
   } catch (error) {
-    console.error('Failed to initialize auth tokens:', error)
+    log.errorSync(
+      `Failed to initialize auth tokens: ${error instanceof Error ? error.message : String(error)}`
+    )
     throw error
   } finally {
     await requestContext.dispose()

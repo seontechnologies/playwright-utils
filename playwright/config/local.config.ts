@@ -16,10 +16,22 @@ import { log } from '../../src'
 //     outputDir: 'playwright-logs/'
 //   }
 // })
+// Check environment variables for log configuration
+const DISABLE_LOGS = process.env.DISABLE_LOGS === 'true'
+
+const DISABLE_FILE_LOGS =
+  process.env.DISABLE_FILE_LOGS === 'true' || DISABLE_LOGS
+
+const DISABLE_CONSOLE_LOGS =
+  process.env.DISABLE_CONSOLE_LOGS === 'true' || DISABLE_LOGS
+
 // ORGANIZED LOGS
 log.configure({
+  console: {
+    enabled: !DISABLE_CONSOLE_LOGS
+  },
   fileLogging: {
-    enabled: true,
+    enabled: !DISABLE_FILE_LOGS,
     defaultTestFolder: 'before-hooks', // all hooks go to the default folder
     forceConsolidated: false, // Explicitly disable consolidation
     outputDir: 'playwright-logs/'

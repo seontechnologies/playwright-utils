@@ -14,6 +14,7 @@ import type { AuthSessionOptions, AuthIdentifiers } from './internal/types'
 import { AuthSessionManager } from './internal/auth-session'
 import { getAuthProvider } from './internal/auth-provider'
 import { getTokenFilePath } from './internal/auth-storage-utils'
+import { log } from '../log'
 
 // Export AuthSessionManager class for internal usage only (not part of public API)
 export { AuthSessionManager }
@@ -36,10 +37,12 @@ function extractTokenFromData(
     }
 
     // No extractToken method implemented
-    console.warn('Provider does not implement extractToken method')
+    log.warningSync('Provider does not implement extractToken method')
     return null
   } catch (error) {
-    console.error('Error extracting token:', error)
+    log.errorSync(
+      `Error extracting token: ${error instanceof Error ? error.message : String(error)}`
+    )
     return null
   }
 }
@@ -51,7 +54,7 @@ function checkTokenExpiration(tokenData: Record<string, unknown>): boolean {
     // Extract the raw token first
     const rawToken = extractTokenFromData(tokenData)
     if (rawToken === null) {
-      console.warn('Cannot extract token, considering expired')
+      log.warningSync('Cannot extract token, considering expired')
       return true // Can't extract token, consider expired
     }
 
@@ -65,7 +68,9 @@ function checkTokenExpiration(tokenData: Record<string, unknown>): boolean {
     // This encourages implementing the method in the provider
     return false
   } catch (error) {
-    console.error('Error checking token expiration:', error)
+    log.errorSync(
+      `Error checking token expiration: ${error instanceof Error ? error.message : String(error)}`
+    )
     return true // Consider token expired if we encounter an error
   }
 }
@@ -110,7 +115,9 @@ export function loadTokenFromStorage(
 
     return token
   } catch (err) {
-    console.error(`Error loading token from ${tokenPath}:`, err)
+    log.errorSync(
+      `Error loading token from ${tokenPath}: ${err instanceof Error ? err.message : String(err)}`
+    )
     return null
   }
 }
@@ -133,7 +140,9 @@ export function saveTokenToStorage(tokenPath: string, token: string): boolean {
     fs.writeFileSync(tokenPath, token)
     return true
   } catch (err) {
-    console.error(`Error saving token to ${tokenPath}:`, err)
+    log.errorSync(
+      `Error saving token to ${tokenPath}: ${err instanceof Error ? err.message : String(err)}`
+    )
     return false
   }
 }
@@ -171,7 +180,9 @@ export function loadStorageState(
 
     return storageState
   } catch (error) {
-    console.error(`Error loading storage state from ${tokenPath}:`, error)
+    log.errorSync(
+      `Error loading storage state from ${tokenPath}: ${error instanceof Error ? error.message : String(error)}`
+    )
     return null
   }
 }
@@ -246,7 +257,7 @@ export function clearAuthToken(options?: AuthIdentifiers): boolean {
   // If auth session isn't configured, create a minimal configuration
   // This allows the function to work even when called directly
   if (!globalOptions) {
-    console.log(
+    log.infoSync(
       'Auth session not explicitly configured. Using default configuration.'
     )
 
