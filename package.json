@@ -87,7 +87,7 @@
   },
   "scripts": {
     "start:sample-app": "cd sample-app && npm start",
-    "postinstall": "npm run build",
+    "prepare": "npm run build",
     "publish:local": "./scripts/publish.sh",
     "build": "rm -rf dist && tsc -p tsconfig-build.json",
     "prettier": "prettier --ignore-path .gitignore \"**/*.+(js|ts|json)\"",

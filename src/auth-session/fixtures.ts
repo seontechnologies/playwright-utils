@@ -66,9 +66,18 @@ export function createAuthFixtures() {
         return
       }
 
-      // Get token using the auth provider
-      const token = await authProvider.manageAuthToken(request, authOptions)
-      await use(token)
+      // Get token using the auth provider - now returns Record<string, unknown>
+      const storageState = await authProvider.manageAuthToken(
+        request,
+        authOptions
+      )
+
+      // Extract raw token from storage state
+      const provider = getAuthProvider()
+      const rawToken = provider.extractToken(storageState) || ''
+
+      // Use the extracted token
+      await use(rawToken)
     },
 
     /**
@@ -110,11 +119,12 @@ export function createAuthFixtures() {
 
       // Only apply auth if session is enabled
       if (authSessionEnabled) {
-        // Get token using the auth provider
-        const token = await authProvider.manageAuthToken(request, authOptions)
+        // Get token using the auth provider - this saves token to storage
+        await authProvider.manageAuthToken(request, authOptions)
 
-        // Apply auth token to browser context
-        await authProvider.applyToBrowserContext(context, token, authOptions)
+        // No need to explicitly apply token to browser context
+        // Playwright's native storage state functionality handles this automatically
+        // through the storageState option when creating the context
       } else {
         console.log(
           'Auth session disabled - skipping token application to browser context'

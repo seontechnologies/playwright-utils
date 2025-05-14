@@ -4,21 +4,16 @@
  * following SEON's functional programming principles
  */
 
-import type { APIRequestContext, BrowserContext } from '@playwright/test'
+import type { APIRequestContext } from '@playwright/test'
 import {
   configureAuthSession as configureAuth,
   getGlobalAuthOptions
 } from './internal/auth-configure'
-import {
-  getStorageStatePath,
-  safeWriteJsonFile,
-  safeReadJsonFile
-} from './internal/auth-storage-utils'
 import * as fs from 'fs'
-import * as path from 'path'
 import type { AuthSessionOptions, AuthIdentifiers } from './internal/types'
 import { AuthSessionManager } from './internal/auth-session'
 import { getAuthProvider } from './internal/auth-provider'
+import { getTokenFilePath } from './internal/auth-storage-utils'
 
 // Export AuthSessionManager class for internal usage only (not part of public API)
 export { AuthSessionManager }
@@ -121,59 +116,63 @@ export function loadTokenFromStorage(
 }
 
 /**
- * Save a token to storage with optional metadata
- *
- * @param options Configuration options
+ * Save a token to storage
+ * @param tokenPath Path to the token file
+ * @param token Token to save
+ * @returns Boolean indicating whether the token was successfully saved
  */
-export function saveTokenToStorage(options: {
-  /** Path to save the token file */
-  tokenPath: string
-  /** The authentication token */
-  token: string
-  /** Optional metadata to include with the token */
-  metadata?: Record<string, unknown>
-  /** Enable debug logging */
-  debug?: boolean
-}): void {
-  const { tokenPath, token, metadata = {}, debug = false } = options
-
+export function saveTokenToStorage(tokenPath: string, token: string): boolean {
   try {
-    const storageDir = path.dirname(tokenPath)
-
-    // Ensure the storage directory exists
-    if (!fs.existsSync(storageDir)) {
-      fs.mkdirSync(storageDir, { recursive: true })
-      if (debug) {
-        console.log(`Created directory ${storageDir} for token storage`)
-      }
+    // Ensure the directory exists
+    const dir = require('path').dirname(tokenPath)
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
     }
 
-    // Create a simple token data structure
-    // Each provider will extract the token using its extractToken method
-    const tokenData: Record<string, unknown> = {
-      token,
-      createdAt: new Date().toISOString(),
-      ...metadata // Include any additional metadata
+    // Write token to file
+    fs.writeFileSync(tokenPath, token)
+    return true
+  } catch (err) {
+    console.error(`Error saving token to ${tokenPath}:`, err)
+    return false
+  }
+}
+
+/**
+ * Load a storage state file and parse it into an object in one step
+ * This simplifies token management by handling both loading and parsing
+ *
+ * @param tokenPath Path to the storage state file
+ * @param skipIfExpired Whether to check if the token is expired
+ * @returns The parsed storage state object or null if invalid/expired
+ */
+export function loadStorageState(
+  tokenPath: string,
+  skipIfExpired = true
+): Record<string, unknown> | null {
+  try {
+    // First check if we have a valid token string using existing function
+    if (!fs.existsSync(tokenPath)) {
+      return null
     }
 
-    // Save token with metadata (both from provider and passed in)
-    fs.writeFileSync(
-      tokenPath,
-      JSON.stringify(
-        {
-          ...tokenData,
-          ...metadata
-        },
-        null,
-        2
-      )
-    )
-
-    if (debug) {
-      console.log(`Saved token to ${tokenPath}`)
+    // Read and parse the raw storage state file
+    const rawData = fs.readFileSync(tokenPath, 'utf8')
+    if (!rawData?.trim()) {
+      return null
     }
+
+    const storageState = JSON.parse(rawData)
+
+    // Validate the token if needed
+    if (skipIfExpired && checkTokenExpiration(storageState)) {
+      return null // Token is expired
+    }
+
+    return storageState
   } catch (error) {
-    console.error(`Error saving token to ${tokenPath}:`, error)
+    console.error(`Error loading storage state from ${tokenPath}:`, error)
+    return null
   }
 }
 
@@ -188,33 +187,51 @@ export const configureAuthSession = (options: AuthSessionOptions) =>
  * Get an authentication token, fetching a new one if needed
  * @param request The Playwright APIRequestContext
  * @param options Optional environment and user role overrides
- * @returns A promise that resolves to the authentication token
+ * @returns A promise that resolves to a storage state object compatible with Playwright context
  */
 export async function getAuthToken(
   request: APIRequestContext,
   options?: AuthIdentifiers
-): Promise<string> {
-  // Step 1: Check if basic configuration exists (from configureAuthSession)
-  const globalOptions = getGlobalAuthOptions()
-  if (!globalOptions) {
-    throw new Error(
-      'Basic auth configuration missing. You must call configureAuthSession() first to set up storage paths.'
-    )
-  }
-
-  // Step 2: Check if a custom provider is configured (from setAuthProvider)
+): Promise<Record<string, unknown>> {
   const provider = getAuthProvider()
-  if (!provider) {
-    throw new Error(
-      'No auth provider configured. You must call setAuthProvider() with your custom provider.'
-    )
+  const environment = provider.getEnvironment(options)
+  const userRole = provider.getUserRole(options)
+
+  // Initialize the AuthSessionManager for centralized token management
+  // Convert AuthIdentifiers to AuthSessionOptions
+  const sessionOptions: AuthSessionOptions = {
+    debug: true // Enable debug by default for auth operations
+  }
+  const sessionManager = AuthSessionManager.getInstance(sessionOptions)
+
+  // Get the token file path based on environment and role
+  const tokenPath = getTokenFilePath({
+    environment,
+    userRole
+  })
+
+  // Try to load an existing storage state with all parsing handled for us
+  const existingStorageState = loadStorageState(tokenPath, true)
+  if (existingStorageState) {
+    return existingStorageState
   }
 
-  // Step 3: Use the custom provider with configuration from both sources
-  return provider.manageAuthToken(request, {
-    environment: options?.environment,
-    userRole: options?.userRole
+  // If no valid token exists, request a new one from the provider
+  const storageState = await provider.manageAuthToken(request, {
+    environment,
+    userRole,
+    ...options
   })
+
+  // Save the storage state for future use
+  // Convert to string for storage while preserving the object for return
+  if (storageState) {
+    const tokenString = JSON.stringify(storageState)
+    sessionManager.saveToken(tokenString)
+  }
+
+  // Return the storage state object for use with Playwright context
+  return storageState
 }
 
 /**
@@ -225,13 +242,27 @@ export async function getAuthToken(
 export function clearAuthToken(options?: AuthIdentifiers): boolean {
   // Get global auth options
   const globalOptions = getGlobalAuthOptions()
+
+  // If auth session isn't configured, create a minimal configuration
+  // This allows the function to work even when called directly
   if (!globalOptions) {
-    throw new Error(
-      'Auth session not configured. Call configureAuthSession first.'
+    console.log(
+      'Auth session not explicitly configured. Using default configuration.'
     )
+
+    // Use default options
+    const defaultOptions: AuthSessionOptions = {
+      debug: false,
+      storageDir: process.env.AUTH_STORAGE_DIR || './.auth',
+      ...options
+    }
+
+    // Create auth manager with minimal config
+    const authManager = AuthSessionManager.getInstance(defaultOptions)
+    return authManager.clearToken()
   }
 
-  // Create full options
+  // Normal path when auth session is configured properly
   const fullOptions: AuthSessionOptions = {
     ...globalOptions,
     ...options
@@ -240,121 +271,4 @@ export function clearAuthToken(options?: AuthIdentifiers): boolean {
   const authManager = AuthSessionManager.getInstance(fullOptions)
   // Return success indicator
   return authManager.clearToken()
-}
-
-/**
- * Apply the authentication token to a browser context for UI testing
- * @param context The Playwright BrowserContext
- * @param token The authentication token to apply
- * @param options Optional environment and user role overrides
- * @returns A promise that resolves when the token has been applied
- */
-export async function applyAuthToBrowserContext(
-  context: BrowserContext,
-  token: string,
-  options?: AuthIdentifiers & {
-    /**
-     * URL to navigate to for initializing auth (defaults to '/' using baseURL from context)
-     * Set to null to skip navigation entirely
-     */
-    navigationUrl?: string | null
-  }
-): Promise<void> {
-  const statePath = getStorageStatePath(options)
-
-  // Save the current state to a temporary path first to avoid race conditions
-  const tmpStatePath = `${statePath}.${Date.now()}.tmp`
-
-  try {
-    // Save to temporary file first
-    await context.storageState({ path: tmpStatePath })
-
-    // Read the temporary file - await the async operation
-    const stateData = await safeReadJsonFile(tmpStatePath, {
-      cookies: [],
-      origins: []
-    })
-
-    // Write atomically to the final location - await the async operation
-    await safeWriteJsonFile(statePath, stateData)
-
-    // Clean up temp file
-    if (fs.existsSync(tmpStatePath)) {
-      fs.unlinkSync(tmpStatePath)
-    }
-  } catch (err) {
-    const error = err as Error
-    console.warn(`Error saving storage state: ${error.message}`)
-    // Clean up temp file if it exists
-    if (fs.existsSync(tmpStatePath)) {
-      try {
-        fs.unlinkSync(tmpStatePath)
-      } catch {
-        // Ignore cleanup errors
-      }
-    }
-  }
-
-  // Add the auth token to localStorage using an init script
-  await context.addInitScript((token: string) => {
-    window.localStorage.setItem('authToken', token)
-  }, token)
-
-  // Skip navigation if explicitly set to null
-  if (options?.navigationUrl !== null) {
-    // Create a new page for token initialization
-    const page = await context.newPage()
-
-    try {
-      // Navigate to the specified URL or default to root
-      const url = options?.navigationUrl || '/'
-      await page.goto(url, { timeout: 10000 }).catch((error) => {
-        console.warn(`Navigation to ${url} failed: ${error.message}`)
-        console.warn('Auth token was added via script, but navigation failed.')
-        console.warn(
-          'This may affect cookies. Consider using options.navigationUrl to specify a valid URL.'
-        )
-      })
-    } finally {
-      // Always close the page, even if navigation fails
-      await page.close()
-    }
-  } else {
-    console.log(
-      'Navigation skipped (options.navigationUrl=null). Token added via script only.'
-    )
-  }
-
-  // Save the state with the token using safe file operations
-  const finalStatePath = `${statePath}.${Date.now()}.tmp`
-
-  try {
-    // Save to temporary file first
-    await context.storageState({ path: finalStatePath })
-
-    // Read the temporary file - await the async operation
-    const stateData = await safeReadJsonFile(finalStatePath, {
-      cookies: [],
-      origins: []
-    })
-
-    // Write atomically to the final location - await the async operation
-    await safeWriteJsonFile(statePath, stateData)
-
-    // Clean up temp file
-    if (fs.existsSync(finalStatePath)) {
-      fs.unlinkSync(finalStatePath)
-    }
-  } catch (err) {
-    const error = err as Error
-    console.warn(`Error saving storage state: ${error.message}`)
-    // Clean up temp file if it exists
-    if (fs.existsSync(finalStatePath)) {
-      try {
-        fs.unlinkSync(finalStatePath)
-      } catch {
-        // Ignore cleanup errors
-      }
-    }
-  }
 }

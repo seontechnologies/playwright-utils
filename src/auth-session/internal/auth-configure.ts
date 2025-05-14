@@ -14,12 +14,15 @@ dotenvConfig({
   path: path.resolve(__dirname, '../../.env')
 })
 
-// Dynamically calculate storage paths based on configuration
+/**
+ * Standard empty Playwright storage state format
+ */
+const EMPTY_STORAGE_STATE = {
+  cookies: [],
+  origins: []
+}
 
-/** Configure minimal auth storage settings required by custom auth providers
- *
- * This function only sets up storage paths and debugging options.
- * It does NOT handle token acquisition or environment/role management (that should be done by the auth provider).
+/** Configure auth storage settings required by auth providers
  *
  * @param options Configuration options including storage paths and debug settings
  */
@@ -34,41 +37,80 @@ export function configureAuthSession(
     fs.mkdirSync(storageDir, { recursive: true })
   }
 
-  // Create the configuration file path
-  const configFilePath = path.join(storageDir, 'auth-config.json')
+  // Single path for configuration and token storage
+  const storageStatePath = path.join(storageDir, 'storage-state.json')
 
-  // Extract only the core options needed for storage and debugging
-  const coreConfig = {
+  // Extract core configuration options
+  const configMetadata = {
     storageDir: options.storageDir || storageDir,
     debug: options.debug || false,
     configId: uuidv4(),
     timestamp: new Date().toISOString()
   }
 
-  fs.writeFileSync(configFilePath, JSON.stringify(coreConfig, null, 2))
-  console.log(`Auth storage configuration saved to ${configFilePath}`)
+  // Create a valid Playwright storage state with embedded configuration
+  let storageState = {
+    ...EMPTY_STORAGE_STATE,
+    _authConfig: configMetadata
+  }
+
+  // If storage state already exists, preserve existing cookies and origins
+  if (fs.existsSync(storageStatePath)) {
+    try {
+      const existingData = fs.readFileSync(storageStatePath, 'utf8')
+      if (existingData && existingData.trim()) {
+        const parsed = JSON.parse(existingData)
+        storageState = {
+          cookies: parsed.cookies || [],
+          origins: parsed.origins || [],
+          _authConfig: configMetadata
+        }
+      }
+    } catch (error) {
+      console.warn(
+        `Error reading existing storage state: ${error}, creating new file`
+      )
+    }
+  }
+
+  // Write the storage state file
+  fs.writeFileSync(storageStatePath, JSON.stringify(storageState, null, 2))
+  console.log(`Auth configuration saved to ${storageStatePath}`)
 }
 
-/** Get the current global auth session options
- * @returns The global auth options or null if not configured */
+/**
+ * Get the current global auth session options
+ * @returns The global auth options or null if not configured
+ */
 export function getGlobalAuthOptions(): AuthSessionOptions | null {
   try {
-    // We have a standard location for the auth configuration
+    // We have a standard location for auth configuration
     const storageDir = getStorageDir()
-    const configFilePath = path.join(storageDir, 'auth-config.json')
+    const storageStatePath = path.join(storageDir, 'storage-state.json')
 
-    if (fs.existsSync(configFilePath)) {
-      const configData = fs.readFileSync(configFilePath, 'utf8')
-      return JSON.parse(configData)
+    if (fs.existsSync(storageStatePath)) {
+      try {
+        const storageData = fs.readFileSync(storageStatePath, 'utf8')
+        const parsedStorage = JSON.parse(storageData)
+
+        // Get config from storage state
+        if (parsedStorage._authConfig) {
+          return parsedStorage._authConfig
+        }
+      } catch (storageError) {
+        console.warn(`Error reading storage state file: ${storageError}`)
+      }
     }
   } catch (error) {
-    console.error('Error reading auth configuration:', error)
+    console.error('Error accessing auth configuration:', error)
   }
   return null
 }
 
-/**  Initialize auth configuration with project defaults
- * @returns The configuration options that were applied */
+/**
+ * Initialize auth configuration with project defaults
+ * @returns The configuration options that were applied
+ */
 export function initializeDefaultConfiguration(): AuthSessionOptions {
   // Get default storage directory path
   const defaultStorageDir = getStorageDir()

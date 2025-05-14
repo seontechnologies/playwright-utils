@@ -58,24 +58,27 @@ const getCurrentUserRole = (options?: { userRole?: string }): string => {
 }
 
 /**
- * Get the storage directory path based on environment and user role
+ * Get the storage directory path based on environment, role, and optional user identifier
  * @param options Configuration options
  * @param options.environment Test environment (e.g., 'local', 'dev', 'staging')
  * @param options.userRole User role for storage separation
+ * @param options.userIdentifier Optional unique identifier for multiple users with same role
  * @param options.basePath Base path for storage (defaults to current working directory)
  * @returns Path to the auth storage directory
  */
-// Simple fixed directory for auth storage
 export const getStorageDir = (
   options?: AuthIdentifiers & AuthStorageConfig
 ): string => {
-  // Always use a fixed path at repo root, organized by environment and role
-  return path.join(
-    process.cwd(),
-    '.auth-sessions',
-    getCurrentEnvironment(options),
-    getCurrentUserRole(options)
-  )
+  const environment = getCurrentEnvironment(options)
+  const userRole = getCurrentUserRole(options)
+
+  // Create a unique directory path when userIdentifier is provided
+  // This allows multiple users with the same role to have separate token storage
+  const rolePath = options?.userIdentifier
+    ? `${userRole}_${options.userIdentifier}`
+    : userRole
+
+  return path.join(process.cwd(), '.auth', environment, rolePath)
 }
 
 /**
@@ -91,24 +94,30 @@ export const getStorageStatePath = (
 ): string => path.join(getStorageDir(options), 'storage-state.json')
 
 /**
- * Generate a token file path based on environment and user role
- * @param options Options for token file path generation
+ * Get the file path for token storage
  * @param options.environment Environment for storage separation
  * @param options.userRole User role for storage separation
- * @param options.tokenFileName Custom token filename
+ * @param options.userIdentifier Optional unique identifier for multiple users with same role
+ * @param options.tokenFileName Custom token filename (ignored - always uses storage-state.json)
  * @param options.authStoragePath Custom storage path (defaults to process.cwd())
  * @param options.useDirectStoragePath Use direct storage path
  * @returns Path to the token file
  */
-export function getTokenFilePath(
+export const getTokenFilePath = (
   options?: AuthIdentifiers &
     AuthStorageConfig & {
       tokenFileName?: string
       useDirectStoragePath?: boolean
     }
-): string {
-  const tokenFileName = options?.tokenFileName || 'auth-token.json'
-  return path.join(getStorageDir(options), tokenFileName)
+): string => {
+  if (options?.useDirectStoragePath) {
+    const tokenFileName = options?.tokenFileName || 'storage-state.json'
+    return options.storageDir
+      ? path.join(options.storageDir, tokenFileName)
+      : path.join(getStorageDir(options), tokenFileName)
+  }
+
+  return path.join(getStorageDir(options), 'storage-state.json')
 }
 
 // Default paths using the current environment

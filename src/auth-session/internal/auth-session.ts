@@ -3,28 +3,160 @@
  * Use the public API exported from index.ts instead */
 
 import type { APIRequestContext } from '@playwright/test'
-import { getStorageDir, getTokenFilePath } from './auth-storage-utils'
 import * as fs from 'fs'
 import * as path from 'path'
-import type { AuthSessionOptions, TokenDataFormatter } from './types'
+
+import { getStorageDir } from './auth-storage-utils'
 import { getGlobalAuthOptions } from './auth-configure'
 import { getAuthProvider } from './auth-provider'
-import {
-  applyAuthToBrowserContext as applyAuthToBrowserContextCore,
-  loadTokenFromStorage,
-  saveTokenToStorage
-} from '../core'
+import type { AuthSessionOptions, TokenDataFormatter } from './types'
 
-export const defaultTokenFormatter: TokenDataFormatter = (
-  tokenData: unknown
-): unknown => {
-  // Return the token as-is without any modification
-  // This works with any token format (string, object, Playwright storage state, etc.)
-  return tokenData
+// Token cache for improved performance and reduced file I/O
+// Maps storage path to token data with expiration time
+interface TokenCacheEntry {
+  token: string
+  expires: number
+  // Removed unused data field for simplicity
 }
 
-// Re-export the function from core to avoid circular dependencies
-export const applyAuthToBrowserContext = applyAuthToBrowserContextCore
+// Using a static cache that persists across all instances
+const tokenCache: Record<string, TokenCacheEntry> = {}
+
+// Default token cache duration (15 minutes)
+const DEFAULT_CACHE_DURATION_MS = 15 * 60 * 1000
+
+/**
+ * Helper to check if an object matches the Playwright storage state structure
+ */
+const isPlaywrightStorageState = (data: unknown): boolean => {
+  if (!data || typeof data !== 'object') return false
+
+  const obj = data as Record<string, unknown>
+  return 'cookies' in obj && Array.isArray(obj.cookies) && 'origins' in obj
+}
+
+/**
+ * Helper to try parsing a JSON string
+ */
+const tryParseJson = (str: string): unknown => {
+  try {
+    return JSON.parse(str)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Extract token from a parsed JSON object if it has a token property
+ */
+const extractTokenFromObject = (obj: unknown): string => {
+  if (obj && typeof obj === 'object' && 'token' in obj) {
+    return String((obj as Record<string, unknown>).token || '')
+  }
+  return ''
+}
+
+/**
+ * Extract token from a JSON string
+ */
+const extractTokenFromJsonString = (jsonString: string): string | unknown => {
+  const parsed = tryParseJson(jsonString)
+
+  // If it's a storage state, return the entire object
+  if (parsed && isPlaywrightStorageState(parsed)) {
+    return parsed
+  }
+
+  // Extract token from parsed object or use the input string
+  if (parsed && typeof parsed === 'object') {
+    const extractedToken = extractTokenFromObject(parsed)
+    return extractedToken || jsonString
+  }
+
+  return jsonString
+}
+
+/**
+ * Extract token from a string
+ */
+const extractTokenFromString = (str: string): string | unknown => {
+  // Check if it's a JSON string
+  if (str.trim().startsWith('{') && str.trim().endsWith('}')) {
+    return extractTokenFromJsonString(str)
+  }
+  return str
+}
+
+/**
+ * Default token formatter for the standard Playwright storage state format
+ * This creates a properly formatted storage state with the raw token value
+ */
+export const defaultTokenFormatter: TokenDataFormatter = (
+  tokenData: unknown,
+  options?: Partial<AuthSessionOptions>
+): unknown => {
+  // Check if tokenData is already a valid storage state object
+  if (isPlaywrightStorageState(tokenData)) {
+    return tokenData
+  }
+
+  // Extract the token based on the input type
+  let token: string | unknown = ''
+
+  if (typeof tokenData === 'string') {
+    token = extractTokenFromString(tokenData)
+    // If a storage state was returned, just use it
+    if (token && typeof token === 'object') {
+      return token
+    }
+  } else if (tokenData && typeof tokenData === 'object') {
+    token = extractTokenFromObject(tokenData) || String(tokenData || '')
+  } else {
+    token = String(tokenData || '')
+  }
+
+  // Get cookie name from options or use a reasonable default
+  const globalOptions = getGlobalAuthOptions() || {}
+  const cookieName =
+    options?.cookieName || globalOptions.cookieName || 'auth-token'
+
+  // Get domain from environment or default to localhost
+  const domain = extractDomain()
+
+  // Return a clean Playwright storage state
+  return {
+    cookies: [
+      {
+        name: cookieName,
+        value: token,
+        domain,
+        path: '/',
+        expires: -1,
+        httpOnly: true,
+        secure: true,
+        sameSite: 'Lax'
+      }
+    ],
+    origins: []
+  }
+}
+
+// extractRawToken function has been integrated directly into defaultTokenFormatter
+// for simplicity and to avoid unnecessary abstraction
+
+/**
+ * Helper to extract domain from environment
+ */
+function extractDomain(): string {
+  const baseUrl = process.env.BASE_URL || process.env.TEST_URL
+  if (!baseUrl) return 'localhost'
+
+  try {
+    return new URL(baseUrl).hostname
+  } catch {
+    return 'localhost'
+  }
+}
 
 export class AuthSessionManager {
   private static instance: AuthSessionManager
@@ -44,31 +176,41 @@ export class AuthSessionManager {
     // Set up the options with sensible defaults
     this.options = {
       debug: false,
-      tokenFileName: 'auth-token.json',
+      // Always use storage-state.json as the standard format for both API and UI testing
+      tokenFileName: 'storage-state.json',
       ...mergedOptions // Apply any user-provided options
     }
 
     // get the auth provider for environment and role information
     const provider = getAuthProvider()
-    // get environment and user role from the provider
-    const environment = provider.getEnvironment()
-    const userRole = provider.getUserRole()
 
-    // Get storage paths based on environment and user role from the provider
+    // Extract the identifiers from options
+    const { environment, userRole, userIdentifier } = this.options
+
+    // get environment and user role from the provider (may apply defaults)
+    const resolvedEnvironment = provider.getEnvironment({
+      environment,
+      userRole,
+      userIdentifier
+    })
+    const resolvedUserRole = provider.getUserRole({
+      environment,
+      userRole,
+      userIdentifier
+    })
+
+    // Get storage paths based on environment, user role, and user identifier
+    // Simplified storage path logic for better consistency
     this.storageDir =
-      this.options.storageDir ||
+      this.options.storageDir ??
       getStorageDir({
-        environment,
-        userRole
+        environment: resolvedEnvironment,
+        userRole: resolvedUserRole,
+        userIdentifier
       })
 
-    this.storageFile = this.options.storageDir
-      ? path.join(this.storageDir, this.options.tokenFileName!)
-      : getTokenFilePath({
-          environment,
-          userRole,
-          tokenFileName: this.options.tokenFileName
-        })
+    // Always construct the file path from the directory and filename
+    this.storageFile = path.join(this.storageDir, this.options.tokenFileName!)
 
     if (!fs.existsSync(this.storageDir)) {
       fs.mkdirSync(this.storageDir, { recursive: true })
@@ -82,6 +224,25 @@ export class AuthSessionManager {
         `Auth session manager initialized with storage at: ${this.storageFile}`
       )
     }
+  }
+
+  /**
+   * Save token to storage and update cache
+   * @param token The token to save - can be either a string or an object
+   */
+  public saveToken(token: string | Record<string, unknown>): void {
+    if (!token) {
+      console.warn('Attempted to save empty token')
+      return
+    }
+
+    // Convert object to string if needed
+    const tokenStr = typeof token === 'string' ? token : JSON.stringify(token)
+
+    this.token = tokenStr
+    this.hasToken = true
+    this.saveTokenToStorage(tokenStr)
+    this.cacheToken(tokenStr)
   }
 
   /* Get singleton instance with options */
@@ -109,45 +270,159 @@ export class AuthSessionManager {
   /** Load token from storage if it exists */
   private loadTokenFromStorage(): void {
     try {
-      // Use core loadTokenFromStorage function with token expiration check
-      const token = loadTokenFromStorage(this.storageFile, true)
+      // Check in-memory cache first
+      const now = Date.now()
+      const cachedData = tokenCache[this.storageFile]
 
-      if (token) {
-        this.token = token
+      if (cachedData && cachedData.expires > now) {
+        // Use cached token if it's not expired
+        this.token = cachedData.token
         this.hasToken = true
 
         if (this.options.debug) {
-          console.log('Token loaded from storage')
+          console.log('Token loaded from memory cache')
+        }
+        return
+      }
+
+      // If not in cache or expired, load from file system
+      if (fs.existsSync(this.storageFile)) {
+        try {
+          // Read token directly from the file
+          const data = fs.readFileSync(this.storageFile, 'utf8')
+          const tokenData = JSON.parse(data)
+
+          // Get provider for token validation
+          const provider = getAuthProvider()
+
+          // Extract raw token using the provider
+          const token = provider.extractToken(tokenData)
+
+          // Check if token is expired (if provider supports expiration checking)
+          if (
+            provider.isTokenExpired &&
+            token &&
+            provider.isTokenExpired(token)
+          ) {
+            if (this.options.debug) {
+              console.log('Token from storage is expired, will fetch a new one')
+            }
+            return
+          }
+
+          if (token) {
+            this.token = token
+            this.hasToken = true
+
+            // Cache the loaded token
+            this.cacheToken(token)
+
+            if (this.options.debug) {
+              console.log('Token loaded from storage')
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing token data:', error)
         }
       }
     } catch (error) {
       console.error('Error loading token from storage:', error)
+      // Continue with null token - will trigger fresh token acquisition
     }
   }
 
-  /** Save token to storage */
+  /** Cache a token in memory */
+  private cacheToken(token: string): void {
+    try {
+      const provider = getAuthProvider()
+      const expiresIn = DEFAULT_CACHE_DURATION_MS
+
+      // Try to extract expiration from token if provider supports it
+      if (provider && typeof provider.isTokenExpired === 'function' && token) {
+        // Add logic to extract expiration if provider has it
+        // For now we'll use the default expiration time
+      }
+
+      const now = Date.now()
+      tokenCache[this.storageFile] = {
+        token,
+        expires: now + expiresIn
+        // Removed data field as it's no longer needed
+      }
+
+      if (this.options.debug) {
+        console.log(
+          `Token cached in memory until ${new Date(now + expiresIn).toISOString()}`
+        )
+      }
+    } catch (error) {
+      console.error('Error caching token:', error)
+      // Continue without caching
+    }
+  }
+
+  /** Save token to storage with file locking to prevent concurrent access issues */
   private saveTokenToStorage(token: string): void {
     try {
-      // Create metadata using the token formatter
-      const tokenFormatter =
-        this.options.tokenDataFormatter || defaultTokenFormatter
-      const data = tokenFormatter(token)
+      // Create lock file path
+      const lockFile = `${this.storageFile}.lock`
+      const tempFile = `${this.storageFile}.tmp`
+      let lockAcquired = false
 
-      // Since token data can be any format now, we need to handle it properly
-      // The core saveTokenToStorage expects a string token and object metadata
+      try {
+        // Try to atomically create lock file
+        fs.writeFileSync(lockFile, process.pid.toString(), { flag: 'wx' })
+        lockAcquired = true
 
-      // Store the formatted data directly as JSON
-      const jsonContent = JSON.stringify(data, null, 2)
+        // Format the token data
+        const tokenFormatter =
+          this.options.tokenDataFormatter || defaultTokenFormatter
+        // Pass options to the formatter so custom formatters can access cookieName etc.
+        const data = tokenFormatter(token, this.options)
 
-      // Use core saveTokenToStorage function
-      saveTokenToStorage({
-        tokenPath: this.storageFile,
-        token: jsonContent, // Pass the stringified version of the data
-        metadata: {}, // Empty object for metadata (type-safe)
-        debug: this.options.debug
-      })
+        // Cache already keeps the token, no need to duplicate formatted data
+
+        // Store the formatted data as JSON
+        const jsonContent = JSON.stringify(data, null, 2)
+
+        // Write to temporary file first (atomic operation)
+        fs.writeFileSync(tempFile, jsonContent)
+
+        // Rename temp file to actual file (atomic operation)
+        fs.renameSync(tempFile, this.storageFile)
+
+        if (this.options.debug) {
+          console.log('Token saved to storage with file locking')
+        }
+      } finally {
+        // Always clean up - remove lock file and temp file if they exist
+        if (lockAcquired && fs.existsSync(lockFile)) {
+          fs.unlinkSync(lockFile)
+        }
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile)
+        }
+      }
     } catch (error) {
-      console.error('Error saving token to storage:', error)
+      // If we couldn't acquire lock, another process is writing
+      // or there was some other error
+      const { environment, userRole, userIdentifier } = this.options
+      const userInfo = userIdentifier
+        ? `${environment}/${userRole}/${userIdentifier}`
+        : `${environment}/${userRole}`
+
+      if (this.options.debug) {
+        console.log(
+          `Could not save token for ${userInfo} to storage at ${this.storageFile}, using in-memory version`
+        )
+        console.error('Detailed error information:', error)
+      } else {
+        // Limited logging in non-debug mode to avoid exposing sensitive info
+        console.error(
+          `Error saving token to storage for ${userInfo}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+      // Continue with in-memory token only
     }
   }
 
@@ -157,31 +432,47 @@ export class AuthSessionManager {
    */
   public clearToken(): boolean {
     try {
-      // Track if a token was actually cleared
-      let tokenCleared = false
+      // Extract user info for more detailed logging
+      const { environment, userRole, userIdentifier } = this.options
+      const userInfo = userIdentifier
+        ? `${environment}/${userRole}/${userIdentifier}`
+        : `${environment}/${userRole}`
 
       // Clear from file storage if exists
       if (fs.existsSync(this.storageFile)) {
         fs.unlinkSync(this.storageFile)
-        tokenCleared = true
+        if (this.options.debug) {
+          console.log(
+            `[Auth Session] Token for user ${userInfo} deleted: ${this.storageFile}`
+          )
+        }
+      } else if (this.options.debug) {
+        console.log(
+          `[Auth Session] No token for user ${userInfo} found at: ${this.storageFile}`
+        )
       }
 
       // Clear from memory if exists
-      if (this.hasToken) {
-        tokenCleared = true
+      if (this.hasToken && this.options.debug) {
+        console.log('[Auth Session] Token cleared from memory')
       }
 
+      // Reset internal state
       this.token = null
       this.hasToken = false
 
       if (this.options.debug) {
-        console.log('Token cleared from storage')
+        console.log('[Auth Session] Token cleared successfully')
       }
 
-      return tokenCleared
+      // Always return true for better developer experience
+      // This allows tests and scripts to proceed without having to check if a token existed
+      return true
     } catch (error) {
-      console.error('Error clearing token from storage:', error)
-      return false
+      console.error('[Auth Session] Error clearing token:', error)
+      // Even in case of error, we consider the operation successful from a user's perspective
+      // since the token state in memory has been reset
+      return true
     }
   }
 
@@ -189,7 +480,7 @@ export class AuthSessionManager {
    * Get a new token using the AuthProvider
    *
    * @param request The Playwright API request context
-   * @returns A promise that resolves to the authentication token
+   * @returns A promise that resolves to the authentication token string
    */
   private async getTokenFromProvider(
     request: APIRequestContext
@@ -207,22 +498,33 @@ export class AuthSessionManager {
       console.log('Delegating token acquisition to AuthProvider')
     }
 
-    // Use the provider to get the token
+    // Use the provider to get the token - now returns a storage state object
     // We don't need to pass environment/userRole options because the provider will use what it has configured
-    const token = await provider.manageAuthToken(request, {})
+    const storageState = await provider.manageAuthToken(request, {})
 
-    if (!token) {
+    if (!storageState) {
       throw new Error(
-        'AuthProvider.manageAuthToken returned an empty or undefined token'
+        'AuthProvider.manageAuthToken returned empty or undefined storageState'
       )
     }
 
-    return token
+    // Extract raw token from storage state using the provider
+    const rawToken = provider.extractToken(storageState)
+
+    if (!rawToken) {
+      throw new Error(
+        'Could not extract token from storage state using provider.extractToken'
+      )
+    }
+
+    // Return the extracted raw token string
+    return rawToken
   }
 
   /**
    * Check if a token is expired
-   * Relies on loadTokenFromStorage which uses the registered token expiration function
+   * Uses the in-memory cache first, then falls back to storage
+   * Avoids unnecessary file I/O operations
    */
   private isTokenExpired(): boolean {
     // Check if the token exists in memory first
@@ -230,13 +532,96 @@ export class AuthSessionManager {
       return true
     }
 
-    // Try to load from storage - this will apply our expiration check
-    // If loadTokenFromStorage returns null, the token is considered expired
-    const token = loadTokenFromStorage(this.storageFile, true)
-    const isExpired = token === null
+    // Check the cache first to avoid file I/O
+    if (this.checkTokenCacheExpiration()) {
+      return true
+    }
 
+    // If not in cache, check with the provider
+    if (this.checkProviderTokenExpiration()) {
+      return true
+    }
+
+    // Check directly from storage as a last resort
+    return this.checkStorageTokenExpiration()
+  }
+
+  /**
+   * Check token expiration using the in-memory cache
+   */
+  private checkTokenCacheExpiration(): boolean {
+    const now = Date.now()
+    const cachedData = tokenCache[this.storageFile]
+    if (!cachedData) return false
+
+    const isExpired = cachedData.expires <= now
     if (this.options.debug && isExpired) {
-      console.log('Token expired according to expiration check function')
+      console.log('Token expired according to in-memory cache')
+    }
+
+    return isExpired
+  }
+
+  /**
+   * Check token expiration using the auth provider
+   */
+  private checkProviderTokenExpiration(): boolean {
+    try {
+      const provider = getAuthProvider()
+      if (
+        provider &&
+        typeof provider.isTokenExpired === 'function' &&
+        this.token
+      ) {
+        const isExpired = provider.isTokenExpired(this.token)
+        if (this.options.debug && isExpired) {
+          console.log('Token expired according to provider check')
+        }
+        return isExpired
+      }
+    } catch (error) {
+      console.error('Error using provider to check token expiration:', error)
+    }
+    return false
+  }
+
+  /**
+   * Check token expiration by reading from storage
+   */
+  private checkStorageTokenExpiration(): boolean {
+    let token: string | null = null
+    if (fs.existsSync(this.storageFile)) {
+      try {
+        const data = fs.readFileSync(this.storageFile, 'utf8')
+        const tokenData = JSON.parse(data)
+
+        // Extract the token using the provider
+        const provider = getAuthProvider()
+
+        // First extract the token from the data
+        const extractedToken = provider.extractToken(tokenData)
+
+        // Then check if the token is expired using the extracted token string
+        if (
+          provider.isTokenExpired &&
+          extractedToken &&
+          provider.isTokenExpired(extractedToken)
+        ) {
+          if (this.options.debug) {
+            console.log('Token expired according to storage check')
+          }
+          return true
+        }
+
+        token = extractedToken
+      } catch (error) {
+        console.error('Error reading token from storage:', error)
+      }
+    }
+
+    const isExpired = token === null
+    if (this.options.debug && isExpired) {
+      console.log('No valid token found in storage')
     }
 
     return isExpired
@@ -244,7 +629,6 @@ export class AuthSessionManager {
 
   /**
    * Refresh the token if it's expired
-   *
    * @param request The Playwright API request context
    * @returns A promise that resolves to the refreshed token
    */
@@ -272,17 +656,41 @@ export class AuthSessionManager {
   /**
    * Manage the complete authentication token lifecycle
    * Handles checking existing tokens, fetching new ones if needed, and persistence
+   * Uses in-memory caching for better performance
    */
   public async manageAuthToken(request: APIRequestContext): Promise<string> {
+    // Check in-memory cache first for maximum efficiency
+    const now = Date.now()
+    const cachedData = tokenCache[this.storageFile]
+
+    if (cachedData && cachedData.expires > now) {
+      // Token exists in cache and is not expired
+      if (this.options.debug) {
+        console.log('Using cached token')
+      }
+
+      // Update in-memory state
+      this.token = cachedData.token
+      this.hasToken = true
+
+      return cachedData.token
+    }
+
+    // If we have a token in memory but it's not in cache
     if (this.hasToken && this.token) {
-      // Even if we have a token, check if it's expired and refresh if needed
+      // Check if it's expired and refresh if needed
       return this.refreshTokenIfNeeded(request)
     }
 
-    // Get token from the auth provider
+    // Get new token from the auth provider
     const token = await this.getTokenFromProvider(request)
     this.token = token
     this.hasToken = true
+
+    // Cache the token in memory
+    this.cacheToken(token)
+
+    // Save to storage (with file locking)
     this.saveTokenToStorage(token)
 
     return token

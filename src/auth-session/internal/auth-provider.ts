@@ -1,6 +1,6 @@
 /** Auth Provider Interface
  * Defines the contract for authentication providers */
-import type { APIRequestContext, BrowserContext } from '@playwright/test'
+import type { APIRequestContext } from '@playwright/test'
 import type { AuthOptions, AuthSessionOptions } from './types'
 
 /**
@@ -46,25 +46,12 @@ export interface AuthProvider {
    *
    * @param request The Playwright API request context
    * @param options Optional auth options that may override the provider's defaults
+   * @returns A storage state object compatible with Playwright's context APIs
    */
   manageAuthToken(
     request: APIRequestContext,
     options?: Partial<AuthOptions>
-  ): Promise<string>
-
-  /**
-   * Apply authentication to a browser context
-   * This is used to set cookies, local storage, etc. as needed for UI testing
-   *
-   * @param context The Playwright browser context
-   * @param token The authentication token
-   * @param options Optional auth options that may override the provider's defaults
-   */
-  applyToBrowserContext(
-    context: BrowserContext,
-    token: string,
-    options?: Partial<AuthOptions>
-  ): Promise<void>
+  ): Promise<Record<string, unknown>>
 
   /**
    * Clear the authentication token
