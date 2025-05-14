@@ -44,7 +44,7 @@ jobs:
 
       # 3. Install dependencies
       - name: Install dependencies
-        run: npm ci --only=prod --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
 
