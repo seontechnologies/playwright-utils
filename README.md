@@ -306,38 +306,22 @@ import {
 // Import your custom auth provider
 import myCustomProvider from './custom-auth-provider'
 
-// CRITICAL: Register the custom auth provider early to ensure it's available for all tests
-// This provides a safeguard in case the global setup doesn't run or complete properly
-setAuthProvider(myCustomProvider)
-
-// Default auth options using the current environment
-const defaultAuthOptions: AuthOptions = {
-  environment: process.env.TEST_ENV || 'local',
-  userRole: 'default'
-}
-
-// Get the fixtures from the factory function
-const fixtures = createAuthFixtures()
-
-// Export the test object with auth fixtures
 export const test = base.extend<AuthFixtures>({
   // For authOptions, we need to define it directly using the Playwright array format
   authOptions: [defaultAuthOptions, { option: true }],
 
   // Use the other fixtures directly
-  authToken: fixtures.authToken,
-  context: fixtures.context,
-  page: fixtures.page
-})
-```
+  ...createAuthFixtures()
+});
 
-3. **Implement Custom Auth Provider** - Create `playwright/support/auth/custom-auth-provider.ts`
-   - Application-specific implementation with your custom token acquisition logic
-   - The main customization point where you implement your auth flow
-
-```typescript
-// 3. Implement Custom Auth Provider (playwright/support/auth/custom-auth-provider.ts)
-import {
+// In your tests, use the auth token
+test('authenticated API request', async ({ authToken, request }) => {
+  const response = await request.get('https://api.example.com/protected', {
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  });
+  
+  expect(response.ok()).toBeTruthy();
+});
   type AuthProvider,
   loadTokenFromStorage,
   saveTokenToStorage,
@@ -371,8 +355,7 @@ const myCustomProvider: AuthProvider = {
     const userRole = this.getUserRole(options)
     const tokenPath = getTokenFilePath({
       environment,
-      userRole,
-      tokenFileName: 'custom-auth-token.json'
+      userRole
     })
 
     // STEP 1: Check for existing token first
@@ -396,8 +379,6 @@ const myCustomProvider: AuthProvider = {
     )
     return token
   }
-
-  // Other required methods - applyToBrowserContext, clearToken...
 }
 
 export default myCustomProvider

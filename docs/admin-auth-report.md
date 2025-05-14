@@ -73,7 +73,7 @@ The Admin React app currently uses a custom authentication implementation for it
 
 1. **Custom Implementation**: Authentication logic is tightly coupled to the specific implementation (Admin only)
 2. **Limited Programmatic Control**: No simple API for managing tokens during test execution
-3. **Fixed Storage Structure**: Hardcoded file paths and environment structures
+3. **Fixed Storage Structure**: Hardcoded file paths with rigid `.auth/${TEST_ENV}/userRole.json` pattern and no support for multiple users with the same role
 4. **No In-memory Caching**: Relies solely on file storage, requiring disk I/O for every test
 5. **Token Validation**: Limited to expiration time checks, not allowing custom validation (ex: signature validation)
 6. **No Unified API/UI Approach**: Different approaches needed for API vs UI authentication (ok for Admin, not ok in a service)
@@ -86,7 +86,7 @@ The Admin React app currently uses a custom authentication implementation for it
 
 1. **Provider-Based Architecture**: The auth-session library's provider interface would allow for a clean separation between token acquisition logic and token management, it would be adaptable to Admin, as well as any UI app or backend service.
 
-2. **Robust Token Storage**: Structured environment and role-based token directory management would replace hardcoded paths.
+2. **Robust Token Storage**: Structured environment and role-based token directory management with standardized `storage-state.json` files replaces hardcoded paths and enables multi-user support with the same role.
 
 3. **Performance Optimization**: In-memory caching would significantly reduce disk I/O operations during test runs.
 
@@ -179,25 +179,6 @@ const seonAdminAuthProvider: AuthProvider = {
     // return token;
   },
 
-  async applyToBrowserContext(context, token, options = {}) {
-    // Apply the token to browser context for UI testing
-    const environment = this.getEnvironment(options)
-    await context.addCookies([
-      {
-        name: 'jwt',
-        value: token,
-        domain:
-          environment === 'local'
-            ? 'localhost'
-            : `admin.${environment}.seon.io`,
-        path: '/',
-        httpOnly: true,
-        secure: environment !== 'local',
-        sameSite: 'Lax'
-      }
-    ])
-  },
-
   clearToken(options = {}) {
     // Clear token for specific environment/role
     const environment = this.getEnvironment(options)
@@ -238,19 +219,18 @@ const seonAdminAuthProvider: AuthProvider = {
 
 ## Stateless Feature Flag Testing with Auth-Session
 
-One significant benefit of the auth-session library is its ability to enable stateless feature flag testing, 
-Ttesting all flag combinations traditionally requires complex state management or deployment configurations.
+One significant benefit of the auth-session library is its ability to enable stateless feature flag testing. Testing all flag combinations traditionally requires complex state management or deployment configurations.
 
 ### Current Feature Flag Testing Challenges
 
-1. **User-Based Feature Flag Targeting**: Feature flag services  assign flag values based on user attributes (email, ID, role, etc.)
+1. **User-Based Feature Flag Targeting**: Feature flag services assign flag values based on user attributes (email, ID, role, etc.)
 2. **Stateful Testing Problems**:
    - Tests dependent on global feature flag state in the environment
    - Inability to test multiple flag states in parallel
    - Test nondeterminism when flag states change between test runs
    - Difficulty testing combinations of features together
 3. **Current Workarounds**:
-   - Stubbing network requests to feature flag services 
+   - Stubbing network requests to feature flag services
    - Conditional testing based on flag state
    - Separate test suites for each flag state (duplicate code)
 
@@ -378,7 +358,7 @@ test('feature flag A/B testing', async ({ context, page, request }) => {
 })
 ```
 
-#### Benefits 
+#### Benefits
 
 1. **Deterministic Feature Flag Testing**: Test specific flag combinations reliably
 2. **Parallel Test Execution**: Different workers can test different flag states simultaneously

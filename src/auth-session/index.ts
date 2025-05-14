@@ -16,7 +16,7 @@ export {
   configureAuthSession,
   getAuthToken,
   clearAuthToken,
-  applyAuthToBrowserContext
+  loadStorageState
 } from './core'
 
 // Global setup helper (optional)
@@ -25,11 +25,15 @@ export { initializeAuthForGlobalSetup } from './global-setup-helper'
 // Storage utilities
 export {
   getStorageStatePath,
-  getTokenFilePath
+  getTokenFilePath,
+  getStorageDir
 } from './internal/auth-storage-utils'
 
 // Global initialization utilities
 export { authStorageInit, authGlobalInit } from './internal/auth-global-setup'
+
+// Token management
+export { AuthSessionManager } from './internal/auth-session'
 
 // Auth Provider API
 export {

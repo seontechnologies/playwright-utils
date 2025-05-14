@@ -28,12 +28,11 @@ import myCustomProvider from './auth/custom-auth-provider'
 async function globalSetup() {
   console.log('Running global setup')
 
-  // Ensure storage directories exist (required for both auth approaches)
-  authStorageInit()
-
   // ========================================================================
   // STEP 1: Configure minimal auth storage settings
   // ========================================================================
+  // Ensure storage directories exist (required for both auth approaches)
+  authStorageInit()
   // This just sets up where tokens will be stored and debug options
   configureAuthSession({
     debug: true

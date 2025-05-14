@@ -8,7 +8,7 @@
  * Authentication storage configuration options for flexibility across different project structures
  */
 export type AuthStorageConfig = {
-  /** Root directory for auth session storage (fixed at process.cwd()/.auth-sessions) */
+  /** Root directory for auth session storage (fixed at process.cwd()/.auth) */
   storageDir?: string
   /** Debug mode to enable additional logging */
   debug?: boolean
@@ -27,17 +27,23 @@ export type AuthStorageConfig = {
  * the token through without modification.
  *
  * @param token The raw token data (could be string, object, etc.)
+ * @param options Optional auth session options to customize formatting
  * @returns Formatted token data ready for storage
  */
-export type TokenDataFormatter = (token: unknown) => unknown
+export type TokenDataFormatter = (
+  token: unknown,
+  options?: Partial<AuthSessionOptions>
+) => unknown
 
 /** Options for the auth session */
-export type AuthSessionOptions = {
-  /** Root directory for auth session storage (default: process.cwd()/.auth-sessions)
+export type AuthSessionOptions = AuthIdentifiers & {
+  /** Root directory for auth session storage (default: process.cwd()/.auth)
    * Note: The environment and user role will be appended to this path by the provider */
   storageDir?: string
-  /** Token filename (default: auth-token.json) */
+  /** Token filename (default: storage-state.json) */
   tokenFileName?: string
+  /** Cookie name to use for authentication (default: auth-token) */
+  cookieName?: string
   /** Custom token data formatter to control how tokens are saved */
   tokenDataFormatter?: TokenDataFormatter
   /** Debug mode (default: false) */
@@ -89,6 +95,12 @@ export type AuthIdentifiers = {
   /** User role to authenticate as
    * @default 'default' */
   userRole?: string
+
+  /** User identifier; email or username */
+  userIdentifier?: string
+
+  /** User password */
+  userPassword?: string
 }
 
 /**
