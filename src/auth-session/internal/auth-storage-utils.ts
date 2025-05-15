@@ -124,25 +124,35 @@ export const getTokenFilePath = (
 export const storageDir = getStorageDir()
 
 /**
- * Initialize storage for auth sessions
- * This ensures the directory structure is ready for auth session storage
+ * Save a complete storage state without any token extraction or processing
+ * Useful for cookie-based authentication that needs entire storage state preserved
  *
- * Creates an empty storage state compatible with Playwright's storageState option:
- * @see https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state
- *
- * @param options Configuration options
- * @param options.environment Test environment (e.g., 'local', 'dev', 'staging')
- * @param options.userRole User role for storage separation
- * @returns Object containing the created storage paths
+ * @param tokenPath - The full path to save the storage state to
+ * @param storageState - The storage state object (Playwright format with cookies and origins)
+ * @returns boolean - Whether the save was successful
  */
-/**
- * Safely write a JSON file using file locking and atomic operations
- * This prevents file corruption during concurrent access
- *
- * @param filePath Path to the JSON file
- * @param data Data to write
- * @param pretty Whether to pretty-print the JSON
- */
+export const saveStorageState = (
+  tokenPath: string,
+  storageState: Record<string, unknown>
+): boolean => {
+  try {
+    // Create directory if needed
+    const storageDir = path.dirname(tokenPath)
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true })
+    }
+
+    // Write storage state to file
+    fs.writeFileSync(tokenPath, JSON.stringify(storageState, null, 2))
+    // Only use sync logging because this might be called during process exit
+    console.log(`Storage state saved to ${tokenPath}`)
+    return true
+  } catch (error) {
+    console.error(`Error saving storage state to ${tokenPath}:`, error)
+    return false
+  }
+}
+
 export async function safeWriteJsonFile<T>(
   filePath: string,
   data: T,
