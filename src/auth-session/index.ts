@@ -26,7 +26,8 @@ export { initializeAuthForGlobalSetup } from './global-setup-helper'
 export {
   getStorageStatePath,
   getTokenFilePath,
-  getStorageDir
+  getStorageDir,
+  saveStorageState
 } from './internal/auth-storage-utils'
 
 // Global initialization utilities
