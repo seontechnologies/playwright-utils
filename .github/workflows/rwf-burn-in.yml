@@ -142,10 +142,6 @@ jobs:
           KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: '0'
           KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
           KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
-          KAFKA_BROKER_ID: '1'
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
-          KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-          KAFKA_DELETE_TOPIC_ENABLE: 'true'
     timeout-minutes: 30
     strategy:
       fail-fast: false
