@@ -48,4 +48,6 @@ jobs:
         run: npm run test:backend
 
       - name: Run component test for frontend
-        run: npm run test:frontend
+        run: |
+          npx playwright install
+          npm run test:frontend
