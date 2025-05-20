@@ -49,7 +49,8 @@ export default defineConfig(
       command: 'npm run start:sample-app',
       url: BASE_URL,
       reuseExistingServer: !process.env.CI,
-      stdout: 'pipe'
+      stdout: 'pipe',
+      timeout: 120000
     },
     // Add the special project to your config
     projects: [...(baseConfig.projects || [])]

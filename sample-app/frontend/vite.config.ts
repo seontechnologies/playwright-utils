@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
         '@hooks': path.resolve(__dirname, './src/hooks'),
         '@styles': path.resolve(__dirname, './src/styles'),
         '@playwright': path.resolve(__dirname, '../../playwright'),
-        '@shared': path.resolve(__dirname, './src/provider-schema'),
+        '@shared': path.resolve(__dirname, '../../sample-app/shared'),
         '@vitest-utils': path.resolve(
           __dirname,
           './src/test-utils/vitest-utils'

@@ -7,6 +7,8 @@
   "author": "Murat Ozcan",
   "license": "ISC",
   "scripts": {
+    "test": "jest --detectOpenHandles --verbose --silent --config jest.config.ts",
+    "test:watch": "jest --watch --config jest.config.ts",
     "db:migrate": "npx prisma migrate reset --force --skip-seed generate",
     "db:sync": "npx prisma db push --force-reset && npx prisma generate",
     "db:migrate-prod": "npx prisma migrate deploy",

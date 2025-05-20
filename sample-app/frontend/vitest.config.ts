@@ -19,15 +19,7 @@ const config = mergeConfig(
       environment: 'happy-dom',
       setupFiles: ['./src/test-utils/vitest-utils/vitest.setup.ts'],
       include: ['src/**/*.vitest.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-      exclude: [
-        'node_modules/**',
-        'pw/**',
-        'cypress/**',
-        'src/consumer.test.ts',
-        'src/**/*.pacttest.ts',
-        'src/**/*.pw.ts',
-        'src/**/*.cy.ts'
-      ]
+      exclude: ['node_modules/**', 'playwright/**', 'src/consumer.test.ts']
     }
   })
 )
