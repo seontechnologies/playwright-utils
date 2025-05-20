@@ -3,7 +3,7 @@
   "version": "0.3.1",
   "description": "A collection of utilities for Playwright.",
   "workspaces": [
-    "sample-app"
+    "sample-app/backend"
   ],
   "author": "Murat Ozcan",
   "license": "UNLICENSED",
@@ -86,7 +86,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
-    "start:sample-app": "cd sample-app && npm start",
+    "start:sample-app": "cd sample-app/backend && npm start",
     "prepare": "npm run build",
     "publish:local": "./scripts/publish.sh",
     "build": "rm -rf dist && tsc -p tsconfig-build.json",

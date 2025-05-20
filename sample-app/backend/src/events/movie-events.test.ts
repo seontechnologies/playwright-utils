@@ -1,7 +1,7 @@
 import { produceMovieEvent } from './movie-events'
 import { Kafka } from 'kafkajs'
 import type { Movie } from '@prisma/client'
-import { generateMovieWithId } from '../../../playwright/support/utils/movie-factories'
+import { generateMovieWithId } from '../../../../playwright/support/utils/movie-factories'
 
 // Mock kafkajs
 jest.mock('kafkajs', () => ({

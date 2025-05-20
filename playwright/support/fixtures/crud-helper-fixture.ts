@@ -7,7 +7,7 @@ import type {
   CreateMovieResponse,
   GetMovieResponse,
   UpdateMovieResponse
-} from '../../../sample-app/src/@types'
+} from '../../../sample-app/backend/src/@types'
 
 type AddMovieParams = {
   addMovie: (

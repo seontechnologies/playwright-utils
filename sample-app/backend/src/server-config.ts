@@ -17,7 +17,6 @@ server.get('/', (_, res) => {
 
 server.use('/movies', moviesRoute)
 
-// @ts-expect-error - Express typing issue
 server.use('/auth/fake-token', (_, res) => {
   const token = `Bearer ${new Date().toISOString()}`
   return res.status(200).json({ token, status: 200 })
