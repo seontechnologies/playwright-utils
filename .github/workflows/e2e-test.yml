@@ -85,7 +85,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: muratozcanseon # TODO: if possible do not use a personal dockerhub login
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PW }}
 
       - name: Start Kafka
         continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
