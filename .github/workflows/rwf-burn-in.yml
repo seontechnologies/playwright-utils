@@ -158,7 +158,7 @@ jobs:
           # Now wait for Kafka to be responsive (allow up to 3 failures)
           for i in {1..3}; do
             echo "Attempt $i: Checking Kafka connectivity..."
-            if node ./sample-app/scripts/kafka-health-check.js; then
+            if node ./sample-app/backend/scripts/kafka-health-check.js; then
               echo "✅ Kafka is ready!"
               break
             else
@@ -191,7 +191,7 @@ jobs:
       - name: Stop Kafka
         continue-on-error: true
         if: always()
-        run: docker compose -f ./sample-app/src/events/kafka-cluster.yml down
+        run: docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml down
 
       - name: Update runE2E based on burn-in result
         if: always()
