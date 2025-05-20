@@ -44,5 +44,8 @@ jobs:
       - name: Run lint
         run: npm run lint
 
-      - name: Run unit test
-        run: npm run test
+      - name: Run unit test for backend
+        run: npm run test:backend
+
+      - name: Run component test for frontend
+        run: npm run test:frontend
