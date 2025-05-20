@@ -11,7 +11,6 @@ import { produceMovieEvent } from './events/movie-events'
 export const moviesRoute = Router()
 
 // apply auth middleware to all routes under this prefix
-// @ts-expect-error - Express typing issue
 moviesRoute.use(authMiddleware)
 
 // Initialize PrismaClient
@@ -23,7 +22,6 @@ const movieService = new MovieService(movieAdapter)
 // Routes are focused on handling HTTP requests and responses,
 // delegating business logic to the MoviesService (Separation of Concerns)
 
-// @ts-expect-error - Express typing issue
 moviesRoute.get('/', async (req, res) => {
   const name = req.query.name
 
@@ -38,7 +36,6 @@ moviesRoute.get('/', async (req, res) => {
   }
 })
 
-// @ts-expect-error - Express typing issue
 moviesRoute.post('/', async (req, res) => {
   const result = await movieService.addMovie(req.body)
 
@@ -50,13 +47,11 @@ moviesRoute.post('/', async (req, res) => {
   return formatResponse(res, result)
 })
 
-// @ts-expect-error - Express typing issue
 moviesRoute.get('/:id', validateId, async (req, res) => {
   const result = await movieService.getMovieById(Number(req.params.id))
   return formatResponse(res, result)
 })
 
-// @ts-expect-error - Express typing issue
 moviesRoute.put('/:id', validateId, async (req, res) => {
   const result = await movieService.updateMovie(req.body, Number(req.params.id))
 
@@ -68,7 +63,6 @@ moviesRoute.put('/:id', validateId, async (req, res) => {
   return formatResponse(res, result)
 })
 
-// @ts-expect-error - Express typing issue
 moviesRoute.delete('/:id', validateId, async (req, res) => {
   const movieId = Number(req.params.id)
   // check if the movie exists before attempting to delete it

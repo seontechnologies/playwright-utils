@@ -12,7 +12,7 @@ dist
 # misc
 .DS_Store
 .env
-!sample-app/.env
+!sample-app/backend/.env
 .vscode
 npm-debug.log*
 
@@ -24,5 +24,5 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 downloads
-sample-app/test-events/movie-events.log
+sample-app/backend/test-events/movie-events.log
 .auth

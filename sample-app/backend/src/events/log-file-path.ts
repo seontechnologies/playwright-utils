@@ -1,21 +1,19 @@
 import { existsSync, mkdirSync } from 'fs'
 import { join, resolve } from 'path'
 
-// Determine the sample-app root directory
-const findProjectRoot = () => {
-  // Get the directory of the current file (works in CommonJS)
-  const currentDir = __dirname
-
-  // Detect if we're in sample-app or in a different location
-  const projectRoot = currentDir.includes('sample-app')
-    ? resolve(currentDir, currentDir.split('sample-app')[0] + 'sample-app')
-    : resolve(process.cwd(), 'sample-app')
-
-  return projectRoot
+// Get the project root (backend directory)
+const getProjectRoot = () => {
+  // If we're running in the backend directory, use it
+  if (__dirname.includes('backend')) {
+    // Go up from src/events to backend directory
+    return resolve(__dirname, '../../')
+  }
+  // Fallback to current working directory
+  return process.cwd()
 }
-const projectRoot = findProjectRoot()
 
-// Use test-events folder to match the kafka:reset-logs script
+const projectRoot = getProjectRoot()
+// Create test-events directory in the backend
 const eventsDir = resolve(projectRoot, 'test-events')
 
 // Ensure the directory exists

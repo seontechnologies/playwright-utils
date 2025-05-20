@@ -267,7 +267,7 @@ export const test = baseApiRequestFixture.extend<CrudParams>({
 Usage in tests is clean, type-safe, and follows functional programming principles:
 
 ```typescript
-// From playwright/tests/sample-app/crud-movie-event.spec.ts
+// From playwright/tests/sample-app/sample-app/crud-movie-event.spec.ts
 test('should perform CRUD operations', async ({
   addMovie,
   getMovieById,

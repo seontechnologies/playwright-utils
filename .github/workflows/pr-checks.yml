@@ -36,7 +36,7 @@ jobs:
       # Prisma needs to generate TypeScript types from our schema before typechecking runs
       # Locally, this happens when we start the app.
       - name: Generate Prisma types
-        run: cd sample-app && npx prisma generate
+        run: cd sample-app/backend && npx prisma generate
 
       - name: Run typecheck
         run: npm run typecheck
