@@ -50,7 +50,7 @@ export default defineConfig(
       url: BASE_URL,
       reuseExistingServer: !process.env.CI,
       stdout: 'pipe',
-      timeout: 120000
+      timeout: 180000
     },
     // Add the special project to your config
     projects: [...(baseConfig.projects || [])]
