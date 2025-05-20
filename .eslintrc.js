@@ -46,6 +46,7 @@ module.exports = {
     semi: ['error', 'never'],
     'import/default': 'off',
     '@typescript-eslint/no-require-imports': 'off',
-    'no-empty-pattern': 'off'
+    'no-empty-pattern': 'off',
+    'import/no-named-as-default': 'off'
   }
 }

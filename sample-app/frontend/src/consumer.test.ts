@@ -18,7 +18,7 @@ import type {
   Movie
 } from '@shared/types/movie-types'
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = 'http://localhost:3001'
 
 // Nock can be used to test modules that make HTTP requests to external APIs in isolation.
 // For example, if a module sends HTTP requests to an external API, you can test that module independently of the actual API.

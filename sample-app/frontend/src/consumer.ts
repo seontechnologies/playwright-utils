@@ -10,7 +10,7 @@ import type {
   UpdateMovieResponse
 } from '@shared/types/movie-types'
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = 'http://localhost:3001'
 
 // Movie type from the provider, in the real world this would come from a published package
 
