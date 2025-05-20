@@ -5,7 +5,7 @@ version: '3.8'  # Version of Docker Compose file format
 
 services:
   kafka:
-    image: bitnami/kafka:3.4.1  # Pin to a specific version for stability
+    image: ghcr.io/bitnami/kafka:3.4.1  # Using GHCR mirror
     platform: linux/amd64  # Ensures compatibility with AMD64 architecture
     depends_on:
       - zookeeper  # Kafka requires Zookeeper for managing configurations and cluster state
@@ -74,7 +74,7 @@ services:
       "
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest  # Kafka UI tool for managing and viewing topics and brokers
+    image: ghcr.io/provectuslabs/kafka-ui:latest  # Using GHCR mirror
     ports:
       - 8085:8080  # Exposes the Kafka UI on port 8085 (localhost:8085 in the browser)
     environment:
@@ -83,7 +83,7 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'  # Enables dynamic configuration in the UI
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:6.0.14  # Zookeeper image for managing Kafka configurations and metadata
+    image: ghcr.io/bitnami/zookeeper:3.8  # Using GHCR mirror with compatible version
     platform: linux/amd64  # Ensures compatibility with AMD64 architecture
     ports:
       - '22181:2181'  # Exposes Zookeeper on port 2181 for external access
