@@ -88,9 +88,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Pull Kafka images
+        continue-on-error: true
+        run: |
+          # Pull all images first to ensure they're available
+          docker pull ghcr.io/bitnami/kafka:3.4.1
+          docker pull ghcr.io/bitnami/zookeeper:3.8
+          docker pull ghcr.io/provectuslabs/kafka-ui:latest
+
       - name: Start Kafka
         continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
-        run: docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml up -d --no-recreate
+        run: |
+          docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml up -d --no-recreate
 
       # Add robust waiting for Kafka to be ready with health checks
       - name: Wait for Kafka to be ready
