@@ -128,11 +128,16 @@ jobs:
           npx playwright install --with-deps chrome
 
       # Start Kafka before tests (we need it for eventual consistency in local tests)
+      - name: Debug Docker Hub credentials
+        run: |
+          echo "DOCKERHUB_TOKEN is set: ${{ secrets.DOCKERHUB_TOKEN != '' }}"
+          echo "DOCKERHUB_PW is set: ${{ secrets.DOCKERHUB_PW != '' }}"
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: muratozcanseon # TODO: if possible do not use a personal dockerhub login
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME || 'muratozcanseon' }}
+          password: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKERHUB_PW }}
 
       - name: Start Kafka
         continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
