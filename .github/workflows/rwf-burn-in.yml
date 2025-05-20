@@ -137,7 +137,7 @@ jobs:
 
       - name: Start Kafka
         continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
-        run: docker compose -f ./sample-app/src/events/kafka-cluster.yml up -d --no-recreate
+        run: docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml up -d --no-recreate
 
       # Add robust waiting for Kafka to be ready with health checks
       - name: Wait for Kafka to be ready
