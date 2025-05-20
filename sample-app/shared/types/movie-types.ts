@@ -28,3 +28,11 @@ export type DeleteMovieResponse = z.infer<typeof DeleteMovieResponseSchema>
 export type UpdateMovieRequest = z.infer<typeof UpdateMovieSchema>
 
 export type UpdateMovieResponse = z.infer<typeof UpdateMovieResponseSchema>
+
+export type Movie = {
+  id: number
+  name: string
+  year: number
+  rating: number
+  director: string
+}

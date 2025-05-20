@@ -4,10 +4,9 @@
 // we have e2e tests in the provider that execute if kafka is up
 // the real intent is to test events with pact while no kafka is running
 
-import type { Movie } from '@prisma/client'
 import { Kafka } from 'kafkajs'
 import fs from 'node:fs/promises'
-import type { MovieEvent, MovieAction } from '../@types'
+import type { MovieEvent, MovieAction, Movie } from '@shared/types'
 import { logFilePath } from './log-file-path'
 
 // Configure Kafka with improved connection handling

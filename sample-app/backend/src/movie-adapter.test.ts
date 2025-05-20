@@ -1,4 +1,3 @@
-import type { Movie } from '@prisma/client'
 import { Prisma, PrismaClient } from '@prisma/client'
 import type { DeepMockProxy } from 'jest-mock-extended'
 import { mockDeep } from 'jest-mock-extended'
@@ -7,6 +6,7 @@ import {
   generateMovieWithId,
   generateMovieWithoutId
 } from '../../../playwright/support/utils/movie-factories'
+import type { Movie } from '@shared/types/movie-types'
 
 // In this test suite, we are testing the Adapter,
 // which is responsible for interacting with the data source (Prisma).

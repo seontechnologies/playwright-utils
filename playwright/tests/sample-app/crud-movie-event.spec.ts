@@ -2,7 +2,7 @@ import { test, expect } from '../../support/merged-fixtures'
 import { generateMovieWithoutId } from '../../support/utils/movie-factories'
 import { parseKafkaEvent } from '../../support/utils/parse-kafka-event'
 import { recurse } from '../../../src/recurse'
-import type { Movie } from '@prisma/client'
+import type { Movie } from '@shared/types/movie-types'
 
 test.describe('CRUD movie', () => {
   const movie = generateMovieWithoutId()

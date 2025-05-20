@@ -3,7 +3,7 @@
   "version": "0.3.1",
   "description": "A collection of utilities for Playwright.",
   "workspaces": [
-    "sample-app/backend"
+    "sample-app/*"
   ],
   "author": "Murat Ozcan",
   "license": "UNLICENSED",

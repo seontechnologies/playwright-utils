@@ -8,9 +8,9 @@ import type {
   DeleteMovieResponse,
   UpdateMovieRequest,
   UpdateMovieResponse
-} from './@types'
+} from '../../shared/types'
 import type { ZodSchema } from 'zod'
-import { CreateMovieSchema, UpdateMovieSchema } from './@types/schema'
+import { CreateMovieSchema, UpdateMovieSchema } from '../../shared/types/schema'
 
 // In the context of the MovieService, what you care about is the contract/interface
 // (i.e., the methods defined by the MovieRepository interface).

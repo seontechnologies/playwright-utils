@@ -11,7 +11,7 @@ import {
   GetMovieResponseUnionSchema,
   UpdateMovieSchema,
   UpdateMovieResponseSchema
-} from '../@types/schema'
+} from '../../../shared/types/schema'
 import type { ParameterObject } from 'openapi3-ts/oas31'
 
 // this file registers the schemas and generates the OpenAPI document.

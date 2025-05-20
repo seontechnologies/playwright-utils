@@ -1,7 +1,7 @@
 {
-  "name": "sample-app",
+  "name": "sample-app-backend",
   "version": "1.0.0",
-  "description": "Sample app for testing playwright-utils",
+  "description": "Sample backend for testing playwright-utils",
   "main": "index.js",
   "private": true,
   "author": "Murat Ozcan",

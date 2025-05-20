@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker'
-import type { Movie } from '@prisma/client'
+import type { Movie } from '@shared/types/movie-types'
 
 export const generateMovieWithoutId = (): Omit<Movie, 'id'> => {
   return {
