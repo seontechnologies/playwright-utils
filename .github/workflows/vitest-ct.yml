@@ -30,7 +30,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ github.sha }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
@@ -45,8 +45,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium Only
-        run: npx playwright install chromium
+      - name: Install Playwright Browsers
+        uses: microsoft/playwright-github-action@v1
+        with:
+          browsers: chromium
 
       - name: Run Vitest
         run: npm run test:frontend

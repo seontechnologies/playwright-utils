@@ -122,10 +122,11 @@ jobs:
       - name: Install dependencies
         run: ${{ inputs.install-command }}
 
-      - name: Install Playwright Chromium
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright install --with-deps chrome
+      - name: Install Playwright Browsers
+        uses: microsoft/playwright-github-action@v1
+        with:
+          browsers: chromium chrome
+          install_deps: true
 
       # Start Kafka before tests (we need it for eventual consistency in local tests)
       - name: Start Kafka
