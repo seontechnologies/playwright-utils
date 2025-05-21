@@ -67,6 +67,7 @@ jobs:
         run: ${{ needs.vars.outputs.install_command }}
 
       - name: Cache Playwright Browsers
+        id: cache-browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
