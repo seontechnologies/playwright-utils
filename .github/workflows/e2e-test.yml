@@ -55,6 +55,17 @@ jobs:
         with:
           node-version-file: '.nvmrc'
 
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: ${{ needs.vars.outputs.install_command }}
+
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
         with:
@@ -68,17 +79,6 @@ jobs:
         run: |
           npx playwright install chromium
           npx playwright install chrome
-
-      - name: Cache node modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            npm-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: ${{ needs.vars.outputs.install_command }}
 
       # Start Kafka before tests (we need it for eventual consistency in local tests)
       - name: Login to GitHub Container Registry
