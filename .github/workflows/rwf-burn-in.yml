@@ -126,7 +126,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ github.sha }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
@@ -135,6 +135,12 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npx playwright install --with-deps chrome
+
+      - name: Verify Browsers
+        run: |
+          npx playwright install --dry-run
+          echo "Playwright browsers installed at:"
+          ls -la ~/.cache/ms-playwright/
 
       - name: Start Kafka
         continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
