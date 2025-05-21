@@ -93,7 +93,7 @@ jobs:
         run: |
           # Pull all images first to ensure they're available
           docker pull ghcr.io/bitnami/kafka:3.4.1
-          docker pull ghcr.io/bitnami/zookeeper:3.8
+          docker pull ghcr.io/geoff2k/confluentinc-cp-zookeeper-dev:6.0.14
           docker pull ghcr.io/provectuslabs/kafka-ui:latest
 
       - name: Start Kafka

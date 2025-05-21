@@ -83,7 +83,7 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'  # Enables dynamic configuration in the UI
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:6.0.14  # Using Docker Hub directly
+    image: ghcr.io/geoff2k/confluentinc-cp-zookeeper-dev:6.0.14  # Using GHCR mirror to avoid Docker Hub rate limits
     platform: linux/amd64  # Ensures compatibility with AMD64 architecture
     ports:
       - '22181:2181'  # Exposes Zookeeper on port 2181 for external access
