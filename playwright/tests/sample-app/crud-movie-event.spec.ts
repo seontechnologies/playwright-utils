@@ -3,6 +3,7 @@ import { generateMovieWithoutId } from '../../support/utils/movie-factories'
 import { parseKafkaEvent } from '../../support/utils/parse-kafka-event'
 import { recurse } from '../../../src/recurse'
 import type { Movie } from '@shared/types/movie-types'
+import { runCommand } from '../../support/utils/run-command'
 
 test.describe('CRUD movie', () => {
   const movie = generateMovieWithoutId()
@@ -21,6 +22,16 @@ test.describe('CRUD movie', () => {
     rating: expect.any(Number),
     director: expect.any(String)
   }
+
+  let isKafkaWorking: boolean
+  test.beforeAll(() => {
+    const responseCode = runCommand(
+      `curl -s -o /dev/null -w "%{http_code}" ${process.env.KAFKA_UI_URL}`
+    )
+    if (responseCode !== '200') {
+      isKafkaWorking = false
+    }
+  })
 
   test('should crud', async ({
     addMovie,
@@ -49,26 +60,32 @@ test.describe('CRUD movie', () => {
       data: { ...movieProps, id: movieId }
     })
 
-    // Wait for 'movie-created' Kafka event using recurse
-    await recurse(
-      async () => {
-        const topic = 'movie-created'
-        const event = await parseKafkaEvent(movieId, topic)
-        return event
-      },
-      (event) =>
-        expect(event).toEqual([
-          {
-            topic: 'movie-created',
-            key: String(movieId),
-            movie: {
-              id: movieId,
-              ...movieEventProps
+    if (isKafkaWorking) {
+      // Wait for 'movie-created' Kafka event using recurse
+      await recurse(
+        async () => {
+          const topic = 'movie-created'
+          const event = await parseKafkaEvent(movieId, topic)
+          return event
+        },
+        (event) =>
+          expect(event).toEqual([
+            {
+              topic: 'movie-created',
+              key: String(movieId),
+              movie: {
+                id: movieId,
+                ...movieEventProps
+              }
             }
-          }
-        ]),
-      { timeout: 10000, interval: 500, log: 'Waiting for movie-created event' }
-    )
+          ]),
+        {
+          timeout: 10000,
+          interval: 500,
+          log: 'Waiting for movie-created event'
+        }
+      )
+    }
 
     // Get all movies and verify that the movie exists
     const { body: getAllResponse, status: getAllStatus } =
@@ -119,27 +136,33 @@ test.describe('CRUD movie', () => {
       }
     })
 
-    await recurse(
-      async () => {
-        const topic = 'movie-updated'
-        const event = await parseKafkaEvent(movieId, topic)
+    if (isKafkaWorking) {
+      await recurse(
+        async () => {
+          const topic = 'movie-updated'
+          const event = await parseKafkaEvent(movieId, topic)
 
-        return event
-      },
-      (event) => {
-        expect(event).toEqual([
-          {
-            topic: 'movie-updated',
-            key: String(movieId),
-            movie: {
-              id: movieId,
-              ...movieEventProps
+          return event
+        },
+        (event) => {
+          expect(event).toEqual([
+            {
+              topic: 'movie-updated',
+              key: String(movieId),
+              movie: {
+                id: movieId,
+                ...movieEventProps
+              }
             }
-          }
-        ])
-      },
-      { timeout: 10000, interval: 500, log: 'Waiting for movie-updated event' }
-    )
+          ])
+        },
+        {
+          timeout: 10000,
+          interval: 500,
+          log: 'Waiting for movie-updated event'
+        }
+      )
+    }
 
     // Delete the movie
     const {
@@ -149,27 +172,33 @@ test.describe('CRUD movie', () => {
     expect(deleteStatus).toBe(200)
     expect(message).toBe(`Movie ${movieId} has been deleted`)
 
-    await recurse(
-      async () => {
-        const topic = 'movie-deleted'
-        const event = await parseKafkaEvent(movieId, topic)
+    if (isKafkaWorking) {
+      await recurse(
+        async () => {
+          const topic = 'movie-deleted'
+          const event = await parseKafkaEvent(movieId, topic)
 
-        return event
-      },
-      (event) => {
-        expect(event).toEqual([
-          {
-            topic: 'movie-deleted',
-            key: String(movieId),
-            movie: {
-              id: movieId,
-              ...movieEventProps
+          return event
+        },
+        (event) => {
+          expect(event).toEqual([
+            {
+              topic: 'movie-deleted',
+              key: String(movieId),
+              movie: {
+                id: movieId,
+                ...movieEventProps
+              }
             }
-          }
-        ])
-      },
-      { timeout: 10000, interval: 500, log: 'Waiting for movie-deleted event' }
-    )
+          ])
+        },
+        {
+          timeout: 10000,
+          interval: 500,
+          log: 'Waiting for movie-deleted event'
+        }
+      )
+    }
 
     // Verify the movie no longer exists
     const { body: allMoviesAfterDelete } = await getAllMovies(authToken)

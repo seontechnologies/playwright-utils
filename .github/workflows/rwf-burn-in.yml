@@ -133,24 +133,8 @@ jobs:
       - name: Install Playwright Browsers
         if: steps.cache-browsers.outputs.cache-hit != 'true'
         run: |
-          npx playwright install chromium
-          npx playwright install chrome
-
-      # Start Kafka before tests (we need it for eventual consistency in local tests)
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull Kafka images
-        continue-on-error: true
-        run: |
-          # Pull all images first to ensure they're available
-          docker pull ghcr.io/bitnami/kafka:3.4.1
-          docker pull ghcr.io/bitnami/zookeeper:3.8
-          docker pull ghcr.io/provectuslabs/kafka-ui:latest
+          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chrome
 
       - name: Start Kafka
         continue-on-error: true # If Kafka fails to start, tests without Kafka can still run

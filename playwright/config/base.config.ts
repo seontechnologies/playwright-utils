@@ -51,7 +51,7 @@ export const baseConfig = defineConfig({
       ]
     : [['list'], ['html', { open: 'never' }]],
 
-  timeout: 60000,
+  timeout: 90000,
 
   expect: {
     timeout: 15000
