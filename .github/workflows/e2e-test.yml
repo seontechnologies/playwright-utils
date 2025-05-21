@@ -65,6 +65,12 @@ jobs:
           restore-keys: |
             playwright-${{ runner.os }}-
 
+      - name: Install Playwright Browsers
+        if: steps.cache-browsers.outputs.cache-hit != 'true'
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chrome
+
       - name: Cache node modules
         uses: actions/cache@v4
         with:
@@ -75,12 +81,6 @@ jobs:
 
       - name: Install dependencies
         run: ${{ needs.vars.outputs.install_command }}
-
-      - name: Install Playwright Browsers
-        if: steps.cache-browsers.outputs.cache-hit != 'true'
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright install --with-deps chrome
 
       # Start Kafka before tests (we need it for eventual consistency in local tests)
       - name: Login to GitHub Container Registry
