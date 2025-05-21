@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }} # TODO: if possible do not use a personal token (but I cannot get it to work otherwise while publishing)
 
       # 5. Validate custom version input if provided
       - name: Validate inputs

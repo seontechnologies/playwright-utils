@@ -3,7 +3,7 @@
   "version": "0.3.1",
   "description": "A collection of utilities for Playwright.",
   "workspaces": [
-    "sample-app/backend"
+    "sample-app/*"
   ],
   "author": "Murat Ozcan",
   "license": "UNLICENSED",
@@ -93,8 +93,9 @@
     "prettier": "prettier --ignore-path .gitignore \"**/*.+(js|ts|json)\"",
     "fix:format": "npm run prettier -- --write",
     "validate": "npm-run-all --parallel typecheck lint test fix:format",
-    "test": "jest --detectOpenHandles --verbose --silent --config jest.config.ts",
-    "test:watch": "jest --watch --config jest.config.ts",
+    "test:backend": "cd sample-app/backend && npm run test",
+    "test:frontend": "cd sample-app/frontend && npm run vitest:run",
+    "test": "npm-run-all --parallel test:backend test:frontend",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:clear-cache": "find . -name \"*.tsbuildinfo\" -delete && rm -rf node_modules/.cache/typescript",
     "lint": "eslint . --cache-location node_modules/.cache/eslint --fix",

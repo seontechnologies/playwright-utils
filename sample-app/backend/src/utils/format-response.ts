@@ -6,7 +6,7 @@ import type {
   GetMovieResponse,
   MovieNotFoundResponse,
   UpdateMovieResponse
-} from '../@types'
+} from '../../../shared/types'
 
 type MovieResponse =
   | DeleteMovieResponse

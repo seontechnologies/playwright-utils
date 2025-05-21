@@ -8,7 +8,7 @@ import type {
   DeleteMovieResponse,
   UpdateMovieRequest,
   UpdateMovieResponse
-} from './@types'
+} from '../../shared/types'
 import type { MovieRepository } from './movie-repository'
 
 // MovieAdapter: This is the implementation of the MovieRepository interface,

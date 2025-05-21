@@ -110,28 +110,44 @@ jobs:
         with:
           node-version-file: '.nvmrc'
 
-      - name: Cache Playwright Browsers
+      - name: Cache node modules
         uses: actions/cache@v4
         with:
-          path: ~/.cache/ms-playwright
-          # only creates a new cache when dependencies change
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            playwright-${{ runner.os }}-
+            npm-${{ runner.os }}-
 
       - name: Install dependencies
         run: ${{ inputs.install-command }}
 
-      - name: Install Playwright Chromium
+      # if: steps.cache-browsers.outputs.cache-hit != 'true' # I wish this worked, but it breaks PW tests https://github.com/seontechnologies/playwright-utils/actions/runs/15164591575/job/42639824935#step:11:163
+      # - name: Cache Playwright Browsers
+      #   id: cache-browsers
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.cache/ms-playwright
+      #     key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
+      #     restore-keys: |
+      #       playwright-${{ runner.os }}-
+
+      - name: Install Playwright Browsers
+        # if: steps.cache-browsers.outputs.cache-hit != 'true' # I wish this worked
         run: |
           npx playwright install --with-deps chromium
           npx playwright install --with-deps chrome
 
-      # Start Kafka before tests (we need it for eventual consistency in local tests)
+      - name: Verify Browsers
+        run: |
+          npx playwright install --dry-run
+          echo "Playwright browsers installed at:"
+          ls -la ~/.cache/ms-playwright/
+
       - name: Start Kafka
         continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
-        run: docker compose -f ./sample-app/src/events/kafka-cluster.yml up -d --no-recreate
-      
+        run: |
+          docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml up -d --no-recreate
+
       # Add robust waiting for Kafka to be ready with health checks
       - name: Wait for Kafka to be ready
         continue-on-error: true # Tests can still run without Kafka
@@ -147,11 +163,11 @@ jobs:
             fi
             sleep 5
           done
-          
+
           # Now wait for Kafka to be responsive (allow up to 3 failures)
           for i in {1..3}; do
             echo "Attempt $i: Checking Kafka connectivity..."
-            if node ./sample-app/scripts/kafka-health-check.js; then
+            if node ./sample-app/backend/scripts/kafka-health-check.js; then
               echo "✅ Kafka is ready!"
               break
             else
@@ -160,7 +176,7 @@ jobs:
               sleep 10
             fi
           done
-          
+
           echo "Proceeding with tests (Kafka may or may not be fully ready)"
 
       - name: Run Burn-in
@@ -184,7 +200,7 @@ jobs:
       - name: Stop Kafka
         continue-on-error: true
         if: always()
-        run: docker compose -f ./sample-app/src/events/kafka-cluster.yml down
+        run: docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml down
 
       - name: Update runE2E based on burn-in result
         if: always()

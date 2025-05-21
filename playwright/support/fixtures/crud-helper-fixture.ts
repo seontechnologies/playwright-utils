@@ -1,4 +1,3 @@
-import type { Movie } from '@prisma/client'
 import { test as baseApiRequestFixture } from '../../../src/api-request/fixtures'
 import type { ApiRequestResponse } from '../../../src/api-request'
 import { functionTestStep } from '../../../src/log'
@@ -6,8 +5,9 @@ import type {
   DeleteMovieResponse,
   CreateMovieResponse,
   GetMovieResponse,
-  UpdateMovieResponse
-} from '../../../sample-app/backend/src/@types'
+  UpdateMovieResponse,
+  Movie
+} from '../../../sample-app/shared/types'
 
 type AddMovieParams = {
   addMovie: (

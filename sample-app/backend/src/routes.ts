@@ -1,4 +1,3 @@
-import type { Movie } from '@prisma/client'
 import { PrismaClient } from '@prisma/client'
 import { Router } from 'express'
 import { authMiddleware } from './middleware/auth-middleware'
@@ -7,6 +6,7 @@ import { MovieAdapter } from './movie-adapter'
 import { MovieService } from './movie-service'
 import { formatResponse } from './utils/format-response'
 import { produceMovieEvent } from './events/movie-events'
+import type { Movie } from '@shared/types/movie-types'
 
 export const moviesRoute = Router()
 

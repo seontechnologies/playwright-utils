@@ -6,7 +6,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "module": "NodeNext",
+    "module": "ESNext",
     "noEmit": false,
     "outDir": "dist",
     "target": "esnext"

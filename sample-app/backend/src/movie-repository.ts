@@ -7,7 +7,7 @@ import type {
   DeleteMovieResponse,
   UpdateMovieRequest,
   UpdateMovieResponse
-} from './@types'
+} from '../../shared/types'
 
 // MovieRepository: this is the interface/contract that defines the methods
 // for interacting with the data layer.

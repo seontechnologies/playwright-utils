@@ -1,7 +1,7 @@
 import { MovieService } from './movie-service'
 import type { MovieRepository } from './movie-repository'
-import type { Movie } from '@prisma/client'
 import { generateMovieWithoutId } from '../../../playwright/support/utils/movie-factories'
+import type { Movie } from '@shared/types/movie-types'
 
 // because we use ports & adapters / hex pattern,
 // the data layer (MovieRepository) is a dependency we can mock

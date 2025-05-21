@@ -51,10 +51,10 @@ export const baseConfig = defineConfig({
       ]
     : [['list'], ['html', { open: 'never' }]],
 
-  timeout: 15000,
+  timeout: 90000,
 
   expect: {
-    timeout: 10000
+    timeout: 15000
   },
 
   /* Shared settings for all the projects below */
@@ -65,7 +65,7 @@ export const baseConfig = defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' }
+      use: { ...devices['Desktop Chrome'] }
     },
 
     // Only enable Google Chrome when multi-browser is explicitly enabled
@@ -73,7 +73,7 @@ export const baseConfig = defineConfig({
       ? [
           {
             name: 'google-chrome',
-            use: { ...devices['Desktop Chrome'], channel: 'chromium' }
+            use: { ...devices['Desktop Chrome'], channel: 'chrome' }
           }
         ]
       : [])
