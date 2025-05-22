@@ -1,5 +1,33 @@
 # Frontend Token Acquisition Overhaul Gameplan
 
+## Implementation Progress Tracking
+
+### Phase 1: Backend Changes
+
+- [ ] Update auth middleware for cookie support
+- [ ] Add identity-based authentication endpoint
+- [ ] Implement token validation with identity support
+
+### Phase 2: Frontend Changes
+
+- [ ] Create TokenService with storage state support
+- [ ] Implement cookie-based authentication
+- [ ] Refactor Axios configuration
+- [ ] Update API client methods
+
+### Phase 3: Test Framework Integration
+
+- [ ] Implement identity-aware token storage
+- [ ] Create custom auth provider for Playwright
+- [ ] Update test fixtures with identity support
+- [ ] Add test environment detection
+
+### Phase 4: Testing
+
+- [ ] Unit tests for token service
+- [ ] Integration tests for API client
+- [ ] E2E tests for complete flow
+
 ## Current Issues Identified
 
 1. **Token Generation Mechanism**:
@@ -382,11 +410,15 @@ Update the backend authentication middleware to also check for cookies:
 
 ```typescript
 // backend/src/middleware/auth-middleware.ts
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export function authMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   // First try the Authorization header
   let tokenStr = ''
   const authHeader = req.headers.authorization
-  
+
   if (authHeader) {
     tokenStr = authHeader.replace('Bearer ', '')
   } else {
@@ -395,12 +427,13 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     if (tokenCookie) {
       tokenStr = tokenCookie
     } else {
-      return res
-        .status(401)
-        .json({ error: 'Unauthorized; no valid authentication found.', status: 401 })
+      return res.status(401).json({
+        error: 'Unauthorized; no valid authentication found.',
+        status: 401
+      })
     }
   }
-  
+
   const token: Token = { issuedAt: new Date(tokenStr) }
 
   if (!isValidAuthTimeStamp(token))
@@ -418,11 +451,11 @@ Update the token service to manage cookies:
 // Update token service to use cookies
 export class StorageStateTokenService implements TokenService {
   // ... existing code
-  
+
   refreshToken(): StorageState {
     const timestamp = new Date().toISOString()
     const expires = Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
-    
+
     // Create the storage state format
     this.currentToken = {
       cookies: [
@@ -439,12 +472,12 @@ export class StorageStateTokenService implements TokenService {
       ],
       origins: []
     }
-    
+
     // Also set the browser cookie for API requests
     if (typeof document !== 'undefined') {
       setCookieAuth(timestamp)
     }
-    
+
     return this.currentToken
   }
 }
@@ -481,21 +514,21 @@ export class EnhancedStorageStateTokenService implements TokenService {
   private currentToken: StorageState | null = null
   private userIdentity: UserIdentity
   private environment: string
-  
+
   constructor(options: TokenServiceOptions = {}) {
     this.userIdentity = options.userIdentity || { role: 'default' }
     this.environment = options.environment || 'local'
-    
+
     // Token path will incorporate userIdentity for isolation
     // e.g., .auth-sessions/local/admin/user@example.com/storage-state.json
   }
-  
+
   // Generate token storage path based on identity
   private getTokenPath(): string {
     const { role = 'default', email = 'default' } = this.userIdentity
     return `.auth-sessions/${this.environment}/${role}/${email.replace('@', '_at_')}`
   }
-  
+
   // Other methods with identity-aware implementations
 }
 ```
@@ -505,15 +538,17 @@ Update the auth provider to handle user identities:
 ```typescript
 const sampleAppAuthProvider: AuthProvider = {
   // Existing methods...
-  
+
   // Enhanced token acquisition with user identity
   async manageAuthToken(request: APIRequestContext, options = {}) {
     const userIdentity = options.userIdentity || { role: 'default' }
     const environment = this.getEnvironment(options)
-    
+
     // Use identity to generate a unique fake user if needed
-    const userEmail = userIdentity.email || `test-${environment}-${userIdentity.role}@example.com`
-    
+    const userEmail =
+      userIdentity.email ||
+      `test-${environment}-${userIdentity.role}@example.com`
+
     // Request token with identity information
     const response = await request.post('http://localhost:3001/auth/login', {
       data: {
@@ -521,11 +556,11 @@ const sampleAppAuthProvider: AuthProvider = {
         role: userIdentity.role
       }
     })
-    
+
     const data = await response.json()
     return this.formatTokenWithIdentity(data.token, userIdentity)
   },
-  
+
   // Store identity with token for proper isolation
   formatTokenWithIdentity(token, userIdentity) {
     // Token formatting with identity metadata...
@@ -540,11 +575,11 @@ Update the backend to support user identity in authentication:
 server.post('/auth/login', (req, res) => {
   const { email, role } = req.body
   const userId = email.split('@')[0]
-  
+
   // Generate a token that includes identity information
   const timestamp = new Date().toISOString()
   const token = `Bearer ${userId}_${role}_${timestamp}`
-  
+
   return res.status(200).json({ token, status: 200 })
 })
 ```
@@ -556,72 +591,165 @@ Benefits of this approach:
 3. **Role-Based Testing**: Easy to test different user permissions and roles
 4. **Debugging**: Clear connection between tokens and test identities
 
-## Implementation Steps
+## Detailed Implementation Plan
 
-### Backend Changes
+### Phase 1: Backend Changes
 
-- [ ] 1. Update the auth middleware to support both header and cookie-based authentication
-  - Modify `/backend/src/middleware/auth-middleware.ts` to check for tokens in cookies
-  - Add cookie parsing middleware to Express setup
+#### 1. Update Auth Middleware for Cookie Support
 
-- [ ] 2. Add identity-based authentication endpoint
-  - Create `/auth/login` endpoint that accepts email and role parameters
-  - Generate tokens that include identity information in the payload
-  - Update the `/auth/fake-token` endpoint to support identity parameters
+- [ ] Modify `/backend/src/middleware/auth-middleware.ts` to check for tokens in cookies
 
-- [ ] 3. Implement proper token validation with identity support
-  - Update token validation to extract and verify identity information
-  - Add role-based access control for protected endpoints if needed
+  ```typescript
+  // Look for token in Authorization header first, then in cookies
+  let tokenStr = ''
+  const authHeader = req.headers.authorization
 
-### Frontend Changes
+  if (authHeader) {
+    tokenStr = authHeader.replace('Bearer ', '')
+  } else {
+    const tokenCookie = req.cookies['sample-app-token']
+    if (tokenCookie) {
+      tokenStr = tokenCookie
+    } else {
+      return res.status(401).json({ error: 'Unauthorized', status: 401 })
+    }
+  }
+  ```
 
-- [ ] 4. Create the token service following the functional programming approach
-  - Implement `TokenService` interface with storage state support
-  - Add proper token validation and refresh mechanisms
+- [ ] Add cookie parsing middleware to Express setup
+  ```typescript
+  import cookieParser from 'cookie-parser'
+  app.use(cookieParser())
+  ```
 
-- [ ] 5. Implement cookie-based authentication
-  - Add cookie management utilities (get/set/clear)
-  - Update token storage to use cookies for API requests
+#### 2. Add Identity-Based Authentication Endpoint
 
-- [ ] 6. Refactor the Axios configuration
-  - Remove token header interceptors
-  - Update API client to use cookies for authentication
+- [ ] Create `/auth/login` endpoint
 
-- [ ] 7. Update API client methods
-  - Remove hardcoded Authorization headers
-  - Add support for identity-based operations if needed
+  ```typescript
+  server.post('/auth/login', (req, res) => {
+    const { email, role } = req.body
+    const userId = email.split('@')[0]
+    const timestamp = new Date().toISOString()
+    const token = `Bearer ${userId}_${role}_${timestamp}`
 
-### Test Framework Changes
+    return res.status(200).json({ token, status: 200 })
+  })
+  ```
 
-- [ ] 8. Implement identity-aware token storage in auth-session
-  - Update token path generation to include identity information
-  - Modify token storage to isolate by environment, role, and email
+- [ ] Update the `/auth/fake-token` endpoint to support identity parameters
+- [ ] Ensure backward compatibility with existing code
 
-- [ ] 9. Create identity-aware auth provider for Playwright
-  - Implement custom auth provider that supports user identities
-  - Add methods to manage tokens with identity context
+#### 3. Implement Token Validation with Identity Support
 
-- [ ] 10. Update test fixtures to support identity parameters
-  - Modify fixtures to accept identity options
-  - Add helper functions for common identity patterns
+- [ ] Extract and verify identity information from tokens
+- [ ] Add role-based access control for protected endpoints if needed
+- [ ] Update validation to work with new token format
 
-- [ ] 11. Add test environment detection
-  - Implement browser/Node.js environment detection
-  - Add automatic token injection for tests
+### Phase 2: Frontend Changes
 
-## Testing Plan
+#### 4. Create TokenService Implementation
 
-### Unit Tests
+- [ ] Implement `TokenService` interface with storage state support
+  ```typescript
+  export interface TokenService {
+    getToken(): StorageState
+    refreshToken(): StorageState
+    isTokenValid(token: StorageState): boolean
+    getAuthorizationHeader(): string
+  }
+  ```
+- [ ] Add token validation and refresh mechanisms
+- [ ] Handle both manual and automated testing scenarios
+
+#### 5. Implement Cookie-Based Authentication
+
+- [ ] Add cookie management utilities
+
+  ```typescript
+  export function setCookieAuth(token: string): void {
+    document.cookie = `sample-app-token=${token}; path=/; max-age=3600; samesite=lax`
+  }
+
+  export function clearCookieAuth(): void {
+    document.cookie = 'sample-app-token=; path=/; max-age=0'
+  }
+  ```
+
+- [ ] Update token storage to use cookies for API requests
+- [ ] Ensure storage state compatibility
+
+#### 6. Refactor Axios Configuration
+
+- [ ] Remove token header interceptors
+- [ ] Update API client to use cookies for authentication
+- [ ] Ensure backward compatibility
+
+#### 7. Update API Client Methods
+
+- [ ] Remove hardcoded Authorization headers
+- [ ] Add support for identity-based operations if needed
+- [ ] Update error handling for authentication failures
+
+### Phase 3: Test Framework Integration
+
+#### 8. Implement Identity-Aware Token Storage
+
+- [ ] Update token path generation to include identity information
+  ```typescript
+  private getTokenPath(): string {
+    const { role = 'default', email = 'default' } = this.userIdentity
+    return `.auth-sessions/${this.environment}/${role}/${email.replace('@', '_at_')}`
+  }
+  ```
+- [ ] Modify token storage to isolate by environment, role, and email
+- [ ] Ensure backward compatibility
+
+#### 9. Create Custom Auth Provider for Playwright
+
+- [ ] Implement auth provider that supports user identities
+
+  ```typescript
+  const sampleAppAuthProvider: AuthProvider = {
+    // Enhanced token acquisition with user identity
+    async manageAuthToken(request: APIRequestContext, options = {}) {
+      const userIdentity = options.userIdentity || { role: 'default' }
+      const environment = this.getEnvironment(options)
+
+      // Use identity for token acquisition
+      // ...
+    }
+  }
+  ```
+
+- [ ] Add methods to manage tokens with identity context
+- [ ] Ensure compatibility with auth-session library
+
+#### 10. Update Test Fixtures with Identity Support
+
+- [ ] Modify fixtures to accept identity options
+- [ ] Add helper functions for common identity patterns
+- [ ] Update documentation and examples
+
+#### 11. Add Test Environment Detection
+
+- [ ] Implement browser/Node.js environment detection
+- [ ] Add automatic token injection for tests
+- [ ] Ensure seamless transition between environments
+
+### Phase 4: Testing
+
+#### Unit Tests
 
 - [ ] Test token service functions in isolation
 - [ ] Verify token generation and validation logic
 
-### Integration Tests
+#### Integration Tests
 
 - [ ] Verify Axios interceptors correctly apply tokens
 - [ ] Test API client methods with the new token mechanism
 
-### E2E Tests
+#### E2E Tests
 
 - [ ] Confirm the app works with manual interaction
 - [ ] Verify Playwright tests can successfully perform all CRUD operations
@@ -633,3 +761,4 @@ This approach adheres to SEON's principles of:
 - Modular code with clear separation of concerns
 - Type safety with explicit TypeScript interfaces
 - DRY principles by centralizing token logic
+- Revisit skipped tests (token clearing and ui tests)
