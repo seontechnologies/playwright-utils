@@ -4,11 +4,7 @@
  * Provides factory functions to create test fixtures for authentication
  */
 
-import {
-  type BrowserContext,
-  type Page,
-  type APIRequestContext
-} from '@playwright/test'
+import type { APIRequestContext, BrowserContext, Page } from '@playwright/test'
 import { getAuthProvider } from './internal/auth-provider'
 import { getStorageStatePath } from './internal/auth-storage-utils'
 import type { AuthIdentifiers, AuthOptions } from './internal/types'
@@ -106,10 +102,17 @@ export function createAuthFixtures() {
       },
       use: (context: BrowserContext) => Promise<void>
     ) => {
-      // Create context with user-provided baseURL directly
+      // Get browser's default context options to preserve settings like baseURL
+      const browserContextOptions =
+        (browser._options && browser._options.contextOptions) || {}
+
+      // Create context with preserved baseURL and other settings from Playwright config
       const context = await browser.newContext({
-        // User can provide baseURL in test configuration or through authOptions
-        baseURL: authOptions.baseUrl || undefined,
+        // Preserve all browser context options from Playwright config
+        ...browserContextOptions,
+        // Override with user-provided baseURL if specified in authOptions
+        baseURL:
+          authOptions.baseUrl || browserContextOptions.baseURL || undefined,
         // Only use storage state if auth session is enabled
         ...(authSessionEnabled
           ? {
@@ -148,11 +151,39 @@ export function createAuthFixtures() {
      * ```
      */
     page: async (
-      { context }: { context: BrowserContext },
+      {
+        context,
+        authOptions
+      }: { context: BrowserContext; authOptions: AuthOptions },
       use: (page: Page) => Promise<void>
     ) => {
-      const page = await context.newPage()
+      // Get the baseURL with explicit priority order following SEON's functional principles:
+      // 1. authOptions.baseUrl (explicit config from user)
+      // 2. process.env.BASE_URL (environment variable)
+      // 3. context options (from Playwright config)
+      const baseURL =
+        authOptions.baseUrl ||
+        process.env.BASE_URL ||
+        (context as any)._options?.baseURL ||
+        ''
+
+      // Create a new browser context with the properly resolved baseURL
+      const browser = (context as any)._browser
+      const contextOptions = (context as any)._options || {}
+
+      // Create a new context with explicit baseURL setting
+      const newContext = await browser.newContext({
+        ...contextOptions,
+        baseURL, // Explicitly set our resolved baseURL
+        storageState: contextOptions.storageState // Preserve authentication state
+      })
+
+      // Create and use the page with proper baseURL configuration
+      const page = await newContext.newPage()
       await use(page)
+
+      // Clean up resources
+      await newContext.close()
     }
   }
 }
