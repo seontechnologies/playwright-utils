@@ -6,7 +6,7 @@ This library builds on Playwright's authentication capabilities to create a more
 
 ## Table of Contents
 
-- [Playwright Auth Library](#playwright-auth-library)
+- [Playwright Auth Session Library](#playwright-auth-session-library)
   - [Table of Contents](#table-of-contents)
   - [What is this and why does it exist?](#what-is-this-and-why-does-it-exist)
     - [Playwright's Built-in Authentication](#playwrights-built-in-authentication)
@@ -20,33 +20,8 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Implement Custom Auth Provider](#implement-custom-auth-provider)
     - [Create Token Acquisition Logic](#create-token-acquisition-logic)
     - [Update Your Playwright Config](#update-your-playwright-config)
+    - [Configure Authentication Options](#configure-authentication-options)
     - [Use the Auth Session in Your Tests](#use-the-auth-session-in-your-tests)
-  - [API Overview](#api-overview)
-    - [Core Token Management](#core-token-management)
-    - [Global Setup Utilities](#global-setup-utilities)
-    - [Auth Provider Management](#auth-provider-management)
-    - [Test Fixtures](#test-fixtures)
-    - [Utility Functions](#utility-functions)
-  - [Basic Usage](#basic-usage)
-    - [Using Authentication in API Tests](#using-authentication-in-api-tests)
-    - [Using Authentication in UI Tests](#using-authentication-in-ui-tests)
-    - [Token Management and Authentication State](#token-management-and-authentication-state)
-      - [Auth Provider Token Management API](#auth-provider-token-management-api)
-      - [Custom Auth Provider Implementation](#custom-auth-provider-implementation)
-      - [Usage in Tests](#usage-in-tests)
-      - [Advanced Authentication Patterns](#advanced-authentication-patterns)
-    - [Example: JWT Token Extraction from Cookies](#example-jwt-token-extraction-from-cookies)
-      - [Managing Tokens Programmatically](#managing-tokens-programmatically)
-        - [Clearing Tokens for Specific Environments, Roles, and Users](#clearing-tokens-for-specific-environments-roles-and-users)
-  - [Advanced Usage](#advanced-usage)
-    - [Testing Against Different Deployment Environments](#testing-against-different-deployment-environments)
-    - [Disabling Authentication for Specific Tests](#disabling-authentication-for-specific-tests)
-    - [Robust File Storage with Locking](#robust-file-storage-with-locking)
-    - [URL and Environment Configuration](#url-and-environment-configuration)
-      - [Configuring Multiple URLs](#configuring-multiple-urls)
-    - [Multi-Role and Multi-User Support](#multi-role-and-multi-user-support)
-      - [Using Multiple Users with the Same Role](#using-multiple-users-with-the-same-role)
-    - [Using Multiple User Roles in Tests](#using-multiple-user-roles-in-tests)
     - [Dynamic Role Selection](#dynamic-role-selection)
       - [3. Testing Interactions Between Multiple Roles in a Single Test](#3-testing-interactions-between-multiple-roles-in-a-single-test)
     - [UI Testing with Browser Context](#ui-testing-with-browser-context)
@@ -54,9 +29,9 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-        - [Our Enhanced Approach](#our-enhanced-approach)
-    - [Storage Structure](#storage-structure)
+      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+      - [Our Enhanced Approach](#our-enhanced-approach)
+    - [Storage/\*\_ Options for the auth session \_/](#storage_-options-for-the-auth-session-_)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
 
 ## What is this and why does it exist?
@@ -478,19 +453,56 @@ export async function acquireToken(
 
 ### Update Your Playwright Config
 
-Make sure your config points to your global setup:
+Make sure your config points to your global setup and sets the baseUrl in your auth options:
 
 ```typescript
 // playwright.config.ts
 import { defineConfig } from '@playwright/test'
 
+const BASE_URL = 'http://localhost:3000'
+
 export default defineConfig({
   // Other config options...
 
   // Point to your global setup file
-  globalSetup: './playwright/support/global-setup.ts'
+  globalSetup: './playwright/support/global-setup.ts',
+
+  use: {
+    baseURL: BASE_URL
+  }
 
   // Other config options...
+})
+```
+
+### Configure Authentication Options
+
+When setting up your auth fixtures, explicitly include the baseUrl in your auth options:
+
+```typescript
+// playwright/support/auth/auth-fixture.ts
+import { test as base } from '@playwright/test'
+import {
+  createAuthFixtures,
+  type AuthOptions
+} from '@seontechnologies/playwright-utils/auth-session'
+
+// Get BASE_URL from your configuration
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
+
+// Default auth options with explicit baseUrl
+const defaultAuthOptions: AuthOptions = {
+  environment: process.env.TEST_ENV || 'local',
+  userRole: 'default',
+  baseUrl: BASE_URL // Explicitly pass baseUrl to the auth session
+}
+
+// Create fixtures as usual
+const fixtures = createAuthFixtures()
+
+export const test = base.extend({
+  authOptions: [defaultAuthOptions, { option: true }]
+  // ... other fixtures
 })
 ```
 
@@ -516,7 +528,7 @@ test('authenticated UI test', async ({ page }) => {
 ```
 
 // Advanced usage
-    const data = await response.json()
+const data = await response.json()
 
     // 4. Create a storage state object (supports both API and browser testing)
     const storageState: Record<string, unknown> = {
@@ -536,22 +548,24 @@ test('authenticated UI test', async ({ page }) => {
     authManager.saveToken(JSON.stringify(storageState))
 
     return storageState
-  }
 
-  async getToken(request, options = {}) {
-    // Use our own methods to ensure consistency
-    const environment = this.getEnvironment(options)
-    const userRole = this.getUserRole(options)
-    // Use the utility functions to get standardized paths
-    const tokenPath = getTokenFilePath({
-      environment,
-      userRole
-    })
-		// Check if we already have a valid token using the core utility
-		// Add custom logging for this provider implementation
-		console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
 }
-```
+
+async getToken(request, options = {}) {
+// Use our own methods to ensure consistency
+const environment = this.getEnvironment(options)
+const userRole = this.getUserRole(options)
+// Use the utility functions to get standardized paths
+const tokenPath = getTokenFilePath({
+environment,
+userRole
+})
+// Check if we already have a valid token using the core utility
+// Add custom logging for this provider implementation
+console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
+}
+
+````
 
 ### Using Multiple User Roles in Tests
 
@@ -623,7 +637,7 @@ test('Complex user journey across roles', async ({
   // Clean up
   await Promise.all(contexts.map((context) => context.close()))
 })
-```
+````
 
 ### Dynamic Role Selection
 
@@ -1051,31 +1065,48 @@ test.describe('unauthenticated browser tests', () => {
 
 This makes it much easier to test complex authentication scenarios like authenticated session timeouts, partial authentication, or mixed authenticated/unauthenticated user journeys.
 
-### Storage Structure
+### Storage/\*_ Options for the auth session _/
 
-The auth session library organizes tokens in a well-defined directory structure to support multiple environments, roles, and user identifiers:
+export type AuthSessionOptions = AuthIdentifiers & {
+/\*\* Root directory for auth session storage (default: process.cwd()/.auth)
 
-```text
-.auth/
-  dev/
-    admin/
-      storage-state.json                 # Default admin token
-      user1/
-        storage-state.json               # User1-specific admin token
-      user2/
-        storage-state.json               # User2-specific admin token
-    user/
-      storage-state.json                 # Default user token
-      user1/
-        storage-state.json               # User1-specific user token
-      user2/
-        storage-state.json               # User2-specific user token
-  staging/
-    admin/
-      storage-state.json                 # Default admin token
-    user/
-      storage-state.json                 # Default user token
-```
+- Note: The environment and user role will be appended to this path by the provider _/
+  storageDir?: string
+  /\*\* Token filename (default: storage-state.json) _/
+  tokenFileName?: string
+  /** Cookie name to use for authentication (default: auth-token) \*/
+  cookieName?: string
+  /** Custom token data formatter to control how tokens are saved _/
+  tokenDataFormatter?: TokenDataFormatter
+  /\*\* Debug mode (default: false) _/
+  debug?: boolean
+  }
+
+/\*\*
+
+- Full auth configuration that extends the base identifiers
+- Includes URLs and additional configuration beyond just identifiers
+  \*/
+  export type AuthOptions = AuthIdentifiers & {
+  /\*\* Base URL to use for the browser context (the application URL)
+  - This is a critical parameter for enabling proper page navigation with relative URLs.
+  - IMPORTANT: You must set this parameter to ensure that page.goto('/') works correctly
+  - with authenticated pages. The baseUrl is used to resolve relative URLs during navigation.
+  -
+  - If not provided, the system will attempt to determine it from these sources (in order):
+  - 1.  Explicitly passed authOptions.baseUrl (recommended approach)
+  - 2.  Environment variable process.env.BASE_URL
+  - 3.  Playwright context options
+  -
+  - @default process.env.BASE_URL || environment-specific URL \*/
+    baseUrl?: string
+
+/\*\* Base URL to use for authentication requests (the auth service URL)
+
+- This is often different from the application baseUrl
+- @default process.env.AUTH_BASE_URL || environment-specific auth URL \*/
+  authBaseUrl?: string
+  }
 
 All tokens are stored in the Playwright-compatible `storage-state.json` format, which can contain cookies and/or localStorage items. This consistent format works seamlessly with both API and UI testing.
 

@@ -86,7 +86,9 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
-    "start:sample-app": "cd sample-app/backend && npm start",
+    "start:sample-app": "npm-run-all --parallel start:backend start:frontend",
+    "start:frontend": "cd sample-app/frontend && npm start",
+    "start:backend": "cd sample-app/backend && npm start",
     "prepare": "npm run build",
     "publish:local": "./scripts/publish.sh",
     "build": "rm -rf dist && tsc -p tsconfig-build.json",

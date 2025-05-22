@@ -1,9 +1,9 @@
-import { test, expect } from '../../support/merged-fixtures'
-import { generateMovieWithoutId } from '../../support/utils/movie-factories'
-import { parseKafkaEvent } from '../../support/utils/parse-kafka-event'
-import { recurse } from '../../../src/recurse'
+import { test, expect } from '../../../support/merged-fixtures'
+import { generateMovieWithoutId } from '../../../support/utils/movie-factories'
+import { parseKafkaEvent } from '../../../support/utils/parse-kafka-event'
+import { recurse } from '../../../../src/recurse'
 import type { Movie } from '@shared/types/movie-types'
-import { runCommand } from '../../support/utils/run-command'
+import { runCommand } from '../../../support/utils/run-command'
 
 test.describe('CRUD movie', () => {
   const movie = generateMovieWithoutId()

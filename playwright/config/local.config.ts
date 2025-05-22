@@ -38,20 +38,34 @@ log.configure({
   }
 })
 
-const BASE_URL = 'http://localhost:3001'
+export const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
+export const API_URL = process.env.VITE_API_URL || 'http://localhost:3001'
 
 export default defineConfig(
   merge({}, baseConfig, {
     use: {
       baseURL: BASE_URL // case sensitive
     },
-    webServer: {
-      command: 'npm run start:sample-app',
-      url: BASE_URL,
-      reuseExistingServer: !process.env.CI,
-      stdout: 'pipe',
-      timeout: 180000
-    },
+    webServer: [
+      // Backend
+      {
+        command: 'npm run start:backend',
+        url: API_URL,
+        reuseExistingServer: !process.env.CI,
+        stdout: 'pipe',
+        stderr: 'pipe',
+        timeout: 180000
+      },
+      // Frontend server
+      {
+        command: 'npm run start:frontend',
+        url: BASE_URL,
+        reuseExistingServer: !process.env.CI,
+        stdout: 'pipe',
+        stderr: 'pipe',
+        timeout: 180000
+      }
+    ],
     // Add the special project to your config
     projects: [...(baseConfig.projects || [])]
   })

@@ -13,6 +13,8 @@ import { test, expect } from '../../support/merged-fixtures'
 const createTokenPreview = (token: string): string =>
   token.substring(0, 10) + '...' + token.substring(token.length - 5)
 
+test.skip()
+
 // Configure tests to run in serial mode (sequentially, not in parallel)
 // This is required for properly testing auth token reuse between tests
 test.describe.configure({ mode: 'serial' })

@@ -8,6 +8,7 @@ import type {
   UpdateMovieResponse,
   Movie
 } from '../../../sample-app/shared/types'
+import { API_URL } from '@playwright/config/local.config'
 
 type AddMovieParams = {
   addMovie: (
@@ -52,7 +53,7 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
     const addMovieBase = async (
       token: string,
       body: Omit<Movie, 'id'>,
-      baseUrl?: string
+      baseUrl = API_URL
     ) =>
       apiRequest<CreateMovieResponse>({
         method: 'POST',
@@ -69,7 +70,7 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
   },
 
   getAllMovies: async ({ apiRequest }, use) => {
-    const getAllMoviesBase = async (token: string, baseUrl?: string) =>
+    const getAllMoviesBase = async (token: string, baseUrl = API_URL) =>
       apiRequest<GetMovieResponse>({
         method: 'GET',
         path: '/movies',
@@ -86,7 +87,7 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
     const getMovieByIdBase = async (
       token: string,
       id: number,
-      baseUrl?: string
+      baseUrl = API_URL
     ) =>
       apiRequest<GetMovieResponse>({
         method: 'GET',
@@ -103,7 +104,7 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
     const getMovieByNameBase = async (
       token: string,
       name: string,
-      baseUrl?: string
+      baseUrl = API_URL
     ) =>
       apiRequest<GetMovieResponse>({
         method: 'GET',
@@ -127,7 +128,7 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
       token: string,
       id: number,
       body: Partial<Movie>,
-      baseUrl?: string
+      baseUrl = API_URL
     ) =>
       apiRequest<UpdateMovieResponse>({
         method: 'PUT',
@@ -145,7 +146,7 @@ export const test = baseApiRequestFixture.extend<AddMovieParams>({
     const deleteMovieBase = async (
       token: string,
       id: number,
-      baseUrl?: string
+      baseUrl = API_URL
     ) =>
       apiRequest<DeleteMovieResponse>({
         method: 'DELETE',

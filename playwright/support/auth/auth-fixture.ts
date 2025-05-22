@@ -16,6 +16,7 @@ import {
 
 // Import our custom auth provider
 import myCustomProvider from './custom-auth-provider'
+import { BASE_URL } from '@playwright/config/local.config'
 
 // Register the custom auth provider early to ensure it's available for all tests
 setAuthProvider(myCustomProvider)
@@ -23,7 +24,8 @@ setAuthProvider(myCustomProvider)
 // Default auth options using the current environment
 const defaultAuthOptions: AuthOptions = {
   environment: process.env.TEST_ENV || 'local',
-  userRole: 'default'
+  userRole: 'default',
+  baseUrl: BASE_URL // Pass baseUrl explicitly to auth session, or use our own getBaseUrl helper
 }
 
 // Get the fixtures from the factory function

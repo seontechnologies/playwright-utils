@@ -112,3 +112,5 @@ export type InterceptOptionsFixture = Omit<InterceptOptions, 'page'>
 export type InterceptNetworkCallFn = (
   options: InterceptOptionsFixture
 ) => Promise<NetworkCallResult>
+
+export type InterceptNetworkCall = ReturnType<typeof interceptNetworkCall>

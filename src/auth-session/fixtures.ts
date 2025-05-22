@@ -4,11 +4,7 @@
  * Provides factory functions to create test fixtures for authentication
  */
 
-import {
-  type BrowserContext,
-  type Page,
-  type APIRequestContext
-} from '@playwright/test'
+import type { APIRequestContext, BrowserContext, Page } from '@playwright/test'
 import { getAuthProvider } from './internal/auth-provider'
 import { getStorageStatePath } from './internal/auth-storage-utils'
 import type { AuthIdentifiers, AuthOptions } from './internal/types'
@@ -106,10 +102,17 @@ export function createAuthFixtures() {
       },
       use: (context: BrowserContext) => Promise<void>
     ) => {
-      // Create context with user-provided baseURL directly
+      // Get browser's default context options to preserve settings like baseURL
+      const browserContextOptions =
+        (browser._options && browser._options.contextOptions) || {}
+
+      // Create context with preserved baseURL and other settings from Playwright config
       const context = await browser.newContext({
-        // User can provide baseURL in test configuration or through authOptions
-        baseURL: authOptions.baseUrl || undefined,
+        // Preserve all browser context options from Playwright config
+        ...browserContextOptions,
+        // Override with user-provided baseURL if specified in authOptions
+        baseURL:
+          authOptions.baseUrl || browserContextOptions.baseURL || undefined,
         // Only use storage state if auth session is enabled
         ...(authSessionEnabled
           ? {
@@ -148,10 +151,20 @@ export function createAuthFixtures() {
      * ```
      */
     page: async (
-      { context }: { context: BrowserContext },
+      {
+        context,
+        authOptions: _authOptions
+      }: { context: BrowserContext; authOptions: AuthOptions },
       use: (page: Page) => Promise<void>
     ) => {
+      // Create a page from the existing authenticated context
       const page = await context.newPage()
+
+      // If needed, we can use baseURL from authOptions during navigation
+      // This removes the need to create a new context with different baseURL
+      // Example: if (authOptions.baseUrl) await page.goto(authOptions.baseUrl + '/path')
+
+      // Let Playwright manage the page lifecycle - context.close() will close all pages
       await use(page)
     }
   }
