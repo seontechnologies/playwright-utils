@@ -153,37 +153,19 @@ export function createAuthFixtures() {
     page: async (
       {
         context,
-        authOptions
+        authOptions: _authOptions
       }: { context: BrowserContext; authOptions: AuthOptions },
       use: (page: Page) => Promise<void>
     ) => {
-      // Get the baseURL with explicit priority order following SEON's functional principles:
-      // 1. authOptions.baseUrl (explicit config from user)
-      // 2. process.env.BASE_URL (environment variable)
-      // 3. context options (from Playwright config)
-      const baseURL =
-        authOptions.baseUrl ||
-        process.env.BASE_URL ||
-        (context as any)._options?.baseURL ||
-        ''
+      // Create a page from the existing authenticated context
+      const page = await context.newPage()
 
-      // Create a new browser context with the properly resolved baseURL
-      const browser = (context as any)._browser
-      const contextOptions = (context as any)._options || {}
+      // If needed, we can use baseURL from authOptions during navigation
+      // This removes the need to create a new context with different baseURL
+      // Example: if (authOptions.baseUrl) await page.goto(authOptions.baseUrl + '/path')
 
-      // Create a new context with explicit baseURL setting
-      const newContext = await browser.newContext({
-        ...contextOptions,
-        baseURL, // Explicitly set our resolved baseURL
-        storageState: contextOptions.storageState // Preserve authentication state
-      })
-
-      // Create and use the page with proper baseURL configuration
-      const page = await newContext.newPage()
+      // Let Playwright manage the page lifecycle - context.close() will close all pages
       await use(page)
-
-      // Clean up resources
-      await newContext.close()
     }
   }
 }
