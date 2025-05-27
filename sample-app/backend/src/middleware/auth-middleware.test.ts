@@ -13,7 +13,8 @@ describe('authMiddleware', () => {
     }
     mockResponse = {
       status: jest.fn().mockReturnThis(),
-      json: jest.fn()
+      json: jest.fn(),
+      clearCookie: jest.fn().mockReturnThis()
     }
     nextFunction = jest.fn()
   })
@@ -63,6 +64,7 @@ describe('authMiddleware', () => {
       error: 'Unauthorized; not valid timestamp.',
       status: 401
     })
+    expect(mockResponse.clearCookie).toHaveBeenCalledWith('sample-app-token')
     expect(nextFunction).not.toHaveBeenCalled()
   })
 })
