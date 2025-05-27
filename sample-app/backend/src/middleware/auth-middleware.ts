@@ -48,6 +48,9 @@ export function authMiddleware(
     const token: Token = { issuedAt: new Date(tokenCookie) }
 
     if (!isValidAuthTimeStamp(token)) {
+      // Clear the invalid cookie
+      res.clearCookie(AUTH_COOKIE_NAME)
+
       return res
         .status(401)
         .json({ error: 'Unauthorized; not valid timestamp.', status: 401 })
@@ -60,6 +63,9 @@ export function authMiddleware(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_error) {
     // Error ignored as we just return a generic 401
+    // Clear the invalid cookie
+    res.clearCookie(AUTH_COOKIE_NAME)
+
     return res.status(401).json({
       error: 'Unauthorized; invalid token format.',
       status: 401
