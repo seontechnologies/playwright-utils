@@ -1,5 +1,6 @@
 import { API_URL } from '@playwright/config/local.config'
 import { test, expect } from '../../../support/merged-fixtures'
+import { log } from 'src/log'
 
 // Disable auth session for these tests since we're testing token acquisition
 // This prevents the global auth from interfering with these tests
@@ -36,7 +37,6 @@ test.describe('token acquisition', () => {
 
     expect(tokenResStatus).toBe(200)
     expect(token).toEqual(expect.any(String))
-
     // and we have to clean up the request context we had to create
     await apiRequestContext.dispose()
   })
@@ -53,5 +53,7 @@ test.describe('token acquisition', () => {
 
     expect(status).toBe(200)
     expect(token).toEqual(expect.any(String))
+
+    await log.info(token)
   })
 })

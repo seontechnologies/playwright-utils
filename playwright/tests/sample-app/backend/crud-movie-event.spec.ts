@@ -4,6 +4,7 @@ import { parseKafkaEvent } from '../../../support/utils/parse-kafka-event'
 import { recurse } from '../../../../src/recurse'
 import type { Movie } from '@shared/types/movie-types'
 import { runCommand } from '../../../support/utils/run-command'
+import { log } from 'src/log'
 
 test.describe('CRUD movie', () => {
   const movie = generateMovieWithoutId()
@@ -42,6 +43,7 @@ test.describe('CRUD movie', () => {
     deleteMovie,
     authToken
   }) => {
+    await log.info(authToken)
     // Add a movie
     const { body: createResponse, status: createStatus } = await addMovie(
       authToken,

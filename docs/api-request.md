@@ -81,6 +81,7 @@ async function apiRequest<T = unknown>({
 | body          | unknown (optional)                                        | Request body for POST/PUT/PATCH (internally mapped to Playwright's 'data' parameter) |
 | headers       | Record<string, string> (optional)                         | HTTP headers                                                                         |
 | params        | Record<string, string \| boolean \| number> (optional)    | Query parameters                                                                     |
+| testStep      | boolean (optional)                                        | Whether to wrap the call in test.step() (defaults to true)                           |
 
 ### Return Type
 
@@ -173,6 +174,29 @@ test('handles different response types', async ({ apiRequest }) => {
   })
   // textResponse.body is a string
 })
+```
+
+### Using in Non-Test Contexts (Global Setup, Helpers)
+
+```typescript
+import { apiRequest } from '@seon/playwright-utils'
+import { request } from '@playwright/test'
+
+// For use in global setup or outside of test.step() contexts
+async function fetchToken() {
+  const requestContext = await request.newContext()
+  
+  const { body } = await apiRequest({
+    request: requestContext,
+    method: 'GET',
+    path: '/auth/token',
+    baseUrl: 'https://api.example.com',
+    testStep: false // Disable test.step wrapping for non-test contexts
+  })
+  
+  await requestContext.dispose()
+  return body.token
+}
 ```
 
 ### Using URL Resolution Strategy

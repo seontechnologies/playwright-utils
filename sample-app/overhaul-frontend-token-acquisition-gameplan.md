@@ -4,9 +4,13 @@
 
 ### Phase 1: Backend Changes
 
-- [ ] Update auth middleware for cookie support
+- [x] Implement cookie-based authentication middleware
+  - [x] Extract authentication token from cookies
+  - [x] Validate token structure and expiration
+  - [x] Support identity information in tokens (structure added)
+- [x] Update token endpoint to set cookies instead of returning tokens
+- [x] Remove header-based authentication code
 - [ ] Add identity-based authentication endpoint
-- [ ] Implement token validation with identity support
 
 ### Phase 2: Frontend Changes
 
@@ -56,7 +60,17 @@
 
 ## Recommended Solution Approach
 
-### 1. Standardize Token Format to Match Admin App
+<!-- commented out items are done -->
+
+<!-- ### 1. Backend Implementation
+
+- Update the auth middleware to extract tokens from cookies instead of Authorization headers
+- Modify token validation to handle the new format
+- Update the token endpoint to set cookies instead of returning tokens in JSON responses
+- Use secure cookie settings (httpOnly, sameSite, etc.) for better security
+-->
+
+<!-- ### 2. Standardize Token Format to Match Admin App
 
 To ensure compatibility with the auth-session library and the existing Admin App implementation, update the token format to match the Playwright storage state format used in the Admin App:
 
@@ -114,7 +128,7 @@ With this structure, the token generation should create a token that looks like:
 Following SEON's functional programming principles, create a dedicated token service:
 
 ```typescript
-// src/services/token-service.ts
+// src/services/token-service.**ts**
 export interface TokenService {
   getToken(): StorageState
   refreshToken(): StorageState
@@ -229,7 +243,7 @@ export const getMovies = (): Promise<GetMovieResponse> =>
   axiosInstance.get('/movies').then(yieldData).catch(handleError)
 
 // Update other methods similarly...
-```
+``` -->
 
 ### 3. Add Auth Session Integration
 
@@ -372,6 +386,8 @@ export default sampleAppAuthProvider
 
 ### 4. Update the Frontend to Support Both Manual and Automated Testing
 
+Comment: not so sure about this
+
 Implement a mechanism to detect if running in a test environment and use the appropriate token source:
 
 ```typescript
@@ -390,7 +406,7 @@ export class TimestampTokenService implements TokenService {
 
 ### 5. Implement Cookie-Based Authentication in Frontend
 
-To better align with the SEON Admin app approach, transition from header-based authentication to cookie-based authentication:
+<!-- To better align with the SEON Admin app approach, transition from header-based authentication to cookie-based authentication:
 
 ```typescript
 // src/services/auth-cookie.ts
@@ -413,7 +429,7 @@ export function getCookieAuth(): string | null {
   }
   return null
 }
-```
+``` -->
 
 Update the backend authentication middleware to also check for cookies:
 

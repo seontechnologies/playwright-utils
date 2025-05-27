@@ -1,4 +1,6 @@
 import type { APIRequestContext } from '@playwright/test'
+import { request } from '@playwright/test'
+import { log } from '../../../src/log'
 
 /**
  * Application-specific auth URL construction based on environment
@@ -27,17 +29,16 @@ const getAuthBaseUrl = (environment: string, customUrl?: string) => {
 }
 
 /**
- * Simple token acquisition helper function
- * This would be customized for each application's specific auth needs
+ * Acquire a token and return a complete Playwright storage state object
+ * This matches the pattern used in the SEON Admin app implementation
  */
 export const acquireToken = async (
-  request: APIRequestContext,
+  _request: APIRequestContext, // We won't use the passed request, we'll create a fresh one
   environment: string,
   userRole: string,
   options: Record<string, string | undefined> = {}
-): Promise<string> => {
+): Promise<Record<string, unknown>> => {
   // Use the application-specific URL construction logic
-  // Following functional patterns with explicit null checking
   const authBaseUrl = getAuthBaseUrl(
     environment.toLowerCase(),
     options.authBaseUrl
@@ -46,16 +47,46 @@ export const acquireToken = async (
   // Get the endpoint (could also be environment-specific if needed)
   const endpoint = process.env.AUTH_TOKEN_ENDPOINT || '/auth/fake-token'
   const authUrl = `${authBaseUrl}${endpoint}`
-  console.log(`[Custom Auth] Requesting token from ${authUrl}`)
 
-  // Note: For a real implementation, we'd use credentials from getCredentialsForRole(userRole)
-  // But the fake token endpoint doesn't require credentials
+  // Create a fresh request context that will capture cookies
+  const context = await request.newContext()
+  log.infoSync(`Making auth request to ${authUrl}`)
 
-  // Make the authentication request - using GET for the fake token endpoint
-  // In a real implementation this would likely be a POST with credentials
-  const response = await request.get(authUrl)
+  // Make the auth request - this will set cookies via HTTP headers
+  const response = await context.get(authUrl)
 
-  // Extract token from response - customize based on your API response format
-  const data = await response.json()
-  return data.access_token || data.token || data.accessToken
+  const status = response.status()
+  const body = await response.json().catch(() => null)
+
+  // Validate the response
+  if (status !== 200 || !body) {
+    throw new Error(
+      `Auth request failed. Status: ${status}. Body: ${JSON.stringify(body)}`
+    )
+  }
+  log.infoSync('Authentication successful')
+
+  // PLAYWRIGHT MAGIC: context.storageState() does several powerful things:
+  // 1. It automatically extracts all cookies that were set by the server via HTTP 'Set-Cookie' headers
+  //    during any requests made with this context (in our case, the auth endpoint set the cookies)
+  // 2. It formats them into a standardized storage state object structure
+  // 3. No manual cookie handling is needed - Playwright automatically captures what the server set
+  // 4. It also captures localStorage/sessionStorage from any origins that were visited
+  // 5. The resulting object can be used directly with browser contexts or saved to disk
+  const storageState = await context.storageState()
+
+  // Validate cookies - there should be at least one cookie
+  if (!storageState.cookies || storageState.cookies.length === 0) {
+    throw new Error('No cookies found after authentication')
+  }
+
+  log.infoSync(
+    `Captured ${storageState.cookies.length} cookies from auth endpoint`
+  )
+
+  // Clean up the context
+  await context.dispose()
+
+  // Return the complete storage state (cookies + origins if any)
+  return storageState
 }

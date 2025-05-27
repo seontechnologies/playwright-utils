@@ -6,7 +6,6 @@
  *
  * The provider is the source of truth for environment and role information.
  */
-import * as path from 'path'
 import type { APIRequestContext } from '@playwright/test'
 import {
   type AuthProvider,
@@ -15,7 +14,8 @@ import {
   getTokenFilePath,
   authStorageInit,
   loadStorageState,
-  getStorageDir
+  getStorageDir,
+  saveStorageState
 } from '../../../src/auth-session'
 import { log } from '../../../src/log'
 import { acquireToken } from './acquire-token'
@@ -48,74 +48,50 @@ const myCustomProvider: AuthProvider = {
     return options.userRole || process.env.TEST_USER_ROLE || defaultRole
   },
 
-  // Extract the raw token from token data structure
-  // The standardized storage-state.json format makes this simpler
-  extractToken(tokenData: Record<string, unknown> | string): string | null {
-    // Handle stringified JSON if needed
-    if (typeof tokenData === 'string') {
-      try {
-        return this.extractToken(JSON.parse(tokenData))
-      } catch {
-        // If it's a string but not valid JSON, assume it's a raw token
-        return tokenData
-      }
-    }
-
-    // example: Handle standard Playwright storage state format with cookies
-    if ('cookies' in tokenData && Array.isArray(tokenData.cookies)) {
-      // Look for the standard auth cookie name
+  /** Extract JWT token from Playwright storage state format */
+  extractToken: (tokenData: Record<string, unknown>): string | null => {
+    // If it's a storage state with cookies, extract the auth token value
+    if (
+      tokenData?.cookies &&
+      Array.isArray(tokenData.cookies) &&
+      tokenData.cookies.length > 0
+    ) {
+      // Find the auth cookie
       const authCookie = tokenData.cookies.find(
         (cookie) => cookie.name === 'seon-jwt'
       )
 
+      // Return the token value if found
       if (authCookie?.value) {
-        return String(authCookie.value)
+        return authCookie.value
       }
     }
 
-    // example: For API testing: direct token field
-    if ('token' in tokenData && tokenData.token) {
-      return String(tokenData.token)
-    }
-
-    log.warningSync('Unknown token format, cannot extract')
     return null
   },
 
-  // Check if a token is expired
-  // For our sample app, the token format is always: "Bearer TIMESTAMP"
-  // We just parse the timestamp and compare it to the current time
-  isTokenExpired(rawToken: string): boolean {
-    try {
-      // This method now receives the raw token directly from extractToken
-      // Clean up the token by removing Bearer prefix if present
-      const tokenString = rawToken.replace('Bearer ', '')
-
-      // This example assumes timestamp tokens like:
-      // '2025-05-07T23:20:48.311Z' or 'Bearer 2025-05-07T23:20:48.311Z'
-      // Your application likely has a different token format
-
-      // Check token age
-      const timeoutInSeconds = 60 * 60 // 1 hour timeout
-      // const timeoutInSeconds = 1 // for quick testing for refresh
-      const tokenTime = new Date(tokenString).getTime()
-      const currentTime = new Date().getTime()
-      const diffInSeconds = (currentTime - tokenTime) / 1000
-
-      const isExpired = !(
-        diffInSeconds >= 0 && diffInSeconds <= timeoutInSeconds
-      )
-
-      // Use synchronous logging
-      log.infoSync(`Token age: ${diffInSeconds} seconds, expired: ${isExpired}`)
-      return isExpired
-    } catch (error) {
-      // Use synchronous error logging
-      log.errorSync(
-        `Error checking token expiration: ${error instanceof Error ? error.message : String(error)}`
-      )
-      return true // Fail safe: consider expired if validation fails
+  isTokenExpired: (rawToken: string): boolean => {
+    // Handle storage state objects (which are serialized as JSON)
+    if (rawToken.trim().startsWith('{')) {
+      try {
+        // If it's a valid storage state with cookies, it's not expired
+        const storageState = JSON.parse(rawToken)
+        if (
+          storageState?.cookies &&
+          Array.isArray(storageState.cookies) &&
+          storageState.cookies.length > 0
+        ) {
+          return false // Storage state with cookies is valid
+        }
+      } catch {
+        console.error(
+          'Cannot parse the storage state JSON, consider it expired'
+        )
+        return true
+      }
     }
+
+    return false
   },
 
   /**
@@ -136,51 +112,32 @@ const myCustomProvider: AuthProvider = {
     const tokenPath = getTokenFilePath({
       environment,
       userRole,
-      userIdentifier
+      userIdentifier,
+      tokenFileName: 'storage-state.json'
     })
 
     // STEP 1: Check if we already have a valid token using the enhanced utility
-    log.infoSync(`ℹ Checking for existing token at ${tokenPath}`)
     const existingStorageState = loadStorageState(tokenPath, true)
     if (existingStorageState) {
       log.infoSync(`✓ Using existing token from ${tokenPath}`)
       return existingStorageState
     }
 
+    // No valid token found, continue with getting a new one
+
     // STEP 2: Initialize storage directories using the core utility
-    log.infoSync('==== Initializing storage directories ====')
     authStorageInit({ environment, userRole, userIdentifier })
 
     // STEP 3: Acquire a new token (since no valid token exists)
-    log.infoSync(`==== Fetching new token for ${environment}/${userRole} ====`)
-    const rawToken = await acquireToken(request, environment, userRole, options)
+    const storageState = await acquireToken(
+      request,
+      environment,
+      userRole,
+      options
+    )
 
-    // STEP 3.5: Format token in the Playwright-compatible format
-    // Convert string token to storage state object (You might not have to do this in a Seon app)
-    const storageState = {
-      cookies: [
-        {
-          name: 'seon-jwt',
-          value:
-            typeof rawToken === 'string' ? rawToken : JSON.stringify(rawToken),
-          domain: 'localhost',
-          path: '/',
-          expires: -1,
-          httpOnly: true,
-          secure: false,
-          sameSite: 'Lax'
-        }
-      ],
-      origins: []
-    }
-
-    // STEP 4: Save the token with metadata for future reuse
-    const authManager = AuthSessionManager.getInstance({
-      debug: true,
-      storageDir: path.dirname(tokenPath)
-    })
-    authManager.saveToken(storageState)
-    log.successSync(`Token saved to ${tokenPath}`)
+    // STEP 4: Save the token for future reuse
+    saveStorageState(tokenPath, storageState)
 
     // Return the object directly for use with Playwright APIs
     return storageState
