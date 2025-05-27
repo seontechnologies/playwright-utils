@@ -24,20 +24,27 @@ server.use('/movies', moviesRoute)
 
 server.use('/auth/fake-token', (_req, res) => {
   const timestamp = new Date().toISOString()
+  const tokenValue = `Bearer ${timestamp}`
+  const expires = Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+  const expiresDate = new Date(expires * 1000) // Convert to milliseconds for Date object
 
-  // Set cookie with the token
-  res.cookie('sample-app-token', timestamp, {
-    maxAge: 3600 * 1000, // 1 hour in milliseconds
+  // Set the cookie directly in the response header, just like a real login endpoint would
+  res.cookie('seon-jwt', tokenValue, {
+    domain: 'localhost',
+    path: '/',
+    expires: expiresDate,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    path: '/',
     sameSite: 'lax'
   })
 
-  // Return success response
-  return res
-    .status(200)
-    .json({ status: 200, message: 'Authentication successful' })
+  // Also return token info in the response body for compatibility and visibility
+  return res.status(200).json({
+    token: tokenValue,
+    expiresAt: expiresDate.toISOString(),
+    status: 200,
+    message: 'Authentication successful. Cookie has been set.'
+  })
 })
 
 export { server }

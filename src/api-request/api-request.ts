@@ -11,6 +11,7 @@ export type ApiRequestParams = {
   body?: unknown
   headers?: Record<string, string>
   params?: Record<string, string | boolean | number>
+  testStep?: boolean // Whether to wrap the call in test.step (defaults to true)
 }
 
 export type ApiRequestResponse<T = unknown> = {
@@ -153,8 +154,19 @@ const apiRequestBase = async <T = unknown>({
  */
 export const apiRequest = async <T = unknown>(
   options: ApiRequestParams
-): Promise<ApiRequestResponse<T>> =>
-  test.step(createStepName(options), async () => apiRequestBase<T>(options))
+): Promise<ApiRequestResponse<T>> => {
+  // By default, wrap in test.step unless explicitly disabled
+  const useTestStep = options.testStep !== false
+
+  if (useTestStep) {
+    return test.step(createStepName(options), async () =>
+      apiRequestBase<T>(options)
+    )
+  } else {
+    // When used outside of test context (e.g., global setup)
+    return apiRequestBase<T>(options)
+  }
+}
 
 /** URL normalization to handle edge cases with slashes */
 const joinUrlParts = (base: string, path: string): string => {

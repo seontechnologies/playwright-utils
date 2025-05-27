@@ -22,6 +22,8 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Update Your Playwright Config](#update-your-playwright-config)
     - [Configure Authentication Options](#configure-authentication-options)
     - [Use the Auth Session in Your Tests](#use-the-auth-session-in-your-tests)
+      - [Cookie-Based Authentication](#cookie-based-authentication)
+    - [Using Multiple User Roles in Tests](#using-multiple-user-roles-in-tests)
     - [Dynamic Role Selection](#dynamic-role-selection)
       - [3. Testing Interactions Between Multiple Roles in a Single Test](#3-testing-interactions-between-multiple-roles-in-a-single-test)
     - [UI Testing with Browser Context](#ui-testing-with-browser-context)
@@ -508,23 +510,31 @@ export const test = base.extend({
 
 ### Use the Auth Session in Your Tests
 
+#### Cookie-Based Authentication
+
+This library supports cookie-based authentication, which is more secure and aligns with standard web practices. When using the auth session with a server that validates cookies:
+
 ```typescript
-// Example test using auth fixtures
+// Example test using auth fixtures with cookie-based authentication
 import { test } from '../support/auth/auth-fixture'
 
 test('authenticated API request', async ({ authToken, request }) => {
-  // Use the token for API requests
+  // Use the token as a cookie for API requests
   const response = await request.get('/api/protected', {
-    headers: { Authorization: `Bearer ${authToken}` }
+    headers: { Cookie: `seon-jwt=${authToken}` }
   })
   expect(response.status()).toBe(200)
 })
+```
+
+The `authToken` fixture returns the token value extracted from the cookie set by the authentication endpoint. This approach is automatically handled by the auth provider's `extractToken` method, which extracts the token value from the Playwright storage state.
 
 test('authenticated UI test', async ({ page }) => {
-  // The page is already authenticated!
-  await page.goto('/protected-area')
-  await expect(page.locator('h1')).toHaveText('Protected Content')
+// The page is already authenticated!
+await page.goto('/protected-area')
+await expect(page.locator('h1')).toHaveText('Protected Content')
 })
+
 ```
 
 // Advanced usage
@@ -565,7 +575,7 @@ userRole
 console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
 }
 
-````
+```
 
 ### Using Multiple User Roles in Tests
 
@@ -637,7 +647,7 @@ test('Complex user journey across roles', async ({
   // Clean up
   await Promise.all(contexts.map((context) => context.close()))
 })
-````
+```
 
 ### Dynamic Role Selection
 
@@ -682,7 +692,7 @@ import { adminTest } from '../fixtures/role-fixtures'
 adminTest('admin can access settings', async ({ authToken, request }) => {
   // This uses the admin token
   const response = await request.get('/api/admin/settings', {
-    headers: { Authorization: `Bearer ${authToken}` }
+    headers: { Cookie: `seon-jwt=${authToken}` }
   })
 
   expect(response.ok()).toBeTruthy()
@@ -694,7 +704,7 @@ import { userTest } from '../fixtures/role-fixtures'
 userTest('regular user profile access', async ({ authToken, request }) => {
   // This uses the user token
   const response = await request.get('/api/profile', {
-    headers: { Authorization: `Bearer ${authToken}` }
+    headers: { Cookie: `seon-jwt=${authToken}` }
   })
 
   expect(response.ok()).toBeTruthy()
@@ -722,12 +732,12 @@ test('admin and regular user interaction', async ({ page, request }) => {
 
   // Use tokens for API requests
   const adminResponse = await request.get('/api/admin-only-resource', {
-    headers: { Authorization: `Bearer ${adminToken}` }
+    headers: { Cookie: `seon-jwt=${adminToken}` }
   })
   expect(adminResponse.ok()).toBeTruthy()
 
   const userResponse = await request.get('/api/user-resource', {
-    headers: { Authorization: `Bearer ${userToken}` }
+    headers: { Cookie: `seon-jwt=${userToken}` }
   })
   expect(userResponse.ok()).toBeTruthy()
 

@@ -12,7 +12,7 @@ type Token = {
 }
 
 // Cookie name that contains the authentication token
-const AUTH_COOKIE_NAME = 'sample-app-token'
+const AUTH_COOKIE_NAME = 'seon-jwt'
 
 // Function to check if the token's timestamp is within 1 hour
 const isValidAuthTimeStamp = (token: Token): boolean => {
@@ -44,8 +44,11 @@ export function authMiddleware(
   }
 
   try {
-    // Create token object from cookie value
-    const token: Token = { issuedAt: new Date(tokenCookie) }
+    // Extract timestamp from the cookie value by removing the 'Bearer ' prefix if present
+    const timestamp = tokenCookie.replace(/^Bearer\s+/i, '')
+
+    // Create token object from the cleaned timestamp
+    const token: Token = { issuedAt: new Date(timestamp) }
 
     if (!isValidAuthTimeStamp(token)) {
       // Clear the invalid cookie
