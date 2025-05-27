@@ -8,7 +8,8 @@ describe('authMiddleware', () => {
 
   beforeEach(() => {
     mockRequest = {
-      headers: {}
+      headers: {},
+      cookies: {}
     }
     mockResponse = {
       status: jest.fn().mockReturnThis(),
@@ -19,7 +20,7 @@ describe('authMiddleware', () => {
 
   it('should call next() exactly once for valid token', () => {
     const validDate = new Date()
-    mockRequest.headers = { authorization: `Bearer ${validDate.toISOString()}` }
+    mockRequest.cookies = { 'sample-app-token': validDate.toISOString() }
     authMiddleware(
       mockRequest as Request,
       mockResponse as Response,
@@ -40,7 +41,7 @@ describe('authMiddleware', () => {
 
     expect(mockResponse.status).toHaveBeenCalledWith(401)
     expect(mockResponse.json).toHaveBeenCalledWith({
-      error: 'Unauthorized; no Authorization header.',
+      error: 'Unauthorized; no authentication cookie found.',
       status: 401
     })
     expect(nextFunction).not.toHaveBeenCalled()
@@ -48,8 +49,8 @@ describe('authMiddleware', () => {
 
   it('should return 401 for expired token', () => {
     const expiredDate = new Date(Date.now() - 3601 * 1000) // 1 hour and 1 second ago
-    mockRequest.headers = {
-      authorization: `Bearer ${expiredDate.toISOString()}`
+    mockRequest.cookies = {
+      'sample-app-token': expiredDate.toISOString()
     }
     authMiddleware(
       mockRequest as Request,
