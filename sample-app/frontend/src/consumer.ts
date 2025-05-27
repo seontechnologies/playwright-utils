@@ -9,6 +9,7 @@ import type {
   MovieNotFoundResponse,
   UpdateMovieResponse
 } from '@shared/types/movie-types'
+import { tokenService } from './services/token-service'
 
 const API_URL = 'http://localhost:3001'
 
@@ -22,6 +23,53 @@ export type ErrorResponse = {
 const axiosInstance = axios.create({
   baseURL: API_URL // this is really the API url where the requests are going to
 })
+
+// Axios request interceptor to apply authentication token
+axiosInstance.interceptors.request.use((config) => {
+  // Get authorization header using the token service
+  if (!config.headers.Authorization) {
+    config.headers.Authorization = tokenService.getAuthorizationHeader()
+  }
+  return config
+})
+
+// Add response interceptor to handle token refresh on 401 responses
+axiosInstance.interceptors.response.use(
+  (response) => response, // Return successful responses as-is
+  async (error) => {
+    const originalRequest = error.config
+
+    // If the error is 401 Unauthorized and we haven't tried refreshing yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Mark this request as retried to prevent infinite loops
+      originalRequest._retry = true
+
+      try {
+        // Refresh the token
+        const refreshedToken = tokenService.refreshToken()
+
+        // Verify the refreshed token is valid before proceeding
+        if (!tokenService.isTokenValid(refreshedToken)) {
+          return Promise.reject(error)
+        }
+
+        // Update the authorization header with the new token
+        originalRequest.headers.Authorization =
+          tokenService.getAuthorizationHeader()
+
+        // Retry the original request with the new token
+        return axiosInstance(originalRequest)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_refreshError) {
+        // If token refresh fails, return the original error
+        return Promise.reject(error)
+      }
+    }
+
+    // For other errors or if retry failed, return the original error
+    return Promise.reject(error)
+  }
+)
 
 // function to override the baseURL, used during pact tests
 // It allows to change the baseURL of axiosInstance dynamically
@@ -40,30 +88,21 @@ const handleError = (err: AxiosError): ErrorResponse => {
   return { error: 'Unexpected error occurred' }
 }
 
-const generateAuthToken = (): string => `Bearer ${new Date().toISOString()}`
-
-const commonHeaders = {
-  headers: { Authorization: generateAuthToken() }
-}
-
 // Fetch all movies
 export const getMovies = (): Promise<GetMovieResponse> =>
-  axiosInstance.get('/movies', commonHeaders).then(yieldData).catch(handleError)
+  axiosInstance.get('/movies').then(yieldData).catch(handleError)
 
 // Fetch a single movie by ID
 export const getMovieById = (
   id: number
 ): Promise<GetMovieResponse | MovieNotFoundResponse> =>
-  axiosInstance
-    .get(`/movies/${id}`, commonHeaders)
-    .then(yieldData)
-    .catch(handleError)
+  axiosInstance.get(`/movies/${id}`).then(yieldData).catch(handleError)
 
 export const getMovieByName = (
   name: string
 ): Promise<GetMovieResponse | MovieNotFoundResponse> =>
   axiosInstance
-    .get(`/movies?name=${name}`, commonHeaders)
+    .get(`/movies?name=${encodeURIComponent(name)}`)
     .then(yieldData)
     .catch(handleError)
 
@@ -71,26 +110,17 @@ export const getMovieByName = (
 export const addMovie = (
   data: Omit<Movie, 'id'>
 ): Promise<CreateMovieResponse | ConflictMovieResponse> =>
-  axiosInstance
-    .post('/movies', data, commonHeaders)
-    .then(yieldData)
-    .catch(handleError)
+  axiosInstance.post('/movies', data).then(yieldData).catch(handleError)
 
 // Delete movie by ID
 export const deleteMovieById = (
   id: number
 ): Promise<DeleteMovieResponse | MovieNotFoundResponse> =>
-  axiosInstance
-    .delete(`/movies/${id}`, commonHeaders)
-    .then(yieldData)
-    .catch(handleError)
+  axiosInstance.delete(`/movies/${id}`).then(yieldData).catch(handleError)
 
 // Update movie by ID
 export const updateMovie = (
   id: number,
   data: Partial<Omit<Movie, 'id'>>
 ): Promise<UpdateMovieResponse | MovieNotFoundResponse> =>
-  axiosInstance
-    .put(`/movies/${id}`, data, commonHeaders)
-    .then(yieldData)
-    .catch(handleError)
+  axiosInstance.put(`/movies/${id}`, data).then(yieldData).catch(handleError)
