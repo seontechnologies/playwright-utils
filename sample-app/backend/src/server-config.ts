@@ -22,7 +22,7 @@ server.get('/', (_, res) => {
 
 server.use('/movies', moviesRoute)
 
-server.use('/auth/fake-token', (req, res) => {
+server.use('/auth/fake-token', (_req, res) => {
   const timestamp = new Date().toISOString()
 
   // Set cookie with the token
