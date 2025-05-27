@@ -46,7 +46,12 @@ axiosInstance.interceptors.response.use(
 
       try {
         // Refresh the token
-        tokenService.refreshToken()
+        const refreshedToken = tokenService.refreshToken()
+
+        // Verify the refreshed token is valid before proceeding
+        if (!tokenService.isTokenValid(refreshedToken)) {
+          return Promise.reject(error)
+        }
 
         // Update the authorization header with the new token
         originalRequest.headers.Authorization =
@@ -96,7 +101,10 @@ export const getMovieById = (
 export const getMovieByName = (
   name: string
 ): Promise<GetMovieResponse | MovieNotFoundResponse> =>
-  axiosInstance.get(`/movies?name=${name}`).then(yieldData).catch(handleError)
+  axiosInstance
+    .get(`/movies?name=${encodeURIComponent(name)}`)
+    .then(yieldData)
+    .catch(handleError)
 
 // Create a new movie
 export const addMovie = (

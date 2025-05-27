@@ -95,7 +95,7 @@ export class StorageStateTokenService implements TokenService {
         {
           name: 'sample-app-token',
           value: timestamp,
-          domain: 'localhost',
+          domain: window.location.hostname,
           path: '/',
           expires,
           httpOnly: false, // Can't set httpOnly from client-side JS
@@ -127,6 +127,12 @@ export class StorageStateTokenService implements TokenService {
 
       // Also check the value itself which contains the timestamp
       const tokenDate = new Date(cookie.value)
+
+      // Check if the date is valid
+      if (isNaN(tokenDate.getTime())) {
+        return false
+      }
+
       const currentDate = new Date()
       const tokenTime = tokenDate.getTime()
       const diffInSeconds = (currentDate.getTime() - tokenTime) / 1000

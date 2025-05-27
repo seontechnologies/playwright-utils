@@ -3,7 +3,31 @@
 /**
  * Options for setting a cookie
  */
-type CookieOptions = {
+type SameSiteValue = 'Strict' | 'Lax' | 'None'
+
+/**
+ * Validate a SameSite value, defaulting to 'Lax' if invalid
+ */
+const validateSameSite = (value: string | undefined): SameSiteValue => {
+  if (!value) return 'Lax'
+
+  // Normalize to Title Case
+  const normalized =
+    value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+
+  if (['Strict', 'Lax', 'None'].includes(normalized)) {
+    return normalized as SameSiteValue
+  }
+
+  // Default to a safe value
+  console.warn(`Invalid SameSite value: ${value}. Defaulting to 'Lax'.`)
+  return 'Lax'
+}
+
+/**
+ * Options for setting a cookie
+ */
+export type CookieOptions = {
   /** Domain for the cookie (default: current domain) */
   domain?: string
   /** Path for the cookie (default: '/') */
@@ -15,7 +39,7 @@ type CookieOptions = {
   /** Whether the cookie requires HTTPS (default: false) */
   secure?: boolean
   /** SameSite cookie policy (default: 'Lax') */
-  sameSite?: 'Strict' | 'Lax' | 'None'
+  sameSite?: string
 }
 
 /**
@@ -62,7 +86,9 @@ export const setCookie = (
     cookieString += '; secure'
   }
 
-  cookieString += `; samesite=${cookieOptions.sameSite}`
+  // Validate and apply SameSite attribute
+  const validSameSite = validateSameSite(cookieOptions.sameSite)
+  cookieString += `; samesite=${validSameSite}`
 
   // Set the cookie
   document.cookie = cookieString
@@ -75,12 +101,21 @@ export const setCookie = (
  */
 export const getCookie = (name: string): string | null => {
   const cookieString = document.cookie
+
+  // Early return if no cookies exist
+  if (!cookieString) {
+    return null
+  }
+
   const cookies = cookieString.split('; ')
 
   for (const cookie of cookies) {
-    const [cookieName, cookieValue] = cookie.split('=')
-    if (decodeURIComponent(cookieName as string) === name) {
-      return decodeURIComponent(cookieValue as string)
+    const parts = cookie.split('=')
+    // parts[0] will always exist even if it's an empty string
+    const cookieName = parts[0] || ''
+    const cookieValue = parts.slice(1).join('=') || ''
+    if (decodeURIComponent(cookieName) === name) {
+      return decodeURIComponent(cookieValue)
     }
   }
 
@@ -100,7 +135,7 @@ export const deleteCookie = (
   setCookie(name, '', {
     domain: options.domain || undefined,
     path: options.path || '/',
-    expires: 0,
+    expires: Math.floor(Date.now() / 1000) - 86400, // Set to yesterday
     httpOnly: false,
     secure: false,
     sameSite: 'Lax'
