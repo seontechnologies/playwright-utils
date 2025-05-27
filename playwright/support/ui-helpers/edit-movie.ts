@@ -1,11 +1,11 @@
-import type {Page} from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 export const editMovie = async (
   page: Page,
   editedName: string,
   editedYear: number,
   editedRating: number,
-  editedDirector: string,
+  editedDirector: string
 ) => {
   await page.getByTestId('edit-movie').click()
 
