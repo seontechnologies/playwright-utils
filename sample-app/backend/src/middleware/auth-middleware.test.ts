@@ -21,7 +21,8 @@ describe('authMiddleware', () => {
 
   it('should call next() exactly once for valid token', () => {
     const validDate = new Date()
-    mockRequest.cookies = { 'sample-app-token': validDate.toISOString() }
+    // Use the new cookie name and token format with Bearer prefix
+    mockRequest.cookies = { 'seon-jwt': `Bearer ${validDate.toISOString()}` }
     authMiddleware(
       mockRequest as Request,
       mockResponse as Response,
@@ -51,7 +52,7 @@ describe('authMiddleware', () => {
   it('should return 401 for expired token', () => {
     const expiredDate = new Date(Date.now() - 3601 * 1000) // 1 hour and 1 second ago
     mockRequest.cookies = {
-      'sample-app-token': expiredDate.toISOString()
+      'seon-jwt': `Bearer ${expiredDate.toISOString()}`
     }
     authMiddleware(
       mockRequest as Request,
@@ -64,7 +65,7 @@ describe('authMiddleware', () => {
       error: 'Unauthorized; not valid timestamp.',
       status: 401
     })
-    expect(mockResponse.clearCookie).toHaveBeenCalledWith('sample-app-token')
+    expect(mockResponse.clearCookie).toHaveBeenCalledWith('seon-jwt')
     expect(nextFunction).not.toHaveBeenCalled()
   })
 })
