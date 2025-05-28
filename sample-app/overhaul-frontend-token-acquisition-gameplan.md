@@ -9,7 +9,13 @@
   - [x] Validate token structure and expiration
   - [x] Support identity information in tokens (structure added)
 - [x] Update token endpoint to set cookies instead of returning tokens
+  - [x] Implemented in `/auth/fake-token` endpoint to set cookies via HTTP headers
+  - [x] Updated to use "Bearer" prefix in the token value: `Bearer ${timestamp}`
+  - [x] Set cookie with name `seon-jwt` instead of `sample-app-token`
 - [x] Remove header-based authentication code
+  - [x] Updated auth middleware to look for `seon-jwt` cookie instead of Authorization header
+  - [x] Modified token validation to handle the "Bearer" prefix appropriately
+- [x] Fix unit tests for auth middleware to match new cookie-based approach
 - [ ] Add identity-based authentication endpoint
 
 ### Phase 2: Frontend Changes
@@ -27,50 +33,80 @@
   - [x] Added response interceptor for token refresh with automatic retry
 - [x] Update API client methods
   - [x] Token handling abstracted via interceptors, no direct changes needed
+- [ ] Update frontend TokenService to use new cookie name
+  - [ ] Change references from `sample-app-token` to `seon-jwt`
+  - [ ] Update `getAuthorizationHeader()` method to match new token format
+  - [ ] Ensure `isTokenValid()` method handles the new token format
 
 ### Phase 3: Test Framework Integration
 
+- [x] Implement token storage in Playwright
+  - [x] Updated `acquireToken` to return complete Playwright storage state
+  - [x] Modified `extractToken` to get token value from cookie
+  - [x] Added improved error handling and validation
+- [x] Create custom auth provider for Playwright
+  - [x] Implemented and configured in the auth-session system
+  - [x] Added support for environment and role management
+- [x] Update API helper functions for tests
+  - [x] Updated to use cookie-based authentication in headers
+  - [x] Modified request format to match backend expectations
 - [ ] Implement identity-aware token storage
-- [ ] Create custom auth provider for Playwright
 - [ ] Update test fixtures with identity support
 - [ ] Add test environment detection
 
 ### Phase 4: Testing
 
+- [x] Backend tests for token acquisition
+  - [x] Updated tests in `get-token.spec.ts` to match new token format
+  - [x] Added tests for cookie validation
 - [ ] Unit tests for token service
 - [ ] Integration tests for API client
-- [ ] E2E tests for complete flow
+- [ ] Enable and validate frontend E2E tests
+  - [ ] Verify movie CRUD operations work with cookie-based auth
+  - [ ] Test token persistence and renewal
 
-## Current Issues Identified
+## Current Implementation Status
 
-1. **Token Generation Mechanism**:
+1. **Token Generation and Storage**:
 
-   - Currently generates a new token for each request using `generateAuthToken = (): string => \`Bearer ${new Date().toISOString()}\``
-   - This results in unique tokens per request with ISO timestamps (e.g., `Bearer 2025-05-22T10:33:00.000Z`)
+   - ✅ Backend now sets tokens as cookies in the HTTP response headers
+   - ✅ Token format standardized with "Bearer" prefix: `Bearer ${timestamp}`
+   - ✅ Cookie name changed from `sample-app-token` to `seon-jwt` for consistency
+   - ✅ Playwright auth-session is now configured to work with cookie-based authentication
 
-2. **Backend Validation**:
+2. **Backend Authentication**:
 
-   - Backend validates tokens by extracting the timestamp and checking if it's within the last hour
-   - Authentication middleware in `/backend/src/middleware/auth-middleware.ts` enforces this validation
+   - ✅ Auth middleware updated to extract tokens from cookies instead of headers
+   - ✅ Token validation logic modified to handle the "Bearer" prefix
+   - ✅ Unit tests updated to match the new cookie-based approach
+   - ✅ Cookie expiration and clearing implemented for invalid tokens
 
-3. **Problem with Test Automation**:
-   - When using Playwright's auth-session library, token acquisition, storage, and reuse mechanisms are not compatible with the app's token format
-   - Automated tests fail with 401 Unauthorized errors when adding/updating movies
-   - Manual testing works fine because each request gets a fresh timestamp-based token
+3. **Test Framework Integration**:
+   - ✅ Token extraction method in auth provider updated to get value from cookies
+   - ✅ API helper functions updated to send authentication via Cookie header
+   - ✅ Backend tests now successfully validate the token flow
+   - ⚠️ Frontend TokenService needs to be updated to use the new cookie name
+   - ⚠️ E2E tests still need to be enabled and validated with the new auth approach
 
-## Recommended Solution Approach
+## Next Steps
 
-<!-- commented out items are done -->
+### 1. Update Frontend Token Service
 
-<!-- ### 1. Backend Implementation
+- Change cookie name from `sample-app-token` to `seon-jwt` in all token service methods
+- Update token validation to handle the new "Bearer" token format
+- Ensure proper token extraction and usage in API requests
 
-- Update the auth middleware to extract tokens from cookies instead of Authorization headers
-- Modify token validation to handle the new format
-- Update the token endpoint to set cookies instead of returning tokens in JSON responses
-- Use secure cookie settings (httpOnly, sameSite, etc.) for better security
--->
+### 2. Enable and Validate E2E Tests
 
-<!-- ### 2. Standardize Token Format to Match Admin App
+- Remove the test.skip() directive from frontend test files
+- Verify that tests can successfully authenticate with the backend
+- Ensure all CRUD operations work as expected with the new authentication approach
+
+### 3. Implement Identity-Based Authentication
+
+- Add support for different user identities in the token
+- Create role-specific authentication endpoints
+- Update the test framework to support testing with different user roles
 
 To ensure compatibility with the auth-session library and the existing Admin App implementation, update the token format to match the Playwright storage state format used in the Admin App:
 

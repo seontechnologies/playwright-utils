@@ -5,7 +5,6 @@ import { editMovie } from '@playwright/support/ui-helpers/edit-movie'
 import { generateMovieWithoutId } from '@playwright/support/utils/movie-factories'
 import { log } from 'src/log'
 
-test.skip()
 test.describe('movie crud e2e (playwright-utils helpers)', () => {
   test.beforeEach(async ({ page, interceptNetworkCall }) => {
     const loadGetMovies = interceptNetworkCall({

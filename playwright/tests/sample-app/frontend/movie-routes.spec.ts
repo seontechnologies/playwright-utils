@@ -3,7 +3,6 @@ import { generateMovieWithoutId } from '@playwright/support/utils/movie-factorie
 import type { Movie } from '@shared/types/movie-types'
 import type { Response } from '@playwright/test'
 
-test.skip()
 test.describe('App routes (vanilla playwright)', () => {
   const movies = [
     { id: 1, ...generateMovieWithoutId() },
@@ -35,7 +34,8 @@ test.describe('App routes (vanilla playwright)', () => {
     const { data } = await getMovies.json()
     expect(data).toEqual(movies)
 
-    await expect(page.getByTestId('movie-list-comp')).toBeVisible()
+    const sel = page.getByTestId('movie-list-comp')
+    await expect(sel).toBeVisible()
     await expect(page.getByTestId('movie-form-comp')).toBeVisible()
     await expect(page.getByTestId('movie-item-comp')).toHaveCount(movies.length)
     // with PW you have to use for await of, since you have to await the expect

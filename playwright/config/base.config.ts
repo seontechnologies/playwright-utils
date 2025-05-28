@@ -59,7 +59,8 @@ export const baseConfig = defineConfig({
 
   /* Shared settings for all the projects below */
   use: {
-    trace: 'retain-on-first-failure'
+    trace: 'retain-on-first-failure',
+    testIdAttribute: 'data-qa'
   },
 
   projects: [

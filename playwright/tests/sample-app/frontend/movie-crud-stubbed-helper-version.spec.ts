@@ -5,7 +5,6 @@ import { generateMovieWithoutId } from '@playwright/support/utils/movie-factorie
 import type { Movie } from '@shared/types/movie-types'
 import { log } from 'src/log'
 
-test.skip()
 test.describe('movie crud e2e stubbed (playwright-utils helpers)', () => {
   const { name, year, rating, director } = generateMovieWithoutId()
   const id = 1

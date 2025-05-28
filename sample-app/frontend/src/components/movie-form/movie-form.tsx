@@ -20,7 +20,7 @@ export default function MovieForm() {
   } = useMovieForm()
 
   return (
-    <div data-cy="movie-form-comp">
+    <div data-qa="movie-form-comp">
       <SSubtitle>Add a New Movie</SSubtitle>
 
       {/* Zod key feature 4: use the validation state at the component  */}
@@ -51,7 +51,7 @@ export default function MovieForm() {
         onChange={(e) => setMovieDirector(e.target.value)}
       />
       <SButton
-        data-cy="add-movie-button"
+        data-qa="add-movie-button"
         onClick={handleAddMovie}
         disabled={movieLoading}
       >

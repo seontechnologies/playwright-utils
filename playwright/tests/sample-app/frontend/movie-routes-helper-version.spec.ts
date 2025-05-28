@@ -4,7 +4,6 @@ import type { Movie } from '@shared/types/movie-types'
 import { type InterceptNetworkCall } from '../../../../src/intercept-network-call'
 import { log } from 'src/log'
 
-test.skip()
 test.describe('App routes (playwright-utils helpers)', () => {
   const movies = [
     { id: 1, ...generateMovieWithoutId() },

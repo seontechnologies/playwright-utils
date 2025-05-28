@@ -4,7 +4,6 @@ import { addMovie } from '@playwright/support/ui-helpers/add-movie'
 import { editMovie } from '@playwright/support/ui-helpers/edit-movie'
 import { generateMovieWithoutId } from '@playwright/support/utils/movie-factories'
 
-test.skip()
 test.describe('movie crud e2e (vanilla playwright)', () => {
   test.beforeEach(async ({ page }) => {
     const loadGetMovies = page.waitForResponse(

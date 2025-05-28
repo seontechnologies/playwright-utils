@@ -93,8 +93,8 @@ export class StorageStateTokenService implements TokenService {
     this.currentToken = {
       cookies: [
         {
-          name: 'sample-app-token',
-          value: timestamp,
+          name: 'seon-jwt',
+          value: `Bearer ${timestamp}`,
           domain: window.location.hostname,
           path: '/',
           expires,
@@ -118,15 +118,18 @@ export class StorageStateTokenService implements TokenService {
   isTokenValid(token: StorageState): boolean {
     try {
       // Find the token cookie
-      const cookie = token.cookies.find((c) => c.name === 'sample-app-token')
+      const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
       if (!cookie) return false
 
       // Check if cookie is expired by timestamp
       const currentTime = Math.floor(Date.now() / 1000)
       if (cookie.expires < currentTime) return false
 
-      // Also check the value itself which contains the timestamp
-      const tokenDate = new Date(cookie.value)
+      // Extract timestamp from Bearer token
+      const tokenValue = cookie.value.replace(/^Bearer\s+/i, '')
+
+      // Check the extracted timestamp
+      const tokenDate = new Date(tokenValue)
 
       // Check if the date is valid
       if (isNaN(tokenDate.getTime())) {
@@ -151,8 +154,9 @@ export class StorageStateTokenService implements TokenService {
    */
   getAuthorizationHeader(): string {
     const token = this.getToken()
-    const cookie = token.cookies.find((c) => c.name === 'sample-app-token')
-    return cookie ? `Bearer ${cookie.value}` : ''
+    const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
+    // Note: Cookie value already includes 'Bearer' prefix, so we don't need to add it
+    return cookie ? cookie.value : ''
   }
 
   /**
@@ -180,7 +184,7 @@ export class StorageStateTokenService implements TokenService {
    */
   private restoreFromBrowserCookies(): boolean {
     // Check for token cookie in browser
-    const tokenValue = getCookie('sample-app-token')
+    const tokenValue = getCookie('seon-jwt')
     if (!tokenValue) return false
 
     // Create a storage state from the cookie
@@ -189,7 +193,7 @@ export class StorageStateTokenService implements TokenService {
     this.currentToken = {
       cookies: [
         {
-          name: 'sample-app-token',
+          name: 'seon-jwt',
           value: tokenValue,
           domain: window.location.hostname,
           path: '/',
