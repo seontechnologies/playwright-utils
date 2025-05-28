@@ -29,15 +29,25 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
+      # Use GitHub's native expressions directly
       - name: Check for skip_burn_in label
         id: check_skip_label
+        # Set the skip_burn_in output without any shell script evaluation
         run: |
-          # Directly use GitHub expression to check for label
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip_burn_in') }}" == "true" ]]; then
-            echo "skip_burn_in=true" >> $GITHUB_OUTPUT
+          # Print all labels for debugging
+          echo "PR labels: ${{ toJson(github.event.pull_request.labels.*.name) }}"
+
+          # When a PR is present, we need to explicitly evaluate the contains() expression
+          # Careful here - the expression inside ${{ }} is evaluated by GitHub, not bash
+          SKIP_BURN_IN="${{ contains(github.event.pull_request.labels.*.name, 'skip_burn_in') }}"
+          echo "Label check result: ${SKIP_BURN_IN}"
+
+          # Set the output value
+          echo "skip_burn_in=${SKIP_BURN_IN}" >> $GITHUB_OUTPUT
+
+          if [ "${SKIP_BURN_IN}" = "true" ]; then
             echo "✅ Found skip_burn_in label. Burn-in tests will be skipped."
           else
-            echo "skip_burn_in=false" >> $GITHUB_OUTPUT
             echo "Running burn-in tests."
           fi
 
