@@ -1,6 +1,8 @@
 name: Run e2e tests
 on:
   push:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
 
 # if this branch is pushed back to back, cancel the older branch's workflow
@@ -21,11 +23,32 @@ jobs:
       test_env: ${{ env.TEST_ENV }}
       test_command: ${{ env.TEST_COMMAND }}
       install_command: ${{ env.INSTALL_COMMAND }}
+      skip_burn_in: ${{ steps.check_skip_label.outputs.skip_burn_in }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Check for skip-burn-in label
+        id: check_skip_label
+        if: github.event_name == 'pull_request'
+        run: |
+          # Check if the PR has the skip-burn-in label
+          if curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels" | \
+            grep -q '"name"[[:space:]]*:[[:space:]]*"skip-burn-in"'; then
+            echo "skip_burn_in=true" >> $GITHUB_OUTPUT
+            echo "Found skip-burn-in label. Burn-in tests will be skipped."
+          else
+            echo "skip_burn_in=false" >> $GITHUB_OUTPUT
+            echo "No skip-burn-in label found. Will run burn-in tests."
+          fi
+
       - run: echo "Exposing env vars"
 
   burn-in:
     needs: vars
+    if: needs.vars.outputs.skip_burn_in != 'true'
     uses: ./.github/workflows/rwf-burn-in.yml
     with:
       base-ref: 'main'
@@ -39,7 +62,7 @@ jobs:
   e2e-test:
     needs: [vars, burn-in]
     timeout-minutes: 10
-    if: needs.burn-in.outputs.runE2E == 'true'
+    if: needs.vars.outputs.skip_burn_in == 'true' || needs.burn-in.outputs.runE2E == 'true'
     strategy:
       fail-fast: false
       matrix:

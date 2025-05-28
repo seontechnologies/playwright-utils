@@ -34,8 +34,7 @@ test.describe('App routes (vanilla playwright)', () => {
     const { data } = await getMovies.json()
     expect(data).toEqual(movies)
 
-    const sel = page.getByTestId('movie-list-comp')
-    await expect(sel).toBeVisible()
+    await expect(page.getByTestId('movie-list-comp')).toBeVisible()
     await expect(page.getByTestId('movie-form-comp')).toBeVisible()
     await expect(page.getByTestId('movie-item-comp')).toHaveCount(movies.length)
     // with PW you have to use for await of, since you have to await the expect
