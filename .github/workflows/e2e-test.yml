@@ -23,39 +23,30 @@ jobs:
       test_env: ${{ env.TEST_ENV }}
       test_command: ${{ env.TEST_COMMAND }}
       install_command: ${{ env.INSTALL_COMMAND }}
-      skip_burn_in: ${{ steps.check_skip_label.outputs.skip_burn_in }}
+      # fall back to 'false' when the step is skipped
+      skip_burn_in: ${{ steps.check_skip_label.outputs.skip_burn_in || 'false' }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
 
       - name: Check for skip_burn_in label
         id: check_skip_label
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
         run: |
-          # For PRs, check if the label exists
-          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_target" ]]; then
-            # Debug: Show available labels
-            echo "Available labels: ${{ join(github.event.pull_request.labels.*.name, ', ') }}"
-            
-            # Check for specific label
-            if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip_burn_in') }}" == "true" ]]; then
-              echo "skip_burn_in=true" >> $GITHUB_OUTPUT
-              echo "✅ Found skip_burn_in label. Burn-in tests will be skipped."
-            else
-              echo "skip_burn_in=false" >> $GITHUB_OUTPUT
-              echo "No skip_burn_in label found. Running burn-in tests."
-            fi
+          echo "Available labels: ${{ join(github.event.pull_request.labels.*.name, ', ') }}"
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip_burn_in') }}" == "true" ]]; then
+            echo "skip_burn_in=true" >> $GITHUB_OUTPUT
+            echo "✅ Found skip_burn_in label; skipping burn-in."
           else
-            # For non-PR events, always run burn-in
             echo "skip_burn_in=false" >> $GITHUB_OUTPUT
-            echo "Not a PR event. Running burn-in tests."
+            echo "No skip_burn_in label; running burn-in."
           fi
-
-      - run: echo "Exposing env vars"
 
   burn-in:
     needs: vars
-    if: needs.vars.outputs.skip_burn_in != 'true'
+    if: ${{ github.event_name == 'pull_request' && needs.vars.outputs.skip_burn_in != 'true' }}
     uses: ./.github/workflows/rwf-burn-in.yml
     with:
       base-ref: 'main'
