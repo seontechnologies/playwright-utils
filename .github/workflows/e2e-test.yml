@@ -29,20 +29,35 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - name: Check for skip-burn-in label
+      - name: Check for skip_burn_in label
         id: check_skip_label
-        if: github.event_name == 'pull_request'
         run: |
-          # Check if the PR has the skip-burn-in label
-          if curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels" | \
-            grep -q '"name"[[:space:]]*:[[:space:]]*"skip-burn-in"'; then
-            echo "skip_burn_in=true" >> $GITHUB_OUTPUT
-            echo "Found skip-burn-in label. Burn-in tests will be skipped."
-          else
-            echo "skip_burn_in=false" >> $GITHUB_OUTPUT
-            echo "No skip-burn-in label found. Will run burn-in tests."
+          # Get whether we're in a PR context
+          IS_PR="false"
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_target" ]]; then
+            IS_PR="true"
           fi
+          echo "is_pr=${IS_PR}" >> $GITHUB_OUTPUT
+
+          # Default to running burn-in tests
+          SKIP_BURN_IN="false"
+
+          # Only try to check labels if we're in a PR context
+          if [[ "${IS_PR}" == "true" ]]; then
+            echo "Checking PR #${{ github.event.pull_request.number }} for skip_burn_in label"
+            
+            # Use GitHub's built-in context object to check for labels
+            if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip_burn_in') }}" == "true" ]]; then
+              SKIP_BURN_IN="true"
+              echo "Found skip_burn_in label. Burn-in tests will be skipped."
+            else
+              echo "No skip_burn_in label found. Will run burn-in tests."
+            fi
+          else
+            echo "Not a PR event. Will run burn-in tests."
+          fi
+
+          echo "skip_burn_in=${SKIP_BURN_IN}" >> $GITHUB_OUTPUT
 
       - run: echo "Exposing env vars"
 
