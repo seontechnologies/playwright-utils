@@ -21,16 +21,8 @@ export type ErrorResponse = {
 // baseURL in axiosInstance: Axios uses a fixed base URL for all requests,
 // and Nock must intercept that exact URL for the tests to work
 const axiosInstance = axios.create({
-  baseURL: API_URL // this is really the API url where the requests are going to
-})
-
-// Axios request interceptor to apply authentication token
-axiosInstance.interceptors.request.use((config) => {
-  // Get authorization header using the token service
-  if (!config.headers.Authorization) {
-    config.headers.Authorization = tokenService.getAuthorizationHeader()
-  }
-  return config
+  baseURL: API_URL, // this is really the API url where the requests are going to
+  withCredentials: true // Required for sending cookies with cross-origin requests
 })
 
 // Add response interceptor to handle token refresh on 401 responses

@@ -155,8 +155,13 @@ export class StorageStateTokenService implements TokenService {
   getAuthorizationHeader(): string {
     const token = this.getToken()
     const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
-    // Note: Cookie value already includes 'Bearer' prefix, so we don't need to add it
-    return cookie ? cookie.value : ''
+
+    if (!cookie) return ''
+
+    // Extract the actual token value without the Bearer prefix
+    // since Axios will add it back as part of the Authorization header
+    const tokenValue = cookie.value.replace(/^Bearer\s+/i, '')
+    return tokenValue
   }
 
   /**
