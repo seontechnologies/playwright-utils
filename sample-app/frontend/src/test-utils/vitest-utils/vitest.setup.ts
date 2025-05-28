@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { worker } from './msw-setup'
 
-configure({ testIdAttribute: 'data-qa' })
+configure({ testIdAttribute: 'data-testid' })
 
 afterEach(() => {
   cleanup()

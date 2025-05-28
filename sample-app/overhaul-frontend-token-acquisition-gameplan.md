@@ -29,14 +29,14 @@
   - Added browser cookie synchronization with storage state
   - Implemented token restoration from existing cookies
 - [x] Refactor Axios configuration
-  - [x] Added request interceptor for Authorization header
+  - [x] Added withCredentials to send cookies with cross-origin requests
   - [x] Added response interceptor for token refresh with automatic retry
 - [x] Update API client methods
   - [x] Token handling abstracted via interceptors, no direct changes needed
-- [ ] Update frontend TokenService to use new cookie name
-  - [ ] Change references from `sample-app-token` to `seon-jwt`
-  - [ ] Update `getAuthorizationHeader()` method to match new token format
-  - [ ] Ensure `isTokenValid()` method handles the new token format
+- [x] Update frontend TokenService to use new cookie name
+  - [x] Changed references from `sample-app-token` to `seon-jwt`
+  - [x] Updated `getAuthorizationHeader()` method to match new token format
+  - [x] Ensured `isTokenValid()` method handles the new token format
 
 ### Phase 3: Test Framework Integration
 
@@ -59,11 +59,15 @@
 - [x] Backend tests for token acquisition
   - [x] Updated tests in `get-token.spec.ts` to match new token format
   - [x] Added tests for cookie validation
-- [ ] Unit tests for token service
-- [ ] Integration tests for API client
-- [ ] Enable and validate frontend E2E tests
-  - [ ] Verify movie CRUD operations work with cookie-based auth
-  - [ ] Test token persistence and renewal
+- [x] Unit tests for token service
+  - [x] Verified token validation with the new format
+  - [x] Tested cookie synchronization methods
+- [x] Integration tests for API client
+  - [x] Verified cross-origin cookie handling
+  - [x] Tested token refresh mechanism
+- [x] Enable and validate frontend E2E tests
+  - [x] Verified movie CRUD operations work with cookie-based auth
+  - [x] Tested token persistence and renewal
 
 ## Current Implementation Status
 
@@ -81,480 +85,99 @@
    - ✅ Unit tests updated to match the new cookie-based approach
    - ✅ Cookie expiration and clearing implemented for invalid tokens
 
-3. **Test Framework Integration**:
+3. **Frontend Implementation**:
+
+   - ✅ TokenService updated to use the new `seon-jwt` cookie name
+   - ✅ Token validation methods now correctly handle the "Bearer" prefix
+   - ✅ Axios client configured with `withCredentials: true` for cross-origin cookie sending
+   - ✅ Manual Authorization header management removed in favor of automatic cookie handling
+
+4. **Test Framework Integration**:
    - ✅ Token extraction method in auth provider updated to get value from cookies
-   - ✅ API helper functions updated to send authentication via Cookie header
+   - ✅ API helper functions updated to work with cookie-based authentication
    - ✅ Backend tests now successfully validate the token flow
-   - ⚠️ Frontend TokenService needs to be updated to use the new cookie name
-   - ⚠️ E2E tests still need to be enabled and validated with the new auth approach
+   - ✅ E2E tests enabled and verified with the new cookie-based authentication
 
 ## Next Steps
 
-### 1. Update Frontend Token Service
+### 1. Implement Identity-Based Authentication
 
-- Change cookie name from `sample-app-token` to `seon-jwt` in all token service methods
-- Update token validation to handle the new "Bearer" token format
-- Ensure proper token extraction and usage in API requests
+- Add user identity information to token structure (e.g., roles, permissions)
+- Create new authentication endpoints with identity support
+- Update token validation to check identity claims
+- Implement role-specific access controls
 
-### 2. Enable and Validate E2E Tests
+### 2. Enhance Test Framework with Identity Support
 
-- Remove the test.skip() directive from frontend test files
 - Verify that tests can successfully authenticate with the backend
 - Ensure all CRUD operations work as expected with the new authentication approach
 
-### 3. Implement Identity-Based Authentication
+### 3. Detailed Identity Authentication Implementation Plan
 
-- Add support for different user identities in the token
-- Create role-specific authentication endpoints
-- Update the test framework to support testing with different user roles
+#### 3.1 Backend Changes
 
-To ensure compatibility with the auth-session library and the existing Admin App implementation, update the token format to match the Playwright storage state format used in the Admin App:
+- Extend the token structure to include identity information:
 
-```typescript
-// Token format compatible with Playwright's storage state format
-interface StorageState {
-  cookies: Cookie[]
-  origins: Origin[]
-}
-
-interface Cookie {
-  name: string
-  value: string
-  domain: string
-  path: string
-  expires: number
-  httpOnly: boolean
-  secure: boolean
-  sameSite?: 'Strict' | 'Lax' | 'None'
-}
-
-interface Origin {
-  origin: string
-  localStorage: LocalStorageItem[]
-}
-
-interface LocalStorageItem {
-  name: string
-  value: string
-}
-```
-
-With this structure, the token generation should create a token that looks like:
-
-```json
-{
-  "cookies": [
-    {
-      "name": "sample-app-token",
-      "value": "2025-05-22T10:39:18.000Z", // Using the current timestamp approach
-      "domain": "localhost",
-      "path": "/",
-      "expires": 1747746720.352, // One hour from now
-      "httpOnly": true,
-      "secure": false, // Set to false for localhost
-      "sameSite": "Lax"
-    }
-  ],
-  "origins": []
-}
-```
-
-### 2. Create a Token Management Service
-
-Following SEON's functional programming principles, create a dedicated token service:
-
-```typescript
-// src/services/token-service.**ts**
-export interface TokenService {
-  getToken(): StorageState
-  refreshToken(): StorageState
-  isTokenValid(token: StorageState): boolean
-  getAuthorizationHeader(): string
-}
-
-export class StorageStateTokenService implements TokenService {
-  private currentToken: StorageState | null = null
-
-  constructor() {
-    // Check if running in a Playwright test context with an injected token
-    if (typeof window !== 'undefined' && window.authToken) {
-      try {
-        this.currentToken =
-          typeof window.authToken === 'string'
-            ? JSON.parse(window.authToken)
-            : window.authToken
-      } catch (e) {
-        console.error('Failed to parse injected auth token', e)
-      }
+  ```typescript
+  type Token = {
+    issuedAt: Date
+    identity: {
+      userId: string
+      roles: string[] // e.g., ['admin', 'user', 'guest']
+      permissions: string[] // e.g., ['read:movies', 'write:movies']
     }
   }
+  ```
 
-  getToken(): StorageState {
-    if (!this.currentToken || !this.isTokenValid(this.currentToken)) {
-      return this.refreshToken()
-    }
-    return this.currentToken
+- Create new authentication endpoints:
+
+  - `/auth/login` - Username/password authentication
+  - `/auth/role/:roleName` - Quick role-based test authentication
+  - `/auth/refresh` - Token refresh with identity preservation
+
+- Implement identity validation in the auth middleware:
+  ```typescript
+  function validateUserAccess(
+    token: Token,
+    requiredRoles: string[] = []
+  ): boolean {
+    if (!token.identity) return false
+    if (requiredRoles.length === 0) return true
+    return requiredRoles.some((role) => token.identity.roles.includes(role))
   }
+  ```
 
-  refreshToken(): StorageState {
-    const timestamp = new Date().toISOString()
-    const expires = Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+#### 3.2 Frontend Changes
 
-    this.currentToken = {
-      cookies: [
-        {
-          name: 'sample-app-token',
-          value: timestamp,
-          domain: 'localhost',
-          path: '/',
-          expires,
-          httpOnly: true,
-          secure: false, // Set to false for localhost
-          sameSite: 'Lax'
-        }
-      ],
-      origins: []
-    }
+- Update TokenService to store and retrieve identity information
+- Add role-based UI elements and conditional rendering
+- Create a user context provider for React components
+- Implement permission checking utilities
 
-    return this.currentToken
+#### 3.3 Test Framework Integration
+
+- Extend auth provider to support role-based authentication:
+
+  ```typescript
+  async manageAuthToken(request, options) {
+    const { userRole } = options
+    return request.get(`/auth/role/${userRole}`)
   }
+  ```
 
-  isTokenValid(token: StorageState): boolean {
-    try {
-      const cookie = token.cookies.find((c) => c.name === 'sample-app-token')
-      if (!cookie) return false
+- Add test fixtures for different user roles
+- Create helper functions for permission verification
+- Update test scenarios to cover role-specific features
 
-      const tokenDate = new Date(cookie.value)
-      const currentTime = new Date().getTime()
-      const tokenTime = tokenDate.getTime()
-      const diffInSeconds = (currentTime - tokenTime) / 1000
+## Identity-Based Authentication Implementation Plan
 
-      return diffInSeconds >= 0 && diffInSeconds < 3000 // Valid for 50 minutes
-    } catch (e) {
-      return false
-    }
-  }
+### Core Requirements
 
-  // This method provides backward compatibility with the existing API
-  getAuthorizationHeader(): string {
-    const token = this.getToken()
-    const cookie = token.cookies.find((c) => c.name === 'sample-app-token')
-    return cookie ? `Bearer ${cookie.value}` : ''
-  }
-}
-```
-
-### 2. Update Axios Instance Configuration
-
-Refactor the consumer.ts file to use the token service:
-
-```typescript
-// consumer.ts
-import {
-  TokenService,
-  StorageStateTokenService
-} from './services/token-service'
-
-// Create singleton token service
-const tokenService: TokenService = new StorageStateTokenService()
-
-// Configure axios instance
-const axiosInstance = axios.create({
-  baseURL: API_URL
-})
-
-// Add request interceptor to handle authentication
-axiosInstance.interceptors.request.use((config) => {
-  // Get authorization header using the token service
-  config.headers.Authorization = tokenService.getAuthorizationHeader()
-  return config
-})
-
-// Remove the old token generation code
-// const generateAuthToken = (): string => `Bearer ${new Date().toISOString()}`
-// const commonHeaders = { headers: { Authorization: generateAuthToken() } }
-
-// Update the API methods to not need commonHeaders
-export const getMovies = (): Promise<GetMovieResponse> =>
-  axiosInstance.get('/movies').then(yieldData).catch(handleError)
-
-// Update other methods similarly...
-``` -->
-
-### 3. Add Auth Session Integration
-
-Create an adapter for Playwright auth-session that works with the timestamp-based tokens:
-
-```typescript
-// playwright/support/auth/sample-app-auth-provider.ts
-import type { AuthProvider } from '@seontechnologies/playwright-utils/auth-session'
-import type { APIRequestContext, BrowserContext } from '@playwright/test'
-
-interface StorageState {
-  cookies: Cookie[]
-  origins: Origin[]
-}
-
-interface Cookie {
-  name: string
-  value: string
-  domain: string
-  path: string
-  expires: number
-  httpOnly: boolean
-  secure: boolean
-  sameSite?: 'Strict' | 'Lax' | 'None'
-}
-
-interface Origin {
-  origin: string
-  localStorage: LocalStorageItem[]
-}
-
-interface LocalStorageItem {
-  name: string
-  value: string
-}
-
-const sampleAppAuthProvider: AuthProvider = {
-  getEnvironment(options = {}) {
-    return (options.environment as string) || process.env.TEST_ENV || 'local'
-  },
-
-  getUserRole(options = {}) {
-    return (options.userRole as string) || 'default'
-  },
-
-  // Extract the token from the response - now returns the full storage state
-  extractToken(tokenData: Record<string, unknown>): StorageState | null {
-    // If tokenData is already a StorageState object, return it
-    if (tokenData.cookies && Array.isArray(tokenData.cookies)) {
-      return tokenData as unknown as StorageState
-    }
-
-    // If it's the older format with just a token string, convert it
-    if (tokenData.token && typeof tokenData.token === 'string') {
-      const timestamp = (tokenData.token as string).replace('Bearer ', '')
-      const expires = Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
-
-      return {
-        cookies: [
-          {
-            name: 'sample-app-token',
-            value: timestamp,
-            domain: 'localhost',
-            path: '/',
-            expires,
-            httpOnly: true,
-            secure: false,
-            sameSite: 'Lax'
-          }
-        ],
-        origins: []
-      }
-    }
-
-    return null
-  },
-
-  // Check if the token is expired - now works with StorageState
-  isTokenExpired(token: StorageState): boolean {
-    try {
-      const cookie = token.cookies.find((c) => c.name === 'sample-app-token')
-      if (!cookie) return true
-
-      // Check if cookie is expired by timestamp
-      const currentTime = Math.floor(Date.now() / 1000)
-      if (cookie.expires < currentTime) return true
-
-      // Also check the value itself which contains the timestamp
-      const tokenDate = new Date(cookie.value)
-      const tokenTime = tokenDate.getTime()
-      const diffInSeconds = (Date.now() - tokenTime) / 1000
-
-      return diffInSeconds < 0 || diffInSeconds >= 3000
-    } catch (e) {
-      return true
-    }
-  },
-
-  // Token acquisition - now returns StorageState
-  async manageAuthToken(request: APIRequestContext) {
-    // Get a token from the fake-token endpoint
-    const response = await request.get('http://localhost:3001/auth/fake-token')
-    const data = await response.json()
-
-    // Generate a proper storage state
-    const timestamp = data.token.replace('Bearer ', '')
-    const expires = Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
-
-    return {
-      cookies: [
-        {
-          name: 'sample-app-token',
-          value: timestamp,
-          domain: 'localhost',
-          path: '/',
-          expires,
-          httpOnly: true,
-          secure: false,
-          sameSite: 'Lax'
-        }
-      ],
-      origins: []
-    }
-  },
-
-  // Apply token to browser context - now handles StorageState
-  async applyToBrowserContext(context: BrowserContext, token: StorageState) {
-    // Apply cookies directly to the browser context
-    await context.addCookies(token.cookies)
-
-    // Also set the token in window for the API requests
-    await context.addInitScript(`
-      window.authToken = ${JSON.stringify(token)};
-    `)
-  }
-}
-
-export default sampleAppAuthProvider
-```
-
-### 4. Update the Frontend to Support Both Manual and Automated Testing
-
-Comment: not so sure about this
-
-Implement a mechanism to detect if running in a test environment and use the appropriate token source:
-
-```typescript
-// src/services/token-service.ts (updated)
-export class TimestampTokenService implements TokenService {
-  // ... existing code
-
-  constructor() {
-    // Check if running in a Playwright test context with an injected token
-    if (typeof window !== 'undefined' && window.authToken) {
-      this.currentToken = window.authToken
-    }
-  }
-}
-```
-
-### 5. Implement Cookie-Based Authentication in Frontend
-
-<!-- To better align with the SEON Admin app approach, transition from header-based authentication to cookie-based authentication:
-
-```typescript
-// src/services/auth-cookie.ts
-export function setCookieAuth(token: string): void {
-  // Set the token as a cookie that will be sent with each request
-  document.cookie = `sample-app-token=${token}; path=/; max-age=3600; samesite=lax`
-}
-
-export function clearCookieAuth(): void {
-  document.cookie = 'sample-app-token=; path=/; max-age=0'
-}
-
-export function getCookieAuth(): string | null {
-  const cookies = document.cookie.split(';')
-  for (const cookie of cookies) {
-    const [name, value] = cookie.trim().split('=')
-    if (name === 'sample-app-token') {
-      return value
-    }
-  }
-  return null
-}
-``` -->
-
-Update the backend authentication middleware to also check for cookies:
-
-```typescript
-// backend/src/middleware/auth-middleware.ts
-export function authMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  // First try the Authorization header
-  let tokenStr = ''
-  const authHeader = req.headers.authorization
-
-  if (authHeader) {
-    tokenStr = authHeader.replace('Bearer ', '')
-  } else {
-    // If no Authorization header, try cookie
-    const tokenCookie = req.cookies['sample-app-token']
-    if (tokenCookie) {
-      tokenStr = tokenCookie
-    } else {
-      return res.status(401).json({
-        error: 'Unauthorized; no valid authentication found.',
-        status: 401
-      })
-    }
-  }
-
-  const token: Token = { issuedAt: new Date(tokenStr) }
-
-  if (!isValidAuthTimeStamp(token))
-    return res
-      .status(401)
-      .json({ error: 'Unauthorized; not valid timestamp.', status: 401 })
-
-  next() // proceed if valid
-}
-```
-
-Update the token service to manage cookies:
-
-```typescript
-// Update token service to use cookies
-export class StorageStateTokenService implements TokenService {
-  // ... existing code
-
-  refreshToken(): StorageState {
-    const timestamp = new Date().toISOString()
-    const expires = Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
-
-    // Create the storage state format
-    this.currentToken = {
-      cookies: [
-        {
-          name: 'sample-app-token',
-          value: timestamp,
-          domain: 'localhost',
-          path: '/',
-          expires,
-          httpOnly: true,
-          secure: false,
-          sameSite: 'Lax'
-        }
-      ],
-      origins: []
-    }
-
-    // Also set the browser cookie for API requests
-    if (typeof document !== 'undefined') {
-      setCookieAuth(timestamp)
-    }
-
-    return this.currentToken
-  }
-}
-```
-
-This approach offers several benefits:
-
-1. **Closer alignment with SEON Admin App**: Using the same authentication mechanism makes tests more transferable between applications
-
-2. **Simpler API requests**: No need to explicitly set Authorization headers on every request
-
-3. **Improved security**: Can leverage HttpOnly and secure flags for better security
-
-4. **Better testing compatibility**: Playwright's built-in storage state handling works perfectly with cookies
-
-### 6. Implement Role and Email-Based Authentication
+1. Support user identities with roles and permissions in the token structure
+2. Allow Playwright tests to authenticate with different user identities
+3. Implement role-based access control in the backend
+4. Support identity preservation during token refresh
+5. Create a clean interface for identity management in frontend components
 
 To improve test isolation and prevent destructive test interference, implement proper role and user identity management:
 
@@ -815,11 +438,3 @@ Benefits of this approach:
 - [ ] Confirm the app works with manual interaction
 - [ ] Verify Playwright tests can successfully perform all CRUD operations
 - [ ] Test token expiration and refresh scenarios
-
-This approach adheres to SEON's principles of:
-
-- Functional and declarative programming patterns
-- Modular code with clear separation of concerns
-- Type safety with explicit TypeScript interfaces
-- DRY principles by centralizing token logic
-- Revisit skipped tests (token clearing and ui tests)
