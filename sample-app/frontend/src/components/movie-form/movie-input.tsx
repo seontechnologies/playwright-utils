@@ -15,7 +15,7 @@ export default function MovieInput({
 }: MovieInputProps) {
   return (
     <SInput
-      data-qa={`movie-input-comp-${type}`}
+      data-testid={`movie-input-comp-${type}`}
       type={type}
       value={value}
       onChange={onChange}

@@ -11,7 +11,7 @@ export default function ValidationErrorDisplay({ validationError }: props) {
   return (
     <SError>
       {validationError.errors.map((err) => (
-        <p key={err.path.join('.')} data-qa="validation-error">
+        <p key={err.path.join('.')} data-testid="validation-error">
           {err.message}
         </p>
       ))}

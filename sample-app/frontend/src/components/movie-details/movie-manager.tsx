@@ -20,10 +20,13 @@ export default function MovieManager({ movie, onDelete }: MovieManagerProps) {
       ) : (
         <>
           <MovieInfo movie={movie} />
-          <SButton data-qa="edit-movie" onClick={() => setIsEditing(true)}>
+          <SButton data-testid="edit-movie" onClick={() => setIsEditing(true)}>
             Edit
           </SButton>
-          <SButton data-qa="delete-movie" onClick={() => onDelete(movie.id)}>
+          <SButton
+            data-testid="delete-movie"
+            onClick={() => onDelete(movie.id)}
+          >
             Delete
           </SButton>
         </>

@@ -22,7 +22,7 @@ export default function MovieList({ movies, onDelete }: MovieListProps) {
   return (
     <>
       <STitle>Movie List</STitle>
-      <SMovieList data-qa="movie-list-comp">
+      <SMovieList data-testid="movie-list-comp">
         {Array.isArray(movies) &&
           movies.map((movie) => (
             <MovieItem key={movie.id} {...movie} onDelete={onDelete} />

@@ -14,11 +14,14 @@ export default function MovieItem({
   onDelete
 }: MovieItemProps) {
   return (
-    <SMovieItem data-qa="movie-item-comp">
-      <Link to={`/movies/${id}`} data-qa={`link-${id}`}>
+    <SMovieItem data-testid="movie-item-comp">
+      <Link to={`/movies/${id}`} data-testid={`link-${id}`}>
         {name} ({year}) {rating} {director}
       </Link>
-      <SButton data-qa={`delete-movie-${name}`} onClick={() => onDelete(id)}>
+      <SButton
+        data-testid={`delete-movie-${name}`}
+        onClick={() => onDelete(id)}
+      >
         Delete
       </SButton>
     </SMovieItem>
