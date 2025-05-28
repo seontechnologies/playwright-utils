@@ -77,7 +77,16 @@ jobs:
   e2e-test:
     needs: [vars, burn-in]
     timeout-minutes: 10
-    if: needs.vars.outputs.skip_burn_in == 'true' || needs.burn-in.outputs.runE2E == 'true'
+    # This conditional logic ensures e2e tests run in three scenarios:
+    # 1. When the skip_burn_in label is present (we skip burn-in but still run e2e tests)
+    # 2. When burn-in job runs and completes successfully (normal flow with test changes)
+    # 3. When burn-in job is skipped because no test files changed (only src changes)
+    # The always() ensures this job evaluates even if burn-in is skipped or never ran
+    if: |
+      always() && 
+      (needs.vars.outputs.skip_burn_in == 'true' || 
+       (needs.burn-in.result == 'success' && needs.burn-in.outputs.runE2E == 'true') ||
+       (needs.burn-in.result == 'skipped'))
     strategy:
       fail-fast: false
       matrix:
