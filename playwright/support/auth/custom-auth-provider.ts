@@ -74,24 +74,36 @@ const myCustomProvider: AuthProvider = {
     // Handle storage state objects (which are serialized as JSON)
     if (rawToken.trim().startsWith('{')) {
       try {
-        // If it's a valid storage state with cookies, it's not expired
         const storageState = JSON.parse(rawToken)
+
+        // check if there are cookies
         if (
           storageState?.cookies &&
           Array.isArray(storageState.cookies) &&
           storageState.cookies.length > 0
         ) {
-          return false // Storage state with cookies is valid
+          type Cookie = { name: string; value: string; expires: number }
+          const authCookie = storageState.cookies.find(
+            (cookie: Cookie) => cookie.name === 'seon-jwt'
+          )
+
+          // If cookie exists, check its expiration
+          if (authCookie) {
+            const currentTime = Math.floor(Date.now() / 1000)
+            return authCookie.expires < currentTime
+          }
         }
-      } catch {
-        console.error(
-          'Cannot parse the storage state JSON, consider it expired'
-        )
+
+        // No valid cookies found
+        return true
+      } catch (e) {
+        console.error('Cannot parse the storage state JSON', e)
         return true
       }
     }
 
-    return false
+    // Not a valid storage state format
+    return true
   },
 
   /**

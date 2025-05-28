@@ -26,7 +26,7 @@ export default function MovieEditForm({ movie, onCancel }: MovieEditFormProps) {
   } = useMovieEditForm(movie)
 
   return (
-    <div data-cy="movie-edit-form-comp">
+    <div data-qa="movie-edit-form-comp">
       <SSubtitle>Edit Movie</SSubtitle>
 
       <ValidationErrorDisplay validationError={validationError} />
@@ -56,13 +56,13 @@ export default function MovieEditForm({ movie, onCancel }: MovieEditFormProps) {
         onChange={(e) => setMovieDirector(e.target.value)}
       />
       <SButton
-        data-cy="update-movie"
+        data-qa="update-movie"
         onClick={handleUpdateMovie}
         disabled={movieLoading}
       >
         {movieLoading ? 'Updating...' : 'Update Movie'}
       </SButton>
-      <SButton data-cy="cancel" onClick={onCancel}>
+      <SButton data-qa="cancel" onClick={onCancel}>
         Cancel
       </SButton>
     </div>

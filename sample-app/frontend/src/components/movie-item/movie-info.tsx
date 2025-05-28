@@ -6,7 +6,7 @@ type MovieInfoProps = {
 
 export default function MovieInfo({ movie }: MovieInfoProps) {
   return (
-    <div data-cy="movie-info-comp">
+    <div data-qa="movie-info-comp">
       <h2>{movie.name}</h2>
       <p>ID: {movie.id}</p>
       <p>Year: {movie.year}</p>

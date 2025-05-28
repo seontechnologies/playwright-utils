@@ -25,7 +25,7 @@ export default function MovieDetails() {
   const movieError = (data as unknown as { error: ErrorResponse }).error?.error
 
   return (
-    <SMovieDetails data-cy="movie-details-comp">
+    <SMovieDetails data-qa="movie-details-comp">
       <STitle>Movie Details</STitle>
 
       {movieData && 'name' in movieData ? (
@@ -34,7 +34,7 @@ export default function MovieDetails() {
         <p>{movieError || 'Unexpected error occurred'}</p>
       )}
 
-      <SButton onClick={() => navigate(-1)} data-cy="back">
+      <SButton onClick={() => navigate(-1)} data-qa="back">
         Back
       </SButton>
     </SMovieDetails>

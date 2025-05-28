@@ -1,6 +1,7 @@
 name: Run e2e tests
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
 
 # if this branch is pushed back to back, cancel the older branch's workflow
@@ -21,11 +22,30 @@ jobs:
       test_env: ${{ env.TEST_ENV }}
       test_command: ${{ env.TEST_COMMAND }}
       install_command: ${{ env.INSTALL_COMMAND }}
+      # fall back to 'false' when the step is skipped
+      skip_burn_in: ${{ steps.check_skip_label.outputs.skip_burn_in || 'false' }}
     steps:
-      - run: echo "Exposing env vars"
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Check for skip_burn_in label
+        id: check_skip_label
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+        run: |
+          echo "Available labels: ${{ join(github.event.pull_request.labels.*.name, ', ') }}"
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip_burn_in') }}" == "true" ]]; then
+            echo "skip_burn_in=true" >> $GITHUB_OUTPUT
+            echo "✅ Found skip_burn_in label; skipping burn-in."
+          else
+            echo "skip_burn_in=false" >> $GITHUB_OUTPUT
+            echo "No skip_burn_in label; running burn-in."
+          fi
 
   burn-in:
     needs: vars
+    if: ${{ github.event_name == 'pull_request' && needs.vars.outputs.skip_burn_in != 'true' }}
     uses: ./.github/workflows/rwf-burn-in.yml
     with:
       base-ref: 'main'
@@ -39,7 +59,16 @@ jobs:
   e2e-test:
     needs: [vars, burn-in]
     timeout-minutes: 10
-    if: needs.burn-in.outputs.runE2E == 'true'
+    # This conditional logic ensures e2e tests run in three scenarios:
+    # 1. When the skip_burn_in label is present (we skip burn-in but still run e2e tests)
+    # 2. When burn-in job runs and completes successfully (normal flow with test changes)
+    # 3. When burn-in job is skipped because no test files changed (only src changes)
+    # The always() ensures this job evaluates even if burn-in is skipped or never ran
+    if: |
+      always() && 
+      (needs.vars.outputs.skip_burn_in == 'true' || 
+       (needs.burn-in.result == 'success' && needs.burn-in.outputs.runE2E == 'true') ||
+       (needs.burn-in.result == 'skipped'))
     strategy:
       fail-fast: false
       matrix:

@@ -3,7 +3,6 @@ import { generateMovieWithoutId } from '@playwright/support/utils/movie-factorie
 import type { Movie } from '@shared/types/movie-types'
 import type { Response } from '@playwright/test'
 
-test.skip()
 test.describe('App routes (vanilla playwright)', () => {
   const movies = [
     { id: 1, ...generateMovieWithoutId() },
