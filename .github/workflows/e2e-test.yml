@@ -1,6 +1,5 @@
 name: Run e2e tests
 on:
-  push:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
