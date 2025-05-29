@@ -5,6 +5,9 @@
  * including cookie-based authentication and token refresh features
  */
 import { setCookie, getCookie } from './cookie-utils'
+import axios from 'axios'
+
+const API_URL = 'http://localhost:3001'
 
 // Using types instead of interfaces since they're not used outside this file
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,14 +42,26 @@ type LocalStorageItem = {
  */
 export interface TokenService {
   getToken(): StorageState
-  refreshToken(): StorageState
+  /**
+   * Explicitly set the token state
+   * This is useful when we receive token information from an API response
+   */
+  setToken(token: StorageState): void
+  refreshToken(): Promise<StorageState>
   isTokenValid(token: StorageState): boolean
+  isJwtValid(token: StorageState): boolean
+  isRefreshTokenValid(token: StorageState): boolean
   getAuthorizationHeader(): string
   /**
    * Synchronize cookies from StorageState to browser cookies
    * This is used when restoring state during test automation
    */
   syncCookiesToBrowser(): void
+  /**
+   * Update token state from browser cookies
+   * This is used after a server sets cookies via HTTP headers
+   */
+  updateFromBrowserCookies(): boolean
 }
 
 /**
@@ -55,6 +70,16 @@ export interface TokenService {
  */
 export class StorageStateTokenService implements TokenService {
   private currentToken: StorageState | null = null
+
+  /**
+   * Explicitly set the token state
+   * This is useful when we receive token information from an API response
+   * when working with httpOnly cookies that JavaScript can't access directly
+   */
+  setToken(token: StorageState): void {
+    console.log('Setting token state explicitly')
+    this.currentToken = token
+  }
 
   constructor() {
     // Check if running in a Playwright test context with an injected token
@@ -77,53 +102,131 @@ export class StorageStateTokenService implements TokenService {
     }
   }
 
-  /** Get the current token, refreshing if needed */
+  /**
+   * Get the current token, refreshing if needed
+   * If the JWT is expired but refresh token is valid, it will automatically renew
+   */
   getToken(): StorageState {
-    if (!this.currentToken || !this.isTokenValid(this.currentToken)) {
-      return this.refreshToken()
-    }
-    return this.currentToken
-  }
-
-  /** Generate a new token with the current timestamp */
-  refreshToken(): StorageState {
-    const timestamp = new Date().toISOString()
-    const expires = Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
-
-    this.currentToken = {
-      cookies: [
-        {
-          name: 'seon-jwt',
-          value: `Bearer ${timestamp}`,
-          domain: window.location.hostname,
-          path: '/',
-          expires,
-          httpOnly: false, // Can't set httpOnly from client-side JS
-          secure: window.location.protocol === 'https:',
-          sameSite: 'Lax'
-        }
-      ],
-      origins: []
+    if (!this.currentToken) {
+      console.warn('No token available - will need authentication')
+      // Just return an empty token structure - the API call will fail but this is expected
+      // for initial authentication flows
+      return { cookies: [], origins: [] }
     }
 
-    // Sync to browser cookies
-    this.syncCookiesToBrowser()
+    try {
+      // Check if JWT is valid - if so, return current token
+      if (this.isJwtValid(this.currentToken)) {
+        return this.currentToken
+      }
 
+      // JWT is expired, check if refresh token is valid
+      if (this.isRefreshTokenValid(this.currentToken)) {
+        // JWT is expired but refresh token is valid - trigger renewal
+        console.log('JWT expired but refresh token valid - refreshing...')
+        // Start the refresh process but don't wait for it
+        // This maintains the synchronous API while still allowing refresh
+        void this.refreshToken() // Using void to explicitly ignore the Promise
+      } else {
+        console.warn('Both JWT and refresh token are expired or invalid')
+      }
+    } catch (error) {
+      console.error('Error in getToken:', error)
+    }
+
+    // Return the current token state (even if invalid)
+    // The API request will fail with 401 which will trigger proper auth
     return this.currentToken
   }
 
   /**
+   * Refresh the token by calling the renewal endpoint
+   * Uses the refresh token to get a new JWT token
+   */
+  async refreshToken(): Promise<StorageState> {
+    try {
+      // Check if we have a refresh token before attempting renewal
+      if (!this.currentToken || !this.isRefreshTokenValid(this.currentToken)) {
+        console.warn('No valid refresh token available - cannot renew')
+        return this.currentToken || { cookies: [], origins: [] }
+      }
+
+      console.log('Attempting to refresh token with /auth/renew endpoint')
+
+      // Call the renewal endpoint
+      const response = await axios.post(
+        `${API_URL}/auth/renew`,
+        {},
+        { withCredentials: true } // Ensures cookies are sent
+      )
+
+      if (response.status !== 200) {
+        throw new Error(`Token refresh failed with status: ${response.status}`)
+      }
+
+      console.log('Token refresh successful - updating storage state')
+
+      // The server sets the cookies via Set-Cookie headers
+      // We need to manually update our storage state to reflect these changes
+
+      // Wait a moment for cookies to be set by browser
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Capture the current cookies from the browser
+      const restored = this.restoreFromBrowserCookies()
+
+      if (!restored) {
+        console.warn('Failed to restore cookies after token refresh')
+      }
+
+      if (!this.currentToken) {
+        // Safety check in case restoreFromBrowserCookies didn't set the token
+        this.currentToken = { cookies: [], origins: [] }
+      }
+
+      return this.currentToken
+    } catch (error) {
+      console.error('Failed to refresh token:', error)
+
+      // If refresh fails, create a minimal token structure
+      // This ensures the app doesn't crash, but authentication will likely fail
+      this.currentToken = this.currentToken || { cookies: [], origins: [] }
+      return this.currentToken
+    }
+  }
+
+  /**
    * Check if the token is still valid
+   * A token is valid if either:
+   * 1. The JWT is valid, or
+   * 2. The JWT is expired but the refresh token is valid
    */
   isTokenValid(token: StorageState): boolean {
+    return this.isJwtValid(token) || this.isRefreshTokenValid(token)
+  }
+
+  /**
+   * Check if the JWT token is valid
+   */
+  isJwtValid(token: StorageState): boolean {
+    if (!token || !token.cookies || !Array.isArray(token.cookies)) {
+      return false
+    }
+
     try {
-      // Find the token cookie
+      // Find the JWT cookie
       const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
-      if (!cookie) return false
+      if (!cookie) {
+        console.debug('No JWT cookie found')
+        return false
+      }
 
       // Check if cookie is expired by timestamp
       const currentTime = Math.floor(Date.now() / 1000)
-      if (cookie.expires < currentTime) return false
+      if (cookie.expires < currentTime) {
+        console.debug('JWT cookie is expired')
+        return false
+      }
 
       // Extract timestamp from Bearer token
       const tokenValue = cookie.value.replace(/^Bearer\s+/i, '')
@@ -133,6 +236,7 @@ export class StorageStateTokenService implements TokenService {
 
       // Check if the date is valid
       if (isNaN(tokenDate.getTime())) {
+        console.debug('JWT contains invalid date')
         return false
       }
 
@@ -140,10 +244,50 @@ export class StorageStateTokenService implements TokenService {
       const tokenTime = tokenDate.getTime()
       const diffInSeconds = (currentDate.getTime() - tokenTime) / 1000
 
-      // Valid if issued within the last 50 minutes (3000 seconds)
-      return diffInSeconds >= 0 && diffInSeconds < 3000
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_e) {
+      // Valid if issued within the last 5 minutes (300 seconds) - shortened for demo purposes
+      // In production, this would typically be 5-15 minutes
+      const isValid = diffInSeconds >= 0 && diffInSeconds < 300
+
+      if (!isValid) {
+        console.debug(
+          `JWT age (${diffInSeconds}s) exceeds validity window (300s)`
+        )
+      }
+
+      return isValid
+    } catch (error) {
+      console.error('Error checking JWT validity:', error)
+      return false
+    }
+  }
+
+  /**
+   * Check if the refresh token is valid
+   */
+  isRefreshTokenValid(token: StorageState): boolean {
+    if (!token || !token.cookies || !Array.isArray(token.cookies)) {
+      return false
+    }
+
+    try {
+      // Find the refresh token cookie
+      const cookie = token.cookies.find((c) => c.name === 'seon-refresh')
+      if (!cookie) {
+        console.debug('No refresh token cookie found')
+        return false
+      }
+
+      // Check if cookie is expired by timestamp
+      const currentTime = Math.floor(Date.now() / 1000)
+      const isValid = cookie.expires > currentTime
+
+      if (!isValid) {
+        console.debug('Refresh token is expired')
+      }
+
+      return isValid
+    } catch (error) {
+      console.error('Error checking refresh token validity:', error)
       return false
     }
   }
@@ -184,33 +328,82 @@ export class StorageStateTokenService implements TokenService {
   }
 
   /**
+   * Update token state from browser cookies
+   * This is a public method that wraps the private restoreFromBrowserCookies
+   * method, allowing external code to update the token state after HTTP operations
+   */
+  updateFromBrowserCookies(): boolean {
+    return this.restoreFromBrowserCookies()
+  }
+
+  /**
    * Attempt to restore token from browser cookies
    * @returns true if token was successfully restored
    */
   private restoreFromBrowserCookies(): boolean {
-    // Check for token cookie in browser
-    const tokenValue = getCookie('seon-jwt')
-    if (!tokenValue) return false
+    try {
+      // Log all cookies for debugging
+      console.debug('All document cookies:', document.cookie)
 
-    // Create a storage state from the cookie
-    const expires = Math.floor(Date.now() / 1000) + 3600 // Default to 1 hour from now
+      // Check for JWT cookie in browser
+      const jwtValue = getCookie('seon-jwt')
+      const refreshValue = getCookie('seon-refresh')
 
-    this.currentToken = {
-      cookies: [
-        {
+      console.debug('Restoring cookies from browser:', {
+        jwtValue,
+        refreshValue
+      })
+
+      if (!jwtValue && !refreshValue) {
+        console.warn('No tokens found in browser cookies')
+        return false
+      }
+
+      // Create a storage state from the cookies
+      // Use longer expiration times than the actual cookies to prevent edge cases
+      const jwtExpires = Math.floor(Date.now() / 1000) + 300 // 5 minutes for JWT
+      const refreshExpires = Math.floor(Date.now() / 1000) + 86400 // 24 hours for refresh token
+
+      const cookies = []
+
+      if (jwtValue) {
+        console.log('Found JWT cookie, adding to storage state')
+        cookies.push({
           name: 'seon-jwt',
-          value: tokenValue,
+          value: jwtValue,
           domain: window.location.hostname,
           path: '/',
-          expires,
+          expires: jwtExpires,
           httpOnly: false,
           secure: window.location.protocol === 'https:',
-          sameSite: 'Lax'
-        }
-      ],
-      origins: []
-    }
+          sameSite: 'Lax' as const // Type assertion to match Cookie.sameSite
+        })
+      }
 
+      if (refreshValue) {
+        console.log('Found refresh cookie, adding to storage state')
+        cookies.push({
+          name: 'seon-refresh',
+          value: refreshValue,
+          domain: window.location.hostname,
+          path: '/',
+          expires: refreshExpires,
+          httpOnly: false,
+          secure: window.location.protocol === 'https:',
+          sameSite: 'Lax' as const // Type assertion to match Cookie.sameSite
+        })
+      }
+
+      this.currentToken = {
+        cookies,
+        origins: []
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error restoring token from browser cookies:', error)
+      return false
+    }
     return true
   }
 }

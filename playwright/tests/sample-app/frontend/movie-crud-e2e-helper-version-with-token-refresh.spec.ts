@@ -5,7 +5,7 @@ import { editMovie } from '@playwright/support/ui-helpers/edit-movie'
 import { generateMovieWithoutId } from '@playwright/support/utils/movie-factories'
 import { log } from 'src/log'
 
-test.describe('movie crud e2e (playwright-utils helpers)', () => {
+test.describe('movie crud e2e with token refresh(playwright-utils helpers)', () => {
   test.beforeEach(async ({ page, interceptNetworkCall }) => {
     const loadGetMovies = interceptNetworkCall({
       method: 'GET',
@@ -16,9 +16,13 @@ test.describe('movie crud e2e (playwright-utils helpers)', () => {
     const { status: responseStatus } = await loadGetMovies
     expect(responseStatus).toBeGreaterThanOrEqual(200)
     expect(responseStatus).toBeLessThan(400)
+
+    await log.step('Manipulate the clock to trigger token refresh')
+    await page.clock.install()
+    await page.clock.fastForward(5 * 60 * 1000 + 1000) // 5 minutes + 1 second
   })
 
-  test('should add and delete a movie from movie list ((playwright-utils helpers))', async ({
+  test('should add and delete a movie from movie list with token refresh (playwright-utils helpers)', async ({
     page,
     interceptNetworkCall
   }) => {
@@ -63,7 +67,7 @@ test.describe('movie crud e2e (playwright-utils helpers)', () => {
     await expect(page.getByTestId(`delete-movie-${name}`)).not.toBeVisible()
   })
 
-  test('should update and delete a movie at movie manager ((playwright-utils helpers))', async ({
+  test('should update and delete a movie at movie manager with token refresh (playwright-utils helpers)', async ({
     page,
     addMovie,
     apiRequest

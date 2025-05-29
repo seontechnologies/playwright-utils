@@ -16,6 +16,10 @@
   - [x] Updated auth middleware to look for `seon-jwt` cookie instead of Authorization header
   - [x] Modified token validation to handle the "Bearer" prefix appropriately
 - [x] Fix unit tests for auth middleware to match new cookie-based approach
+- [x] Add renewal endpoint
+  - [x] Create `/auth/renew` endpoint to issue new JWT tokens using refresh tokens
+  - [x] Update `/auth/fake-token` to provide both JWT and refresh tokens
+  - [x] Implement refresh token validation and security checks
 - [ ] Add identity-based authentication endpoint
 
 ### Phase 2: Frontend Changes
@@ -37,6 +41,11 @@
   - [x] Changed references from `sample-app-token` to `seon-jwt`
   - [x] Updated `getAuthorizationHeader()` method to match new token format
   - [x] Ensured `isTokenValid()` method handles the new token format
+- [ ] Add feature set for cookie-based authentication
+  - [ ] Update TokenService to manage both token types
+  - [ ] Add automatic token refresh when JWT expires
+  - [ ] Create token refresh interceptor for API requests
+- [ ] Add feature set for identity-based authentication
 
 ### Phase 3: Test Framework Integration
 
@@ -50,6 +59,7 @@
 - [x] Update API helper functions for tests
   - [x] Updated to use cookie-based authentication in headers
   - [x] Modified request format to match backend expectations
+- [ ] refactor @custom-auth-provider.ts ; either we FIT things into the interface, or we simplify the interface
 - [ ] Implement identity-aware token storage
 - [ ] Update test fixtures with identity support
 - [ ] Add test environment detection
@@ -98,7 +108,43 @@
    - ✅ Backend tests now successfully validate the token flow
    - ✅ E2E tests enabled and verified with the new cookie-based authentication
 
-## Next Steps
+## Token Refresh Implementation (Priority)
+
+### Overview
+
+To better align with the Admin app's authentication approach and improve security, we need to implement a token refresh mechanism using separate JWT and refresh tokens.
+
+### Current Structure
+
+Currently, our sample app has:
+
+- One cookie: `seon-jwt` with a simple timestamp token
+- No refresh mechanism or token separation
+
+### Target Structure (Admin App Pattern)
+
+The Admin app uses:
+
+- `seon-jwt`: Short-lived JWT token (5 minutes) for authentication
+- `seon-refresh`: Long-lived refresh token (1 day) for obtaining new JWT tokens
+
+### Implementation Tasks
+
+1. **Backend Changes**
+
+   - Create `/auth/renew` endpoint to issue new JWT tokens using refresh tokens
+   - Update `/auth/fake-token` to provide both JWT and refresh tokens
+   - Implement refresh token validation and security checks
+
+2. **Frontend Changes**
+
+   - Update TokenService to manage both token types
+   - Add automatic token refresh when JWT expires
+   - Create token refresh interceptor for API requests
+
+3. **Test Framework Integration**
+   - Update auth provider to handle refresh tokens
+   - Ensure proper token refresh during long-running tests
 
 ### 1. Implement Identity-Based Authentication
 
@@ -275,11 +321,11 @@ Benefits of this approach:
 3. **Role-Based Testing**: Easy to test different user permissions and roles
 4. **Debugging**: Clear connection between tokens and test identities
 
-## Detailed Implementation Plan
+### Detailed Implementation Plan
 
-### Phase 1: Backend Changes
+#### Phase 1: Backend Changes
 
-#### 1. Update Auth Middleware for Cookie Support
+##### 1. Update Auth Middleware for Cookie Support
 
 - [ ] Modify `/backend/src/middleware/auth-middleware.ts` to check for tokens in cookies
 
@@ -306,7 +352,7 @@ Benefits of this approach:
   app.use(cookieParser())
   ```
 
-#### 2. Add Identity-Based Authentication Endpoint
+##### 2. Add Identity-Based Authentication Endpoint
 
 - [ ] Create `/auth/login` endpoint
 
@@ -324,15 +370,15 @@ Benefits of this approach:
 - [ ] Update the `/auth/fake-token` endpoint to support identity parameters
 - [ ] Ensure backward compatibility with existing code
 
-#### 3. Implement Token Validation with Identity Support
+##### 3. Implement Token Validation with Identity Support
 
 - [ ] Extract and verify identity information from tokens
 - [ ] Add role-based access control for protected endpoints if needed
 - [ ] Update validation to work with new token format
 
-### Phase 2: Frontend Changes
+#### Phase 2: Frontend Changes
 
-#### 4. Create TokenService Implementation
+##### 4. Create TokenService Implementation
 
 - [ ] Implement `TokenService` interface with storage state support
   ```typescript
@@ -346,7 +392,7 @@ Benefits of this approach:
 - [ ] Add token validation and refresh mechanisms
 - [ ] Handle both manual and automated testing scenarios
 
-#### 5. Implement Cookie-Based Authentication
+##### 5. Implement Cookie-Based Authentication
 
 - [ ] Add cookie management utilities
 
@@ -363,21 +409,21 @@ Benefits of this approach:
 - [ ] Update token storage to use cookies for API requests
 - [ ] Ensure storage state compatibility
 
-#### 6. Refactor Axios Configuration
+##### 6. Refactor Axios Configuration
 
 - [ ] Remove token header interceptors
 - [ ] Update API client to use cookies for authentication
 - [ ] Ensure backward compatibility
 
-#### 7. Update API Client Methods
+##### 7. Update API Client Methods
 
 - [ ] Remove hardcoded Authorization headers
 - [ ] Add support for identity-based operations if needed
 - [ ] Update error handling for authentication failures
 
-### Phase 3: Test Framework Integration
+#### Phase 3: Test Framework Integration
 
-#### 8. Implement Identity-Aware Token Storage
+##### 8. Implement Identity-Aware Token Storage
 
 - [ ] Update token path generation to include identity information
   ```typescript
@@ -389,7 +435,7 @@ Benefits of this approach:
 - [ ] Modify token storage to isolate by environment, role, and email
 - [ ] Ensure backward compatibility
 
-#### 9. Create Custom Auth Provider for Playwright
+##### 9. Create Custom Auth Provider for Playwright
 
 - [ ] Implement auth provider that supports user identities
 
@@ -409,32 +455,14 @@ Benefits of this approach:
 - [ ] Add methods to manage tokens with identity context
 - [ ] Ensure compatibility with auth-session library
 
-#### 10. Update Test Fixtures with Identity Support
+##### 10. Update Test Fixtures with Identity Support
 
 - [ ] Modify fixtures to accept identity options
 - [ ] Add helper functions for common identity patterns
 - [ ] Update documentation and examples
 
-#### 11. Add Test Environment Detection
+##### 11. Add Test Environment Detection
 
 - [ ] Implement browser/Node.js environment detection
 - [ ] Add automatic token injection for tests
 - [ ] Ensure seamless transition between environments
-
-### Phase 4: Testing
-
-#### Unit Tests
-
-- [ ] Test token service functions in isolation
-- [ ] Verify token generation and validation logic
-
-#### Integration Tests
-
-- [ ] Verify Axios interceptors correctly apply tokens
-- [ ] Test API client methods with the new token mechanism
-
-#### E2E Tests
-
-- [ ] Confirm the app works with manual interaction
-- [ ] Verify Playwright tests can successfully perform all CRUD operations
-- [ ] Test token expiration and refresh scenarios

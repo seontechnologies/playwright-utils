@@ -8,17 +8,19 @@
  */
 import type { APIRequestContext } from '@playwright/test'
 import {
-  type AuthProvider,
   type AuthOptions,
+  type AuthProvider,
   AuthSessionManager,
-  getTokenFilePath,
   authStorageInit,
-  loadStorageState,
   getStorageDir,
+  getTokenFilePath,
   saveStorageState
 } from '../../../src/auth-session'
 import { log } from '../../../src/log'
-import { acquireToken } from './acquire-token'
+import { acquireToken } from './token-acquire'
+import { checkTokenValidity } from './token-check-validity'
+import { isTokenExpired } from './token-expired'
+import { extractToken } from './token-extract'
 
 // Create a fully custom provider implementation
 const myCustomProvider: AuthProvider = {
@@ -49,62 +51,10 @@ const myCustomProvider: AuthProvider = {
   },
 
   /** Extract JWT token from Playwright storage state format */
-  extractToken: (tokenData: Record<string, unknown>): string | null => {
-    // If it's a storage state with cookies, extract the auth token value
-    if (
-      tokenData?.cookies &&
-      Array.isArray(tokenData.cookies) &&
-      tokenData.cookies.length > 0
-    ) {
-      // Find the auth cookie
-      const authCookie = tokenData.cookies.find(
-        (cookie) => cookie.name === 'seon-jwt'
-      )
+  extractToken,
 
-      // Return the token value if found
-      if (authCookie?.value) {
-        return authCookie.value
-      }
-    }
-
-    return null
-  },
-
-  isTokenExpired: (rawToken: string): boolean => {
-    // Handle storage state objects (which are serialized as JSON)
-    if (rawToken.trim().startsWith('{')) {
-      try {
-        const storageState = JSON.parse(rawToken)
-
-        // check if there are cookies
-        if (
-          storageState?.cookies &&
-          Array.isArray(storageState.cookies) &&
-          storageState.cookies.length > 0
-        ) {
-          type Cookie = { name: string; value: string; expires: number }
-          const authCookie = storageState.cookies.find(
-            (cookie: Cookie) => cookie.name === 'seon-jwt'
-          )
-
-          // If cookie exists, check its expiration
-          if (authCookie) {
-            const currentTime = Math.floor(Date.now() / 1000)
-            return authCookie.expires < currentTime
-          }
-        }
-
-        // No valid cookies found
-        return true
-      } catch (e) {
-        console.error('Cannot parse the storage state JSON', e)
-        return true
-      }
-    }
-
-    // Not a valid storage state format
-    return true
-  },
+  /** Check if a token is expired */
+  isTokenExpired,
 
   /**
    * Main token management method
@@ -128,11 +78,10 @@ const myCustomProvider: AuthProvider = {
       tokenFileName: 'storage-state.json'
     })
 
-    // STEP 1: Check if we already have a valid token using the enhanced utility
-    const existingStorageState = loadStorageState(tokenPath, true)
-    if (existingStorageState) {
-      log.infoSync(`✓ Using existing token from ${tokenPath}`)
-      return existingStorageState
+    // STEP 1: Check if we already have a valid token using the dedicated module
+    const validToken = await checkTokenValidity(tokenPath)
+    if (validToken) {
+      return validToken
     }
 
     // No valid token found, continue with getting a new one

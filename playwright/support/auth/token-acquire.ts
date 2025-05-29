@@ -53,7 +53,15 @@ export const acquireToken = async (
   log.infoSync(`Making auth request to ${authUrl}`)
 
   // Make the auth request - this will set cookies via HTTP headers
-  const response = await context.get(authUrl)
+  const response = await context.post(authUrl, {
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    data: JSON.stringify({
+      username: options.username || 'test-user',
+      password: options.password || 'password123'
+    })
+  })
 
   const status = response.status()
   const body = await response.json().catch(() => null)
