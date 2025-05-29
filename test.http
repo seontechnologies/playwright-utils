@@ -6,6 +6,12 @@
 GET {{baseUrl}}/auth/fake-token
 
 ###
+# @name renewToken
+# This requires a valid refresh cookie to be present in your browser
+POST {{baseUrl}}/auth/renew
+Content-Type: application/json
+
+###
 @token = {{generateToken.response.body.token}}
 
 ###

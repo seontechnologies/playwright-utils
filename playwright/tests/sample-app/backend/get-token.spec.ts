@@ -1,5 +1,6 @@
 import { API_URL } from '@playwright/config/local.config'
 import { test, expect } from '../../../support/merged-fixtures'
+import { log } from 'src/log'
 
 // Disable auth session for these tests since we're testing token acquisition
 // This prevents the global auth from interfering with these tests
@@ -40,7 +41,9 @@ test.describe('token acquisition', () => {
     await apiRequestContext.dispose()
   })
 
-  test('should get a token with helper', async ({ apiRequest }) => {
+  test('should get a token & refresh token with helper', async ({
+    apiRequest
+  }) => {
     const {
       body: { token },
       status
@@ -52,5 +55,19 @@ test.describe('token acquisition', () => {
 
     expect(status).toBe(200)
     expect(token).toEqual(expect.any(String))
+
+    await log.step('Test the refresh token')
+
+    const {
+      body: { token: refreshToken },
+      status: refreshTokenStatus
+    } = await apiRequest<{ token: string }>({
+      baseUrl: API_URL,
+      method: 'POST',
+      path: '/auth/renew'
+    })
+
+    expect(refreshTokenStatus).toBe(200)
+    expect(refreshToken).toEqual(expect.any(String))
   })
 })
