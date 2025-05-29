@@ -1,6 +1,6 @@
 import { API_URL } from '@playwright/config/local.config'
 import { test, expect } from '../../../support/merged-fixtures'
-import { log } from 'src/log'
+import { log } from '../../../../src/log'
 
 // Disable auth session for these tests since we're testing token acquisition
 // This prevents the global auth from interfering with these tests
@@ -30,7 +30,7 @@ test.describe('token acquisition', () => {
     const apiRequestContext = await playwright.request.newContext({
       baseURL: API_URL
     })
-    const tokenRes = await apiRequestContext.get('/auth/fake-token')
+    const tokenRes = await apiRequestContext.post('/auth/fake-token')
     const tokenResBody = await tokenRes.json()
     const tokenResStatus = tokenRes.status()
     const token = tokenResBody.token
@@ -49,7 +49,7 @@ test.describe('token acquisition', () => {
       status
     } = await apiRequest<{ token: string }>({
       baseUrl: API_URL,
-      method: 'GET',
+      method: 'POST',
       path: '/auth/fake-token'
     })
 
@@ -69,5 +69,6 @@ test.describe('token acquisition', () => {
 
     expect(refreshTokenStatus).toBe(200)
     expect(refreshToken).toEqual(expect.any(String))
+    expect(token).not.toEqual(refreshToken)
   })
 })

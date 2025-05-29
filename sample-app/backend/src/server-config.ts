@@ -22,7 +22,7 @@ server.get('/', (_, res) => {
 
 server.use('/movies', moviesRoute)
 
-server.use('/auth/fake-token', (_req, res) => {
+server.post('/auth/fake-token', (_req, res) => {
   // JWT token - short lived (5 minutes)
   const timestamp = new Date().toISOString()
   const jwtToken = `Bearer ${timestamp}`
@@ -67,7 +67,7 @@ server.use('/auth/fake-token', (_req, res) => {
 })
 
 // Token renewal endpoint - uses refresh token to get a new JWT token
-server.use('/auth/renew', (req, res) => {
+server.post('/auth/renew', (req, res) => {
   const refreshToken = req.cookies?.['seon-refresh']
 
   if (!refreshToken) {

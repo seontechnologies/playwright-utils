@@ -101,9 +101,13 @@ export const acquireInitialToken = async (): Promise<void> => {
   tokenAcquisitionPromise = new Promise<void>((resolve, reject) => {
     // Call the fake token endpoint to get an initial token
     axios
-      .get(`${API_URL}/auth/fake-token`, {
-        withCredentials: true // Needed to store cookies
-      })
+      .post(
+        `${API_URL}/auth/fake-token`,
+        {},
+        {
+          withCredentials: true // Needed to store cookies
+        }
+      )
       .then((response) => {
         if (response.status !== 200) {
           throw new Error(`Failed to acquire token, status: ${response.status}`)

@@ -81,7 +81,7 @@ test.describe('movie crud e2e (vanilla playwright)', () => {
     const {
       body: { token }
     } = await apiRequest<{ token: string }>({
-      method: 'GET',
+      method: 'POST',
       path: '/auth/fake-token',
       baseUrl: API_URL
     })

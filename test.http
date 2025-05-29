@@ -3,7 +3,10 @@
 ###
 # @name generateToken
 # Simulate token generation (mocked)
-GET {{baseUrl}}/auth/fake-token
+POST {{baseUrl}}/auth/fake-token
+Content-Type: application/json
+
+{}
 
 ###
 # @name renewToken
