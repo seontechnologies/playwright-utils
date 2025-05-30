@@ -2,11 +2,11 @@
  * Token validation utilities
  * Provides functions to check if tokens are valid or need renewal
  */
-import { log } from '../../../src/log'
-import { loadStorageState } from '../../../src/auth-session'
-import { extractToken } from './token-extract'
-import { isTokenExpired } from './token-expired'
-import { needsTokenRenewal, renewToken } from './token-renew'
+import { log } from '../../../../src/log'
+import { loadStorageState } from '../../../../src/auth-session'
+import { extractToken } from './extract'
+import { isTokenExpired } from './is-expired'
+import { needsTokenRenewal, renewToken } from './renew'
 
 /**
  * Check if a token exists and is valid, renewing it if needed
