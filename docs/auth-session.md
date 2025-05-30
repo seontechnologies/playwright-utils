@@ -31,8 +31,8 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-      - [Our Enhanced Approach](#our-enhanced-approach)
+        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+        - [Our Enhanced Approach](#our-enhanced-approach)
     - [Storage/\*\_ Options for the auth session \_/](#storage_-options-for-the-auth-session-_)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
 
@@ -360,54 +360,96 @@ export const test = base.extend<AuthFixtures>({
 
 ### Implement Custom Auth Provider
 
-Create a custom auth provider to handle token acquisition, application, and expiration logic specific to your application.
+Create a custom auth provider to handle token acquisition, validation, and management. Here's the actual implementation used in the codebase:
 
 ```typescript
 // playwright/support/auth/custom-auth-provider.ts
+import type { APIRequestContext } from '@playwright/test'
 import {
+  type AuthOptions,
   type AuthProvider,
-  getTokenFilePath
-} from '@seontechnologies/playwright-utils/auth'
-import { acquireToken } from './acquire-token'
+  AuthSessionManager,
+  authStorageInit,
+  getStorageDir,
+  getTokenFilePath,
+  saveStorageState
+} from '../../../src/auth-session'
+import { log } from '../../../src/log'
+import { acquireToken } from './token/acquire'
+import { checkTokenValidity } from './token/check-validity'
+import { isTokenExpired } from './token/is-expired'
+import { extractToken } from './token/extract'
 
 const myCustomProvider: AuthProvider = {
-  // Core environment and role methods
-  getEnvironment(options = {}) {
-    return (options.environment as string) || process.env.TEST_ENV || 'local'
+  // Get the current environment to use
+  getEnvironment(options: AuthOptions = {}) {
+    // Environment priority:
+    // 1. Options passed from test
+    // 2. Environment variables
+    // 3. Default environment
+    return options.environment || process.env.TEST_ENV || 'local'
   },
 
-  getUserRole(options = {}) {
-    return (options.userRole as string) || 'default'
+  // Get the current user role to use
+  getUserRole(options: AuthOptions = {}) {
+    // Role priority:
+    // 1. Options passed from test
+    // 2. Default role based on environment
+    const environment = this.getEnvironment(options)
+    let defaultRole = 'default'
+    if (environment === 'staging') defaultRole = 'tester'
+    if (environment === 'production') defaultRole = 'readonly'
+    return options.userRole || process.env.TEST_USER_ROLE || defaultRole
   },
 
-  // Token expiration check - handle your token's expiration logic
-  isTokenExpired(tokenData: Record<string, unknown>): boolean {
-    // Example implementation for JWT tokens with exp claim
-    try {
-      const tokenString = (tokenData.token as string).replace('Bearer ', '')
-      // Your expiration logic here
-      return false // Replace with actual expiration check
-    } catch (error) {
-      return true // Consider expired if check fails
+  // Extract token from storage state
+  extractToken,
+
+  // Check if token is expired
+  isTokenExpired,
+
+  // Main token management method
+  async manageAuthToken(request: APIRequestContext, options: AuthOptions = {}) {
+    const environment = this.getEnvironment(options)
+    const userRole = this.getUserRole(options)
+    const userIdentifier = options.userIdentifier
+
+    // Get the path for storing the token
+    const tokenPath = getTokenFilePath({
+      environment,
+      userRole,
+      userIdentifier,
+      tokenFileName: 'storage-state.json'
+    })
+
+    // Check if we already have a valid token
+    const validToken = await checkTokenValidity(tokenPath)
+    if (validToken) {
+      return validToken
     }
+
+    // No valid token found, initialize storage and get a new one
+    authStorageInit({ environment, userRole, userIdentifier })
+    const storageState = await acquireToken(
+      request,
+      environment,
+      userRole,
+      options
+    )
+
+    // Save the token for future use
+    saveStorageState(tokenPath, storageState)
+    return storageState
   },
 
-  // OPTIONAL: Token formatting - only needed for custom token handling
-  // For UI tests with Playwright's storage state, this can often be omitted
-  formatToken(token: unknown): unknown {
-    // Simple implementation for API tests with Bearer tokens
-    return {
-      token,
-      createdAt: new Date().toISOString()
-    }
-  },
-
-  // Simplified sample of token lifecycle management
-  async manageAuthToken(request, options = {}) {
-    // Implementation details for token acquisition
-    // See full example in GitHub repository
-    const token = await acquireToken(request, options)
-    return token
+  // Clear token when needed
+  clearToken(options: AuthOptions = {}) {
+    const environment = this.getEnvironment(options)
+    const userRole = this.getUserRole(options)
+    const storageDir = getStorageDir({ environment, userRole })
+    const authManager = AuthSessionManager.getInstance({ storageDir })
+    authManager.clearToken()
+    return true
   }
 }
 
@@ -418,36 +460,95 @@ export default myCustomProvider
 
 ### Create Token Acquisition Logic
 
-Implement your application-specific token acquisition logic that handles credentials and API calls:
+Implement your application-specific token acquisition logic that handles credentials and API calls. Here's the actual implementation used in the codebase:
 
 ```typescript
-// playwright/support/auth/acquire-token.ts
+// playwright/support/auth/token/acquire.ts
 import type { APIRequestContext } from '@playwright/test'
+import { request } from '@playwright/test'
+import { log } from '../../../../src/log'
 
-export async function acquireToken(
-  request: APIRequestContext,
-  options = {}
-): Promise<string> {
-  const baseUrl = 'http://localhost:3000/api' // Replace with environment-based URL
-  const credentials = {
-    username: process.env.USER_USERNAME || 'user@example.com',
-    password: process.env.USER_PASSWORD || 'password123'
+/**
+ * Application-specific auth URL construction based on environment
+ */
+const getAuthBaseUrl = (environment: string, customUrl?: string) => {
+  // Override with custom URL if provided (useful for testing)
+  if (customUrl) return customUrl
+
+  // Support for environment variables
+  if (process.env.AUTH_BASE_URL) return process.env.AUTH_BASE_URL
+
+  // Environment-specific URL mapping (customize as needed for your application)
+  const urlMap: Record<string, string> = {
+    local: 'http://localhost:3001',
+    dev: 'https://dev.example.com/api',
+    staging: 'https://staging.example.com/api',
+    qa: 'https://qa.example.com/api',
+    production: 'https://api.example.com'
   }
 
-  // Make the authentication request
-  const response = await request.post(`${baseUrl}/auth/login`, {
-    data: credentials,
-    headers: { 'Content-Type': 'application/json' }
-  })
+  // Return mapped URL or fallback to local if environment not recognized
+  return urlMap[environment] || urlMap.local
+}
 
-  if (!response.ok()) {
-    throw new Error(
-      `Auth failed: ${response.status()} ${response.statusText()}`
-    )
+/**
+ * Acquire a token and return a complete Playwright storage state object
+ */
+export const acquireToken = async (
+  _request: APIRequestContext, // We won't use the passed request, we'll create a fresh one
+  environment: string,
+  userRole: string,
+  options: Record<string, string | undefined> = {}
+): Promise<Record<string, unknown>> => {
+  // Use the application-specific URL construction logic
+  const authBaseUrl = getAuthBaseUrl(
+    environment.toLowerCase(),
+    options.authBaseUrl
+  )
+
+  // Get the endpoint (could also be environment-specific if needed)
+  const endpoint = process.env.AUTH_TOKEN_ENDPOINT || '/auth/fake-token'
+  const authUrl = `${authBaseUrl}${endpoint}`
+
+  // Create a fresh request context that will capture cookies
+  const context = await request.newContext()
+
+  try {
+    // Make the authentication request
+    const response = await context.post(authUrl, {
+      data: {
+        username: process.env.USER_USERNAME || 'test-user',
+        password: process.env.USER_PASSWORD || 'password123',
+        role: userRole,
+        ...options.credentials // Allow overriding credentials via options
+      },
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers // Allow custom headers
+      }
+    })
+
+    if (!response.ok()) {
+      const error = await response.text()
+      throw new Error(`Auth failed: ${response.status()} - ${error}`)
+    }
+
+    // Get the storage state which includes cookies and localStorage
+    const storageState = await context.storageState()
+
+    // Add any additional metadata you want to store with the token
+    return {
+      ...storageState,
+      metadata: {
+        environment,
+        userRole,
+        acquiredAt: new Date().toISOString()
+      }
+    }
+  } finally {
+    // Always close the context to free up resources
+    await context.dispose()
   }
-
-  const data = await response.json()
-  return data.token || data.access_token
 }
 ```
 

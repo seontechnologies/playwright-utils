@@ -41,10 +41,10 @@
   - [x] Changed references from `sample-app-token` to `seon-jwt`
   - [x] Updated `getAuthorizationHeader()` method to match new token format
   - [x] Ensured `isTokenValid()` method handles the new token format
-- [ ] Add feature set for cookie-based authentication
-  - [ ] Update TokenService to manage both token types
-  - [ ] Add automatic token refresh when JWT expires
-  - [ ] Create token refresh interceptor for API requests
+- [x] Add feature set for cookie-based authentication
+  - [x] Update TokenService to manage both token types
+  - [x] Add automatic token refresh when JWT expires
+  - [x] Create token refresh interceptor for API requests
 - [ ] Add feature set for identity-based authentication
 
 ### Phase 3: Test Framework Integration
@@ -59,7 +59,7 @@
 - [x] Update API helper functions for tests
   - [x] Updated to use cookie-based authentication in headers
   - [x] Modified request format to match backend expectations
-- [ ] refactor @custom-auth-provider.ts ; either we FIT things into the interface, or we simplify the interface
+- [x] refactor @custom-auth-provider.ts
 - [ ] Implement identity-aware token storage
 - [ ] Update test fixtures with identity support
 - [ ] Add test environment detection
@@ -101,16 +101,24 @@
    - ✅ Token validation methods now correctly handle the "Bearer" prefix
    - ✅ Axios client configured with `withCredentials: true` for cross-origin cookie sending
    - ✅ Manual Authorization header management removed in favor of automatic cookie handling
+   - ✅ Automatic token refresh mechanism implemented for expired JWT tokens
+   - ✅ Token service updated to manage both JWT and refresh tokens
 
 4. **Test Framework Integration**:
+
    - ✅ Token extraction method in auth provider updated to get value from cookies
    - ✅ API helper functions updated to work with cookie-based authentication
    - ✅ Backend tests now successfully validate the token flow
    - ✅ E2E tests enabled and verified with the new cookie-based authentication
+   - ✅ Custom auth provider refactored to improve modularity with separate token utility modules
+   - ✅ Token validity and renewal logic centralized in dedicated modules
 
-## Token Refresh Implementation (Priority)
-
-### Overview
+5. **Token Refresh Implementation**:
+   - ✅ Token refresh flow implemented with `/auth/renew` endpoint
+   - ✅ Token validation mechanism checks for expired JWT but valid refresh token
+   - ✅ Automatic renewal process with proper error handling
+   - ✅ Mock Service Worker handlers created for frontend testing of token acquisition and refresh
+   - ✅ Integration tests verify token refresh mechanism works correctly
 
 To better align with the Admin app's authentication approach and improve security, we need to implement a token refresh mechanism using separate JWT and refresh tokens.
 
@@ -146,39 +154,122 @@ The Admin app uses:
    - Update auth provider to handle refresh tokens
    - Ensure proper token refresh during long-running tests
 
-### 1. Implement Identity-Based Authentication
+## Identity-Based Authentication Implementation Plan
 
-- Add user identity information to token structure (e.g., roles, permissions)
-- Create new authentication endpoints with identity support
-- Update token validation to check identity claims
-- Implement role-specific access controls
+### 1. Backend Implementation
 
-### 2. Enhance Test Framework with Identity Support
-
-- Verify that tests can successfully authenticate with the backend
-- Ensure all CRUD operations work as expected with the new authentication approach
-
-### 3. Detailed Identity Authentication Implementation Plan
-
-#### 3.1 Backend Changes
+#### 1.1 Token Structure Enhancement
 
 - Extend the token structure to include identity information:
 
   ```typescript
-  type Token = {
-    issuedAt: Date
+  type TokenResponse = {
+    token: string // The JWT token
+    refreshToken: string // For renewal
+    expiresAt: string // JWT expiration timestamp
+    refreshExpiresAt: string // Refresh token expiration
     identity: {
-      userId: string
+      userId: string // Unique user identifier
+      username: string // User's name or handle
       roles: string[] // e.g., ['admin', 'user', 'guest']
       permissions: string[] // e.g., ['read:movies', 'write:movies']
     }
   }
   ```
 
-- Create new authentication endpoints:
+#### 1.2 API Endpoints
 
-  - `/auth/login` - Username/password authentication
-  - `/auth/role/:roleName` - Quick role-based test authentication
+- Enhance `/auth/fake-token` endpoint to include identity information
+
+  - Accept role/permissions in request body
+  - Return identity object in response
+  - Set identity in JWT payload
+
+- Update `/auth/renew` endpoint to preserve identity information during renewal
+
+  - Extract identity from refresh token
+  - Include same identity in new JWT
+
+- Create role-specific authentication endpoint
+  - `/auth/role-token` for testing different user roles
+  - Simplified way to get tokens with specific roles for testing
+
+#### 1.3. Backend Middleware
+
+- Enhance authentication middleware to validate identity claims
+- Implement role-based access control middleware
+- Add permission checking utilities
+
+### 2. Frontend Implementation
+
+#### 2.1 Token Service Enhancement
+
+- Update `TokenService` to store and manage identity information
+- Add role and permission checking methods
+- Create userIdentity object derived from token
+
+#### 2.2 API Client Integration
+
+- Update API clients to include user identity in requests where needed
+- Add role-specific request interceptors
+- Implement permission-based UI rendering
+
+### 3. Test Framework Integration
+
+#### 3.1 Auth Provider Enhancement
+
+- Update `custom-auth-provider.ts` to store and retrieve identity information
+- Create new module for identity extraction and validation (following our modular pattern)
+- Modify storage path to include identity information (e.g., `/admin/john-doe/auth-token.json`)
+
+#### 3.2 Identity-Aware Fixtures
+
+- Create role-specific test fixtures
+- Implement identity validation in tests
+- Support role-based test filtering (e.g., only run admin tests with admin identity)
+
+#### 3.3 Technical Implementation
+
+```typescript
+// New identity-utils.ts module
+export function extractIdentity(
+  storageState: Record<string, unknown>
+): Identity | null {
+  // Extract identity information from token data
+  // Continue our functional approach with dedicated modules
+}
+
+// Token validation with identity awareness
+export function validateTokenWithIdentity(
+  token: string,
+  requiredRoles: string[] = []
+): boolean {
+  // Validate token and check if identity has required roles
+}
+
+// Auth provider enhancement
+const identityAwareProvider: AuthProvider = {
+  // ... existing methods
+
+  // New identity-specific methods
+  getIdentity(options: AuthOptions = {}): Identity | null {
+    // Return identity information from token
+  },
+
+  hasRole(role: string, options: AuthOptions = {}): boolean {
+    // Check if current identity has specific role
+  }
+}
+```
+
+### 4. Testing Strategy
+
+- Create tests for different user roles and permissions
+- Verify role-based access control works correctly
+- Ensure token refresh preserves identity information
+- Test UI rendering based on user permissions
+- Validate proper error handling for unauthorized actions
+
   - `/auth/refresh` - Token refresh with identity preservation
 
 - Implement identity validation in the auth middleware:

@@ -3,8 +3,8 @@
  * Based on the Admin app's renewAdminTokenApiRequest but adapted for the sample app
  */
 import { request } from '@playwright/test'
-import { log } from '../../../src/log'
-import { apiRequest } from '../../../src/api-request'
+import { log } from '../../../../src/log'
+import { apiRequest } from '../../../../src/api-request'
 import { API_URL } from '@playwright/config/local.config'
 
 type StorageStateType = {

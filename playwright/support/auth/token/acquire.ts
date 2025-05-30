@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test'
 import { request } from '@playwright/test'
-import { log } from '../../../src/log'
+import { log } from '../../../../src/log'
 
 /**
  * Application-specific auth URL construction based on environment

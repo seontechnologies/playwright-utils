@@ -17,10 +17,10 @@ import {
   saveStorageState
 } from '../../../src/auth-session'
 import { log } from '../../../src/log'
-import { acquireToken } from './token-acquire'
-import { checkTokenValidity } from './token-check-validity'
-import { isTokenExpired } from './token-expired'
-import { extractToken } from './token-extract'
+import { acquireToken } from './token/acquire'
+import { checkTokenValidity } from './token/check-validity'
+import { isTokenExpired } from './token/is-expired'
+import { extractToken } from './token/extract'
 
 // Create a fully custom provider implementation
 const myCustomProvider: AuthProvider = {

@@ -267,7 +267,7 @@ async function globalSetup() {
   // Ensure storage directories exist
   authStorageInit()
 
-  // STEP 1: Configure minimal auth storage settings
+  // STEP 1: Configure auth storage settings
   configureAuthSession({
     // store auth tokens anywhere you want, and remember to gitignore the directory
     authStoragePath: process.cwd() + '/playwright/auth-sessions',
@@ -306,29 +306,42 @@ import {
 // Import your custom auth provider
 import myCustomProvider from './custom-auth-provider'
 
+// Register the auth provider early
+setAuthProvider(myCustomProvider)
+
 export const test = base.extend<AuthFixtures>({
   // For authOptions, we need to define it directly using the Playwright array format
   authOptions: [defaultAuthOptions, { option: true }],
 
   // Use the other fixtures directly
   ...createAuthFixtures()
-});
+})
 
 // In your tests, use the auth token
 test('authenticated API request', async ({ authToken, request }) => {
   const response = await request.get('https://api.example.com/protected', {
-    headers: { 'Authorization': `Bearer ${authToken}` }
-  });
-  
-  expect(response.ok()).toBeTruthy();
-});
+    headers: { Authorization: `Bearer ${authToken}` }
+  })
+
+  expect(response.ok()).toBeTruthy()
+})
+```
+
+3. **Create Custom Auth Provider** - Implement token management with modular utilities:
+
+```typescript
+// playwright/support/auth/custom-auth-provider.ts
+import {
   type AuthProvider,
-  loadTokenFromStorage,
-  saveTokenToStorage,
+  authStorageInit,
   getTokenFilePath,
-  authStorageInit
+  saveStorageState
 } from '@seontechnologies/playwright-utils/auth-session'
-import { acquireToken } from './acquire-token'
+import { log } from '@seontechnologies/playwright-utils/log'
+import { acquireToken } from './token/acquire'
+import { checkTokenValidity } from './token/check-validity'
+import { isTokenExpired } from './token/is-expired'
+import { extractToken } from './token/extract'
 
 const myCustomProvider: AuthProvider = {
   // Get environment from options, env vars or default
@@ -339,45 +352,54 @@ const myCustomProvider: AuthProvider = {
   // Get user role based on environment and options
   getUserRole(options = {}) {
     const environment = this.getEnvironment(options)
-    let defaultRole = 'regular'
+    let defaultRole = 'default'
     if (environment === 'staging') defaultRole = 'tester'
     if (environment === 'production') defaultRole = 'readonly'
     return options.userRole || process.env.TEST_USER_ROLE || defaultRole
   },
 
-  /**
-   * Manage the complete authentication token lifecycle
-   * This method handles the entire token management process
-   */
+  // Extract token from storage state
+  extractToken,
+
+  // Check if token is expired
+  isTokenExpired,
+
+  // Main token management method
   async manageAuthToken(request, options = {}) {
-    // Get environment and role consistently
     const environment = this.getEnvironment(options)
     const userRole = this.getUserRole(options)
     const tokenPath = getTokenFilePath({
       environment,
-      userRole
+      userRole,
+      tokenFileName: 'storage-state.json'
     })
 
-    // STEP 1: Check for existing token first
-    const existingToken = loadTokenFromStorage(tokenPath, true)
-    if (existingToken) {
-      return existingToken
-    }
+    // Check for existing valid token
+    const validToken = await checkTokenValidity(tokenPath)
+    if (validToken) return validToken
 
-    // STEP 2: Initialize storage directories if needed
+    // Initialize storage and acquire new token if needed
     authStorageInit({ environment, userRole })
-
-    // STEP 3: Acquire a new token using our custom auth flow
-    const token = await acquireToken(request, environment, userRole, options)
-
-    // STEP 4: Save the token with metadata for future reuse
-    saveTokenToStorage(
-      tokenPath,
-      token,
-      { environment, userRole, source: 'custom-provider' },
-      true
+    const storageState = await acquireToken(
+      request,
+      environment,
+      userRole,
+      options
     )
-    return token
+
+    // Save and return the new token
+    saveStorageState(tokenPath, storageState)
+    return storageState
+  },
+
+  // Clear token when needed
+  clearToken(options = {}) {
+    const environment = this.getEnvironment(options)
+    const userRole = this.getUserRole(options)
+    const storageDir = getStorageDir({ environment, userRole })
+    const authManager = AuthSessionManager.getInstance({ storageDir })
+    authManager.clearToken()
+    return true
   }
 }
 
