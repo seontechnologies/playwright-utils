@@ -66,6 +66,76 @@ server.post('/auth/fake-token', (_req, res) => {
   })
 })
 
+// Identity-based authentication endpoint
+server.post('/auth/identity-token', (req, res) => {
+  const { username, password, role } = req.body
+
+  // Validate required fields
+  if (!username || !password) {
+    return res.status(400).json({
+      error: 'Username and password are required',
+      status: 400
+    })
+  }
+
+  // In a real app, we would validate credentials against a database
+  // For this sample, we'll accept any credentials and use the provided role
+
+  // Generate a user ID based on the username (in a real app this would come from a database)
+  const userId = `user_${username.replace(/\s+/g, '_').toLowerCase()}`
+
+  // Create identity object
+  const identity = {
+    userId,
+    username,
+    role: role || 'user' // Default to 'user' if no role provided
+  }
+
+  // JWT token - short lived (5 minutes)
+  const timestamp = new Date().toISOString()
+  // Include identity in the token (in a real app, this would be a proper JWT with claims)
+  const jwtToken = `Bearer ${timestamp}:${JSON.stringify(identity)}`
+  const jwtExpires = Math.floor(Date.now() / 1000) + 300 // 5 minutes
+  const jwtExpiresDate = new Date(jwtExpires * 1000)
+
+  // Refresh token - long lived (1 day)
+  const refreshTimestamp = new Date().toISOString()
+  // Include identity in the refresh token as well
+  const refreshToken = `Refresh-${refreshTimestamp}-${JSON.stringify(identity)}-${Math.random().toString(36).substring(2, 15)}`
+  const refreshExpires = Math.floor(Date.now() / 1000) + 86400 // 24 hours
+  const refreshExpiresDate = new Date(refreshExpires * 1000)
+
+  // Set both cookies
+  res.cookie('seon-jwt', jwtToken, {
+    domain: 'localhost',
+    path: '/',
+    expires: jwtExpiresDate,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  })
+
+  res.cookie('seon-refresh', refreshToken, {
+    domain: 'localhost',
+    path: '/',
+    expires: refreshExpiresDate,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  })
+
+  // Return token info in the response body
+  return res.status(200).json({
+    token: jwtToken,
+    expiresAt: jwtExpiresDate.toISOString(),
+    refreshToken: refreshToken,
+    refreshExpiresAt: refreshExpiresDate.toISOString(),
+    identity,
+    status: 200,
+    message: 'Authentication successful. Cookies have been set.'
+  })
+})
+
 // Token renewal endpoint - uses refresh token to get a new JWT token
 server.post('/auth/renew', (req, res) => {
   const refreshToken = req.cookies?.['seon-refresh']
@@ -86,9 +156,30 @@ server.post('/auth/renew', (req, res) => {
     })
   }
 
+  // Extract identity information from the refresh token if present
+  // Refresh token format: Refresh-{timestamp}-{identityJson}-{randomString}
+  let identity = undefined
+  const parts = refreshToken.split('-')
+
+  if (parts.length >= 4) {
+    // Try to extract identity information from the token
+    try {
+      // The identity part is all parts between the timestamp and the random string
+      // Since the identity JSON itself might contain hyphens, we need to rejoin
+      const identityJson = parts.slice(2, parts.length - 1).join('-')
+      identity = JSON.parse(identityJson)
+    } catch {
+      // If identity parsing fails, continue without identity info
+      // This allows backward compatibility with old tokens
+    }
+  }
+
   // Generate a new JWT token
   const timestamp = new Date().toISOString()
-  const jwtToken = `Bearer ${timestamp}`
+  // Include identity in the token if it exists
+  const jwtToken = identity
+    ? `Bearer ${timestamp}:${JSON.stringify(identity)}`
+    : `Bearer ${timestamp}`
   const jwtExpires = Math.floor(Date.now() / 1000) + 300 // 5 minutes
   const jwtExpiresDate = new Date(jwtExpires * 1000)
 
@@ -106,8 +197,9 @@ server.post('/auth/renew', (req, res) => {
   return res.status(200).json({
     token: jwtToken,
     expiresAt: jwtExpiresDate.toISOString(),
-    status: 200,
-    message: 'Token renewed successfully'
+    identity: identity || undefined,
+    message: 'Token renewed successfully. New JWT cookie has been set.',
+    status: 200
   })
 })
 

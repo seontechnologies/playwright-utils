@@ -43,7 +43,7 @@ describe('authMiddleware', () => {
 
     expect(mockResponse.status).toHaveBeenCalledWith(401)
     expect(mockResponse.json).toHaveBeenCalledWith({
-      error: 'Unauthorized; no authentication cookie found.',
+      error: 'Unauthorized; no authentication token found.',
       status: 401
     })
     expect(nextFunction).not.toHaveBeenCalled()

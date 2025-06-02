@@ -45,7 +45,7 @@ export const acquireToken = async (
   )
 
   // Get the endpoint (could also be environment-specific if needed)
-  const endpoint = process.env.AUTH_TOKEN_ENDPOINT || '/auth/fake-token'
+  const endpoint = process.env.AUTH_TOKEN_ENDPOINT || '/auth/identity-token'
   const authUrl = `${authBaseUrl}${endpoint}`
 
   // Create a fresh request context that will capture cookies
@@ -59,7 +59,8 @@ export const acquireToken = async (
     },
     data: JSON.stringify({
       username: options.username || 'test-user',
-      password: options.password || 'password123'
+      password: options.password || 'password123',
+      role: userRole || 'admin'
     })
   })
 

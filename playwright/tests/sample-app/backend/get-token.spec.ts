@@ -9,7 +9,7 @@ test.use({
 })
 
 test.describe('token acquisition', () => {
-  test('sanity', async ({ apiRequest }) => {
+  test('server heartbeat', async ({ apiRequest }) => {
     const {
       status,
       body: { message }
@@ -23,7 +23,7 @@ test.describe('token acquisition', () => {
     expect(message).toEqual('Server is running')
   })
 
-  test('should get a token with basic PW api', async ({ playwright }) => {
+  test('should get a fake token with basic PW api', async ({ playwright }) => {
     // changing the baseUrl from the config baseURL is clunky
     // if baseUrl == configBaseUrl, this is just request.get(..)
     // but for sending api requests to urls other than the baseURL, we have to create a context
@@ -41,7 +41,7 @@ test.describe('token acquisition', () => {
     await apiRequestContext.dispose()
   })
 
-  test('should get a token & refresh token with helper', async ({
+  test('should get a fake token & refresh token with helper', async ({
     apiRequest
   }) => {
     const {
@@ -55,6 +55,49 @@ test.describe('token acquisition', () => {
 
     expect(status).toBe(200)
     expect(token).toEqual(expect.any(String))
+
+    await log.step('Test the refresh token')
+
+    const {
+      body: { token: refreshToken },
+      status: refreshTokenStatus
+    } = await apiRequest<{ token: string }>({
+      baseUrl: API_URL,
+      method: 'POST',
+      path: '/auth/renew'
+    })
+
+    expect(refreshTokenStatus).toBe(200)
+    expect(refreshToken).toEqual(expect.any(String))
+    expect(token).not.toEqual(refreshToken)
+  })
+
+  test('should get an ID token & refresh with helper', async ({
+    apiRequest
+  }) => {
+    const userData = {
+      username: 'test-admin',
+      password: 'password123',
+      role: 'admin'
+    }
+
+    const {
+      body: { token, identity },
+      status
+    } = await apiRequest<{ token: string; identity: typeof userData }>({
+      baseUrl: API_URL,
+      method: 'POST',
+      path: '/auth/identity-token',
+      body: userData
+    })
+
+    expect(status).toBe(200)
+    expect(token).toEqual(expect.any(String))
+    expect(identity).toEqual({
+      userId: `user_${userData.username}`,
+      username: userData.username,
+      role: userData.role
+    })
 
     await log.step('Test the refresh token')
 

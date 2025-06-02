@@ -20,7 +20,7 @@
   - [x] Create `/auth/renew` endpoint to issue new JWT tokens using refresh tokens
   - [x] Update `/auth/fake-token` to provide both JWT and refresh tokens
   - [x] Implement refresh token validation and security checks
-- [ ] Add identity-based authentication endpoint
+- [x] Add identity-based authentication endpoint
 
 ### Phase 2: Frontend Changes
 
@@ -46,6 +46,25 @@
   - [x] Add automatic token refresh when JWT expires
   - [x] Create token refresh interceptor for API requests
 - [ ] Add feature set for identity-based authentication
+  - [ ] Create login/identity screen UI
+    - [ ] Form with username, password, and role selector inputs
+    - [ ] Submit button to request identity token from backend
+    - [ ] Handle authentication errors and display messages
+  - [ ] Implement authentication redirects
+    - [ ] Check for valid token on app startup/protected routes
+    - [ ] Redirect to login screen when no token exists
+    - [ ] Return to original route after successful login
+  - [ ] Update TokenService with identity management
+    - [ ] Store user identity information from tokens
+    - [ ] Provide methods to access current user details (name, role)
+    - [ ] Handle token refresh with identity preservation
+  - [ ] Add user information display
+    - [ ] Create header/banner component to show logged-in user
+    - [ ] Display username and role information
+    - [ ] Add logout functionality
+  - [ ] Add direct navigation to identity management
+    - [ ] Create route for identity page
+    - [ ] Allow switching between different roles/identities
 
 ### Phase 3: Test Framework Integration
 
@@ -171,8 +190,7 @@ The Admin app uses:
     identity: {
       userId: string // Unique user identifier
       username: string // User's name or handle
-      roles: string[] // e.g., ['admin', 'user', 'guest']
-      permissions: string[] // e.g., ['read:movies', 'write:movies']
+      role: string // Single role value (e.g., 'admin' or 'user')
     }
   }
   ```
@@ -185,20 +203,27 @@ The Admin app uses:
   - Return identity object in response
   - Set identity in JWT payload
 
+- Create new `/auth/identity-token` endpoint for identity-based authentication
+
+  - Accept username, password, and role in request body
+  - Generate JWT with identity information in payload
+  - Return token in both response body and secure cookie
+  - Support simple role-based authentication (user/admin)
+
 - Update `/auth/renew` endpoint to preserve identity information during renewal
 
   - Extract identity from refresh token
   - Include same identity in new JWT
 
-- Create role-specific authentication endpoint
-  - `/auth/role-token` for testing different user roles
-  - Simplified way to get tokens with specific roles for testing
-
 #### 1.3. Backend Middleware
 
 - Enhance authentication middleware to validate identity claims
-- Implement role-based access control middleware
-- Add permission checking utilities
+- Add simple role-based access control middleware
+  - Support 'user' and 'admin' roles
+  - Restrict certain operations to admin role
+- Add `/auth/verify-identity` endpoint to verify token identity
+  - Return current user's identity information from token
+  - Use for testing that identity is properly preserved
 
 ### 2. Frontend Implementation
 

@@ -1,12 +1,24 @@
 @baseUrl = http://localhost:3001
 
 ###
-# @name generateToken
+# @name generateFakeToken
 # Simulate token generation (mocked)
 POST {{baseUrl}}/auth/fake-token
 Content-Type: application/json
 
 {}
+
+###
+# @name generateToken
+# Identity-based authentication with user information
+POST {{baseUrl}}/auth/identity-token
+Content-Type: application/json
+
+{
+  "username": "test-user",
+  "password": "password123",
+  "role": "user"
+}
 
 ###
 # @name renewToken

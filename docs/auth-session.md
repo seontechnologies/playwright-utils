@@ -379,28 +379,15 @@ import { acquireToken } from './token/acquire'
 import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
 import { extractToken } from './token/extract'
+import { getEnvironment } from './get-environment'
+import { getUserRole } from './get-user-role'
 
 const myCustomProvider: AuthProvider = {
   // Get the current environment to use
-  getEnvironment(options: AuthOptions = {}) {
-    // Environment priority:
-    // 1. Options passed from test
-    // 2. Environment variables
-    // 3. Default environment
-    return options.environment || process.env.TEST_ENV || 'local'
-  },
+  getEnvironment,
 
   // Get the current user role to use
-  getUserRole(options: AuthOptions = {}) {
-    // Role priority:
-    // 1. Options passed from test
-    // 2. Default role based on environment
-    const environment = this.getEnvironment(options)
-    let defaultRole = 'default'
-    if (environment === 'staging') defaultRole = 'tester'
-    if (environment === 'production') defaultRole = 'readonly'
-    return options.userRole || process.env.TEST_USER_ROLE || defaultRole
-  },
+  getUserRole,
 
   // Extract token from storage state
   extractToken,
@@ -938,8 +925,16 @@ Here's how to implement OAuth2 authentication in your custom auth provider:
 
 ```typescript
 // Inside your custom-auth-provider.ts
+import { getEnvironment, getUserRole } from './auth-helpers'
+
 const myCustomProvider: AuthProvider = {
-	// Standard methods for environment and role
+  // Standard methods for environment and role
+  getEnvironment(options = {}) {
+    return getEnvironment(options)
+  },
+  getUserRole(options = {}) {
+    return getUserRole(options)
+  },
 	getEnvironment(options = {}) { ... },
 	getUserRole(options = {}) { ... },
 

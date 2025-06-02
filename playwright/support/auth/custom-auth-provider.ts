@@ -21,34 +21,16 @@ import { acquireToken } from './token/acquire'
 import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
 import { extractToken } from './token/extract'
+import { getEnvironment } from './get-environment'
+import { getUserRole } from './get-user-role'
 
 // Create a fully custom provider implementation
 const myCustomProvider: AuthProvider = {
   // Get the current environment to use
-  // Options are passed when calling auth.useEnvironment() in tests
-  // or when directly calling getAuthToken/clearAuthToken with options
-  getEnvironment(options: AuthOptions = {}) {
-    // Environment priority:
-    // 1. Options passed from test via auth.useEnvironment({ environment: 'staging' })
-    // 2. Environment variables
-    // 3. Default environment
-    return options.environment || process.env.TEST_ENV || 'local'
-  },
+  getEnvironment,
 
   // Get the current user role to use
-  // Options are passed when calling auth.useRole() in tests
-  // or when directly calling getAuthToken/clearAuthToken with options
-  getUserRole(options: AuthOptions = {}) {
-    // Role priority:
-    // 1. Options passed from test via auth.useRole({ userRole: 'admin' })
-    // 2. Default role based on environment
-    const environment = this.getEnvironment(options)
-    // You could implement environment-specific default roles
-    let defaultRole = 'default' // Match the core library default role
-    if (environment === 'staging') defaultRole = 'tester'
-    if (environment === 'production') defaultRole = 'readonly'
-    return options.userRole || process.env.TEST_USER_ROLE || defaultRole
-  },
+  getUserRole,
 
   /** Extract JWT token from Playwright storage state format */
   extractToken,

@@ -28,5 +28,10 @@ export const extractToken = (
     }
   }
 
+  // Try to extract token from direct API format (in case it's not in cookie format)
+  if (typeof tokenData.token === 'string') {
+    return tokenData.token
+  }
+
   return null
 }
