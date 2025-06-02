@@ -3,9 +3,9 @@ import {
   screen,
   describe,
   it,
-  expect,
-  vi
+  expect
 } from '@vitest-utils/utils'
+import { vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import MovieInput from './movie-input'
 import { generateMovieWithoutId } from '../../test-utils/factories'

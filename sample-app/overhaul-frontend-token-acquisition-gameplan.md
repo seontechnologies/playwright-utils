@@ -46,25 +46,25 @@
   - [x] Add automatic token refresh when JWT expires
   - [x] Create token refresh interceptor for API requests
 - [ ] Add feature set for identity-based authentication
-  - [ ] Create login/identity screen UI
-    - [ ] Form with username, password, and role selector inputs
-    - [ ] Submit button to request identity token from backend
-    - [ ] Handle authentication errors and display messages
-  - [ ] Implement authentication redirects
-    - [ ] Check for valid token on app startup/protected routes
-    - [ ] Redirect to login screen when no token exists
-    - [ ] Return to original route after successful login
-  - [ ] Update TokenService with identity management
-    - [ ] Store user identity information from tokens
-    - [ ] Provide methods to access current user details (name, role)
-    - [ ] Handle token refresh with identity preservation
-  - [ ] Add user information display
-    - [ ] Create header/banner component to show logged-in user
-    - [ ] Display username and role information
-    - [ ] Add logout functionality
-  - [ ] Add direct navigation to identity management
-    - [ ] Create route for identity page
-    - [ ] Allow switching between different roles/identities
+  - [x] Create login/identity screen UI
+    - [x] Form with username, password, and role selector inputs
+    - [x] Submit button to request identity token from backend
+    - [x] Handle authentication errors and display messages
+  - [x] Implement authentication redirects
+    - [x] Check for valid token on app startup/protected routes
+    - [x] Redirect to login screen when no token exists
+    - [x] Return to original route after successful login
+  - [x] Update TokenService with identity management
+    - [x] Store user identity information from tokens
+    - [x] Provide methods to access current user details (name, role)
+    - [x] Handle token refresh with identity preservation
+  - [x] Add user information display
+    - [x] Create header/banner component to show logged-in user
+    - [x] Display username and role information
+    - [x] Add logout functionality
+  - [x] Add direct navigation to identity management
+    - [x] Create route for identity page
+    - [x] Allow switching between different roles/identities
 
 ### Phase 3: Test Framework Integration
 

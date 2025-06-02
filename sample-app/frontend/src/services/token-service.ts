@@ -40,6 +40,13 @@ type LocalStorageItem = {
 /**
  * Token service interface defining the contract for token operations
  */
+// User identity interface
+export interface UserIdentity {
+  userId: string
+  username: string
+  role: string
+}
+
 export interface TokenService {
   getToken(): StorageState
   /**
@@ -62,6 +69,18 @@ export interface TokenService {
    * This is used after a server sets cookies via HTTP headers
    */
   updateFromBrowserCookies(): boolean
+  /**
+   * Set the current user identity information
+   */
+  setCurrentUser(identity: UserIdentity): void
+  /**
+   * Get the current user identity information
+   */
+  getCurrentUser(): UserIdentity | null
+  /**
+   * Clear tokens and user information
+   */
+  clearTokens(): void
 }
 
 /**
@@ -70,6 +89,7 @@ export interface TokenService {
  */
 export class StorageStateTokenService implements TokenService {
   private currentToken: StorageState | null = null
+  private currentUser: UserIdentity | null = null
 
   /**
    * Explicitly set the token state
@@ -334,6 +354,69 @@ export class StorageStateTokenService implements TokenService {
    */
   updateFromBrowserCookies(): boolean {
     return this.restoreFromBrowserCookies()
+  }
+
+  /**
+   * Set the current user identity information
+   * @param identity User identity object containing userId, username, and role
+   */
+  setCurrentUser(identity: UserIdentity): void {
+    this.currentUser = identity
+    // Store user identity in localStorage for persistence
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('seon-user-identity', JSON.stringify(identity))
+      } catch (e) {
+        console.error('Failed to store user identity in localStorage', e)
+      }
+    }
+  }
+
+  /**
+   * Get the current user identity information
+   * @returns The current user identity or null if not authenticated
+   */
+  getCurrentUser(): UserIdentity | null {
+    // If we already have a user in memory, return it
+    if (this.currentUser) {
+      return this.currentUser
+    }
+
+    // Try to restore from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const storedIdentity = localStorage.getItem('seon-user-identity')
+        if (storedIdentity) {
+          this.currentUser = JSON.parse(storedIdentity)
+          return this.currentUser
+        }
+      } catch (e) {
+        console.error('Failed to retrieve user identity from localStorage', e)
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Clear tokens and user information
+   * This is used for logout functionality
+   */
+  clearTokens(): void {
+    this.currentToken = null
+    this.currentUser = null
+
+    // Clear cookies
+    if (typeof window !== 'undefined') {
+      // Clear JWT and refresh cookies by setting expired date
+      document.cookie =
+        'seon-jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      document.cookie =
+        'seon-refresh=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+
+      // Remove from localStorage
+      localStorage.removeItem('seon-user-identity')
+    }
   }
 
   /**

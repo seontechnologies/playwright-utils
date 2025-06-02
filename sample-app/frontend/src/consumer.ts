@@ -17,6 +17,7 @@ const API_URL = 'http://localhost:3001'
 
 export type ErrorResponse = {
   error: string
+  status?: number
 }
 // baseURL in axiosInstance: Axios uses a fixed base URL for all requests,
 // and Nock must intercept that exact URL for the tests to work
@@ -193,8 +194,20 @@ const yieldData = <T>(res: AxiosResponse<T>): T => res.data
 
 // Helper function to handle errors
 const handleError = (err: AxiosError): ErrorResponse => {
-  if (err.response?.data) return err.response.data as ErrorResponse
-  return { error: 'Unexpected error occurred' }
+  // If we have structured error data from the server, use it
+  if (err.response?.data && typeof err.response.data === 'object') {
+    const errorData = err.response.data as ErrorResponse
+    return {
+      ...errorData,
+      status: errorData.status || err.response.status || 500
+    }
+  }
+
+  // Otherwise create a generic error with the status from the response if available
+  return {
+    error: err.message || 'Unexpected error occurred',
+    status: err.response?.status || 500
+  }
 }
 
 // Fetch all movies
@@ -252,4 +265,72 @@ export const updateMovie = async (
     .put(`/movies/${id}`, data)
     .then(yieldData)
     .catch(handleError)
+}
+
+// Authentication Types
+export interface AuthRequest {
+  username: string
+  password: string
+  role?: string
+}
+
+export interface AuthResponse {
+  token: string
+  expiresAt: string
+  refreshToken: string
+  refreshExpiresAt: string
+  identity: {
+    userId: string
+    username: string
+    role: string
+  }
+  status: number
+  message: string
+}
+
+export interface AuthError {
+  error: string
+  status: number
+}
+
+// Login with username/password/role
+export const login = async (
+  credentials: AuthRequest
+): Promise<AuthResponse | AuthError> => {
+  try {
+    // Use explicit response handling for authentication to handle cookies properly
+    const response = await axiosInstance.post(
+      '/auth/identity-token',
+      credentials
+    )
+
+    // Validate that the response contains the expected data structure
+    const data = yieldData(response)
+
+    // Ensure that cookies would have been set by checking status
+    if (data.status !== 200) {
+      return {
+        error:
+          'Authentication failed: Server did not set authentication cookies',
+        status: data.status || 500
+      }
+    }
+
+    // Verify that we have identity information
+    if (!data.identity || !data.identity.userId) {
+      return {
+        error: 'Authentication failed: Invalid identity information',
+        status: 500
+      }
+    }
+
+    return data
+  } catch (error) {
+    // Ensure the error response includes the required status property
+    const errorResponse = handleError(error as AxiosError)
+    return {
+      ...errorResponse,
+      status: errorResponse.status || 500
+    }
+  }
 }
