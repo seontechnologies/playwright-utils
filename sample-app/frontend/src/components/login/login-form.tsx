@@ -4,6 +4,7 @@ import { SButton, SInput } from '@styles/styled-components'
 import ValidationErrorDisplay from '@components/validation-error-display'
 import { z } from 'zod'
 import { useAuth } from '@hooks/use-auth'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 /**
  * Login form component that allows users to authenticate with username, password and role.
@@ -17,6 +18,13 @@ export default function LoginForm() {
   const [validationError, setValidationError] = useState<z.ZodError | null>(
     null
   )
+
+  // Use React Router hooks for navigation
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // Get the intended destination from location state or default to home
+  const from = (location.state as { from?: string } | undefined)?.from || '/'
 
   // Use our centralized auth hook instead of component-level state
   const { isLoading, error: loginError, handleLogin: authLogin } = useAuth()
@@ -44,9 +52,10 @@ export default function LoginForm() {
     // Use the auth hook to handle login
     const { success } = await authLogin({ username, password, role })
 
-    // If login is successful, redirect to the home page
+    // If login is successful, redirect to the intended destination
     if (success) {
-      window.location.href = '/'
+      // Use React Router's navigate instead of window.location for better SPA experience
+      await Promise.resolve(navigate(from, { replace: true }))
     }
   }
 

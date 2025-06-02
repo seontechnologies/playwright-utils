@@ -16,7 +16,10 @@ export const UserHeader = ({ className = '' }: UserHeaderProps) => {
   const navigate = useNavigate()
 
   const handleLogout = async () => {
-    logout()
+    // Call logout and wait for any potential async operations to complete
+    await Promise.resolve(logout())
+
+    // After tokens are cleared, navigate to login page
     await navigate('/login')
   }
 

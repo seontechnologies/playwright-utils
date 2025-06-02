@@ -69,5 +69,11 @@ test.describe('App routes (vanilla playwright)', () => {
     expect(resBody).toEqual(movie)
 
     await expect(page).toHaveURL(`/movies?name=${movieName}`)
+
+    const movieItemComps = page.getByTestId('movie-item-comp').all()
+    const items = await movieItemComps
+    for (const item of items) {
+      await expect(item).toBeVisible()
+    }
   })
 })

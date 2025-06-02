@@ -30,8 +30,12 @@ function isAuthenticated(): boolean {
   // Check if we have a current user identity in the token service
   const currentUser = tokenService.getCurrentUser()
 
-  // Validate that we have both user identity and a valid token
-  return !!currentUser && !!currentUser.userId
+  // Simple authentication check: we need a valid user identity
+  // with a userId, and a valid token for API calls
+  const token = tokenService.getToken()
+  const hasValidToken = token && Object.keys(token).length > 0
+
+  return !!currentUser && !!currentUser.userId && hasValidToken
 }
 
 /**
