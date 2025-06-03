@@ -4,9 +4,9 @@ import {
   describe,
   it,
   expect,
-  userEvent,
-  vi
+  userEvent
 } from '@vitest-utils/utils'
+import { vi } from 'vitest'
 import type { MovieManagerProps } from './movie-manager'
 import MovieManager from './movie-manager'
 

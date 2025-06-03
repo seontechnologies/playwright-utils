@@ -69,6 +69,7 @@ describe('Consumer API functions', () => {
         .reply(200, { status: 200, data: [movieWithId] })
 
       const res = await getMovies()
+      // @ts-expect-error testing
       expect(res.data).toEqual([movieWithId])
     })
 

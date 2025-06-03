@@ -1,4 +1,3 @@
-import { API_URL } from '@playwright/config/local.config'
 import { expect, test } from '@playwright/support/merged-fixtures'
 import { addMovie } from '@playwright/support/ui-helpers/add-movie'
 import { editMovie } from '@playwright/support/ui-helpers/edit-movie'
@@ -70,7 +69,7 @@ test.describe('movie crud e2e with token refresh(playwright-utils helpers)', () 
   test('should update and delete a movie at movie manager with token refresh (playwright-utils helpers)', async ({
     page,
     addMovie,
-    apiRequest
+    authToken
   }) => {
     const movie = generateMovieWithoutId()
     const {
@@ -81,15 +80,7 @@ test.describe('movie crud e2e with token refresh(playwright-utils helpers)', () 
     } = generateMovieWithoutId()
 
     await log.step('create a movie using the API')
-    const {
-      body: { token }
-    } = await apiRequest<{ token: string }>({
-      method: 'POST',
-      path: '/auth/fake-token',
-      baseUrl: API_URL
-    })
-
-    const { body: createResponse } = await addMovie(token, movie)
+    const { body: createResponse } = await addMovie(authToken, movie)
 
     const id = createResponse.data.id
 

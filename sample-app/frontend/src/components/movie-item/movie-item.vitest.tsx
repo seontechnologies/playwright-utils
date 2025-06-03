@@ -3,9 +3,9 @@ import {
   screen,
   describe,
   it,
-  expect,
-  vi
+  expect
 } from '@vitest-utils/utils'
+import { vi } from 'vitest'
 
 import MovieItem from './movie-item'
 

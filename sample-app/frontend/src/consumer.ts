@@ -13,10 +13,11 @@ import { tokenService } from './services/token-service'
 
 const API_URL = 'http://localhost:3001'
 
-// Movie type from the provider, in the real world this would come from a published package
+const tokenPath = '/auth/identity-token'
 
 export type ErrorResponse = {
   error: string
+  status?: number
 }
 // baseURL in axiosInstance: Axios uses a fixed base URL for all requests,
 // and Nock must intercept that exact URL for the tests to work
@@ -24,6 +25,26 @@ const axiosInstance = axios.create({
   baseURL: API_URL, // this is really the API url where the requests are going to
   withCredentials: true // Required for sending cookies with cross-origin requests
 })
+
+// Add request interceptor to ensure Authorization header has proper identity
+axiosInstance.interceptors.request.use(
+  async (config) => {
+    // Skip auth header for token acquisition and refresh requests
+    const isAuthRequest =
+      config.url === tokenPath || config.url?.startsWith('/auth/renew')
+    if (isAuthRequest) return config
+
+    // Ensure we have a token
+    if (!tokenService.isTokenValid(tokenService.getToken())) {
+      await ensureValidToken()
+    }
+
+    // Always add the Authorization header with proper token format
+    config.headers.Authorization = tokenService.getAuthorizationHeader()
+    return config
+  },
+  (error) => Promise.reject(error)
+)
 
 // Add response interceptor to handle token refresh on 401 responses
 axiosInstance.interceptors.response.use(
@@ -51,8 +72,8 @@ axiosInstance.interceptors.response.use(
 
         // Retry the original request with the new token
         return axiosInstance(originalRequest)
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_refreshError) {
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError)
         // If token refresh fails, return the original error
         return Promise.reject(error)
       }
@@ -72,116 +93,18 @@ export const setApiUrl = (url: string) => {
 }
 
 /**
- * Token state tracking
- */
-let tokenAcquisitionPromise: Promise<void> | null = null
-let isAcquiringToken = false
-
-/**
- * Acquire an initial token from the server
- * This should be called before making any protected API requests
- */
-export const acquireInitialToken = async (): Promise<void> => {
-  // If we already have a valid token, no need to acquire a new one
-  if (tokenService.isTokenValid(tokenService.getToken())) {
-    console.log('Using existing valid token')
-    return
-  }
-
-  // If we're already acquiring a token, return the existing promise
-  if (isAcquiringToken && tokenAcquisitionPromise) {
-    console.log('Token acquisition already in progress, waiting...')
-    return tokenAcquisitionPromise
-  }
-
-  console.log('Acquiring initial token...')
-  isAcquiringToken = true
-
-  // Create a new token acquisition promise
-  tokenAcquisitionPromise = new Promise<void>((resolve, reject) => {
-    // Call the fake token endpoint to get an initial token
-    axios
-      .post(
-        `${API_URL}/auth/fake-token`,
-        {},
-        {
-          withCredentials: true // Needed to store cookies
-        }
-      )
-      .then((response) => {
-        if (response.status !== 200) {
-          throw new Error(`Failed to acquire token, status: ${response.status}`)
-        }
-
-        console.log('Initial token acquired successfully')
-
-        // Since the backend sets httpOnly cookies, we can't access them directly with JavaScript
-        // Instead, we'll use the token data from the response to update our token service
-        if (
-          response.data &&
-          response.data.token &&
-          response.data.refreshToken
-        ) {
-          // Create a storage state from the response data
-          const tokenState = {
-            cookies: [
-              {
-                name: 'seon-jwt',
-                value: response.data.token,
-                domain: window.location.hostname,
-                path: '/',
-                expires: new Date(response.data.expiresAt).getTime() / 1000,
-                httpOnly: false, // Note: this is just for our internal tracking
-                secure: window.location.protocol === 'https:',
-                sameSite: 'Lax' as const // Type assertion to match Cookie.sameSite
-              },
-              {
-                name: 'seon-refresh',
-                value: response.data.refreshToken,
-                domain: window.location.hostname,
-                path: '/',
-                expires:
-                  new Date(response.data.refreshExpiresAt).getTime() / 1000,
-                httpOnly: false, // Note: this is just for our internal tracking
-                secure: window.location.protocol === 'https:',
-                sameSite: 'Lax' as const // Type assertion to match Cookie.sameSite
-              }
-            ],
-            origins: []
-          }
-
-          // Update the token service with the token data from the response
-          // This works even though the actual cookies are httpOnly
-          tokenService.setToken(tokenState)
-          console.log('Token state updated from API response')
-          return Promise.resolve()
-        }
-
-        console.warn('No token data in response')
-        return Promise.resolve()
-      })
-      .then(() => {
-        resolve()
-      })
-      .catch((error) => {
-        console.error('Failed to acquire initial token:', error)
-        reject(error)
-      })
-      .finally(() => {
-        isAcquiringToken = false
-      })
-  })
-
-  return tokenAcquisitionPromise
-}
-
-/**
  * Ensure we have a valid token before making API requests
+ * This simplified version only checks if we have a token, without auto-acquiring
  * @returns Promise that resolves when a valid token is available
  */
 const ensureValidToken = async (): Promise<void> => {
   try {
-    await acquireInitialToken()
+    // Just check if we have any token - don't auto-acquire
+    const token = tokenService.getToken()
+    if (!token) {
+      console.warn('No token available - user needs to log in')
+      // Let the protected route handle redirection instead of throwing
+    }
   } catch (error) {
     console.error('Failed to ensure valid token:', error)
     throw error
@@ -193,63 +116,137 @@ const yieldData = <T>(res: AxiosResponse<T>): T => res.data
 
 // Helper function to handle errors
 const handleError = (err: AxiosError): ErrorResponse => {
-  if (err.response?.data) return err.response.data as ErrorResponse
-  return { error: 'Unexpected error occurred' }
+  // If we have structured error data from the server, use it
+  if (err.response?.data && typeof err.response.data === 'object') {
+    const errorData = err.response.data as ErrorResponse
+    return {
+      ...errorData,
+      status: errorData.status || err.response.status || 500
+    }
+  }
+
+  // Otherwise create a generic error with the status from the response if available
+  return {
+    error: err.message || 'Unexpected error occurred',
+    status: err.response?.status || 500
+  }
 }
 
+// Helper function to make API calls with error handling
+const call = <T>(req: Promise<AxiosResponse<T>>): Promise<T | ErrorResponse> =>
+  req.then(yieldData).catch(handleError)
+
 // Fetch all movies
-export const getMovies = async (): Promise<GetMovieResponse> => {
+export const getMovies = async (): Promise<
+  GetMovieResponse | ErrorResponse
+> => {
   // Ensure we have a valid token before making the request
   await ensureValidToken()
-  return axiosInstance.get('/movies').then(yieldData).catch(handleError)
+  return call(axiosInstance.get('/movies'))
 }
 
 // Fetch a single movie by ID
 export const getMovieById = async (
   id: number
-): Promise<GetMovieResponse | MovieNotFoundResponse> => {
+): Promise<GetMovieResponse | MovieNotFoundResponse | ErrorResponse> => {
   await ensureValidToken()
-  return axiosInstance.get(`/movies/${id}`).then(yieldData).catch(handleError)
+  return call(axiosInstance.get(`/movies/${id}`))
 }
 
 // Fetch a movie by name
 export const getMovieByName = async (
   name: string
-): Promise<GetMovieResponse | MovieNotFoundResponse> => {
+): Promise<GetMovieResponse | MovieNotFoundResponse | ErrorResponse> => {
   await ensureValidToken()
-  return axiosInstance
-    .get(`/movies?name=${encodeURIComponent(name)}`)
-    .then(yieldData)
-    .catch(handleError)
+  return call(axiosInstance.get(`/movies?name=${encodeURIComponent(name)}`))
 }
 
 // Create a new movie
 export const addMovie = async (
   data: Omit<Movie, 'id'>
-): Promise<CreateMovieResponse | ConflictMovieResponse> => {
+): Promise<CreateMovieResponse | ConflictMovieResponse | ErrorResponse> => {
   await ensureValidToken()
-  return axiosInstance.post('/movies', data).then(yieldData).catch(handleError)
+  return call(axiosInstance.post('/movies', data))
 }
 
 // Delete movie by ID
 export const deleteMovieById = async (
   id: number
-): Promise<DeleteMovieResponse | MovieNotFoundResponse> => {
+): Promise<DeleteMovieResponse | MovieNotFoundResponse | ErrorResponse> => {
   await ensureValidToken()
-  return axiosInstance
-    .delete(`/movies/${id}`)
-    .then(yieldData)
-    .catch(handleError)
+  return call(axiosInstance.delete(`/movies/${id}`))
 }
 
 // Update movie by ID
 export const updateMovie = async (
   id: number,
   data: Partial<Omit<Movie, 'id'>>
-): Promise<UpdateMovieResponse | MovieNotFoundResponse> => {
+): Promise<UpdateMovieResponse | MovieNotFoundResponse | ErrorResponse> => {
   await ensureValidToken()
-  return axiosInstance
-    .put(`/movies/${id}`, data)
-    .then(yieldData)
-    .catch(handleError)
+  return call(axiosInstance.put(`/movies/${id}`, data))
+}
+
+// Authentication Types
+export type AuthRequest = {
+  username: string
+  password: string
+  role?: string
+}
+
+export type AuthResponse = {
+  token: string
+  expiresAt: string
+  refreshToken: string
+  refreshExpiresAt: string
+  identity: {
+    userId: string
+    username: string
+    role: string
+  }
+  status: number
+  message: string
+}
+
+type AuthError = {
+  error: string
+  status: number
+}
+
+// Login with username/password/role
+export const login = async (
+  credentials: AuthRequest
+): Promise<AuthResponse | AuthError> => {
+  try {
+    // Use explicit response handling for authentication to handle cookies properly
+    const response = await axiosInstance.post(tokenPath, credentials)
+
+    // Validate that the response contains the expected data structure
+    const data = yieldData(response)
+
+    // Ensure that cookies would have been set by checking status
+    if (data.status !== 200) {
+      return {
+        error:
+          'Authentication failed: Server did not set authentication cookies',
+        status: data.status || 500
+      }
+    }
+
+    // Verify that we have identity information
+    if (!data.identity || !data.identity.userId) {
+      return {
+        error: 'Authentication failed: Invalid identity information',
+        status: 500
+      }
+    }
+
+    return data
+  } catch (error) {
+    // Ensure the error response includes the required status property
+    const errorResponse = handleError(error as AxiosError)
+    return {
+      ...errorResponse,
+      status: errorResponse.status || 500
+    }
+  }
 }

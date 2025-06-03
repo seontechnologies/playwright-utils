@@ -2,10 +2,10 @@ import {
   describe,
   expect,
   it,
-  vi,
   screen,
   wrappedRender
 } from '@vitest-utils/utils'
+import { vi } from 'vitest'
 import { generateMovieWithoutId } from '../test-utils/factories'
 import MovieList from './movie-list'
 

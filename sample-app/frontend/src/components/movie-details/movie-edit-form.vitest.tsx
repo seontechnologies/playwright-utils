@@ -7,9 +7,9 @@ import {
   it,
   expect,
   userEvent,
-  vi,
   waitFor
 } from '@vitest-utils/utils'
+import { vi } from 'vitest'
 import MovieEditForm from './movie-edit-form'
 import { generateMovieWithoutId } from '../../test-utils/factories'
 import type { Movie } from '@shared/types/movie-types'

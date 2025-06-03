@@ -30,5 +30,10 @@ export const authHandlers = [
   // POST /auth/renew - Token renewal
   http.post(`${API_URL}/auth/renew`, () => {
     return HttpResponse.json(generateTokenResponse(), { status: 200 })
+  }),
+
+  // POST /auth/identity-token - Identity-based authentication
+  http.post(`${API_URL}/auth/identity-token`, () => {
+    return HttpResponse.json(generateTokenResponse(), { status: 200 })
   })
 ]

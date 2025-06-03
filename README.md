@@ -60,7 +60,7 @@ The overall testing approach:
    - `playwright/tests/todo-with-logs.spec.ts`
    - `playwright/tests/network-mock-intercept-network-call.spec.ts`
 
-2. **Sample App Tests** - The `./sample-app` provides a more complex environment to test:
+1. **Sample App Tests** - The `./sample-app` provides a more complex environment to test:
    - API request automation
    - Recursion and retry patterns
    - Authentication flows
@@ -287,14 +287,14 @@ export default globalSetup
 
 > **⚠️ IMPORTANT:** The order of function calls in your global setup is critical. Always register your auth provider with `setAuthProvider()` after configuring the session. This ensures the auth provider is properly initialized.
 
-2. **Create Auth Fixture** - Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures
+1. **Create Auth Fixture** - Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures
 
    - Provides standardized Playwright test fixtures for authentication
    - Generally reusable across applications without modification
    - **CRITICAL: Register auth provider early to ensure it's always available**
 
 ```typescript
-// 2. Create Auth Fixture (playwright/support/auth/auth-fixture.ts)
+// 1. Create Auth Fixture (playwright/support/auth/auth-fixture.ts)
 import { test as base } from '@playwright/test'
 import {
   createAuthFixtures,
@@ -327,7 +327,7 @@ test('authenticated API request', async ({ authToken, request }) => {
 })
 ```
 
-3. **Create Custom Auth Provider** - Implement token management with modular utilities:
+2. **Create Custom Auth Provider** - Implement token management with modular utilities:
 
 ```typescript
 // playwright/support/auth/custom-auth-provider.ts
@@ -342,21 +342,15 @@ import { acquireToken } from './token/acquire'
 import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
 import { extractToken } from './token/extract'
+import { getEnvironment } from './get-environment'
+import { getUserRole } from './get-user-role'
 
 const myCustomProvider: AuthProvider = {
-  // Get environment from options, env vars or default
-  getEnvironment(options = {}) {
-    return options.environment || process.env.TEST_ENV || 'local'
-  },
+  // Get the current environment to use
+  getEnvironment,
 
-  // Get user role based on environment and options
-  getUserRole(options = {}) {
-    const environment = this.getEnvironment(options)
-    let defaultRole = 'default'
-    if (environment === 'staging') defaultRole = 'tester'
-    if (environment === 'production') defaultRole = 'readonly'
-    return options.userRole || process.env.TEST_USER_ROLE || defaultRole
-  },
+  // Get the current user role to use
+  getUserRole,
 
   // Extract token from storage state
   extractToken,
@@ -406,7 +400,7 @@ const myCustomProvider: AuthProvider = {
 export default myCustomProvider
 ```
 
-4. **Use the Auth Session in Your Tests**
+3. **Use the Auth Session in Your Tests**
 
 ```typescript
 // Usage in your tests

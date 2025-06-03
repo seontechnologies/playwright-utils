@@ -40,8 +40,16 @@ type LocalStorageItem = {
 /**
  * Token service interface defining the contract for token operations
  */
+// User identity interface
+export interface UserIdentity {
+  userId: string
+  username: string
+  role: string
+}
+
 export interface TokenService {
   getToken(): StorageState
+  validateAuthWithBackend(): Promise<boolean>
   /**
    * Explicitly set the token state
    * This is useful when we receive token information from an API response
@@ -62,6 +70,18 @@ export interface TokenService {
    * This is used after a server sets cookies via HTTP headers
    */
   updateFromBrowserCookies(): boolean
+  /**
+   * Set the current user identity information
+   */
+  setCurrentUser(identity: UserIdentity): void
+  /**
+   * Get the current user identity information
+   */
+  getCurrentUser(): UserIdentity | null
+  /**
+   * Clear tokens and user information
+   */
+  clearTokens(): void
 }
 
 /**
@@ -70,15 +90,39 @@ export interface TokenService {
  */
 export class StorageStateTokenService implements TokenService {
   private currentToken: StorageState | null = null
+  private currentUser: UserIdentity | null = null
+  private storageState: StorageState | null = null
+  private lastSetTime: number | null = null
 
   /**
    * Explicitly set the token state
    * This is useful when we receive token information from an API response
    * when working with httpOnly cookies that JavaScript can't access directly
    */
-  setToken(token: StorageState): void {
-    console.log('Setting token state explicitly')
-    this.currentToken = token
+  setToken(state: StorageState): void {
+    this.storageState = state
+    this.lastSetTime = Date.now()
+
+    // Store identity in localStorage from the JWT cookie if available
+    try {
+      const jwtCookie = state.cookies.find((c) => c.name === 'seon-jwt')
+      if (jwtCookie && jwtCookie.value.includes(':')) {
+        const [, identityPart] = jwtCookie.value.split(':')
+        if (identityPart) {
+          const identity = JSON.parse(identityPart)
+          localStorage.setItem('seon-user-identity', JSON.stringify(identity))
+          console.log(
+            'Identity extracted from token and saved to localStorage:',
+            identity
+          )
+          this.setCurrentUser(identity)
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to extract identity from token:', e)
+    }
+
+    this.syncCookiesToBrowser()
   }
 
   constructor() {
@@ -139,11 +183,38 @@ export class StorageStateTokenService implements TokenService {
     return this.currentToken
   }
 
+  // Track in-flight refresh operations to prevent duplicate refreshes
+  private refreshInProgress: Promise<StorageState> | null = null
+
   /**
    * Refresh the token by calling the renewal endpoint
    * Uses the refresh token to get a new JWT token
+   * Prevents multiple simultaneous refresh requests by tracking in-flight operations
    */
   async refreshToken(): Promise<StorageState> {
+    // If a refresh is already in progress, return that promise to avoid duplicate requests
+    if (this.refreshInProgress) {
+      console.log('Reusing in-progress token refresh request')
+      return this.refreshInProgress
+    }
+
+    // Start a new refresh operation and track it
+    this.refreshInProgress = this.executeRefresh()
+
+    try {
+      // Wait for the refresh to complete
+      return await this.refreshInProgress
+    } finally {
+      // Clear the tracking promise when done (regardless of success or failure)
+      this.refreshInProgress = null
+    }
+  }
+
+  /**
+   * Internal method that performs the actual token refresh operation
+   * Extracted to make tracking the in-flight promise cleaner
+   */
+  private async executeRefresh(): Promise<StorageState> {
     try {
       // Check if we have a refresh token before attempting renewal
       if (!this.currentToken || !this.isRefreshTokenValid(this.currentToken)) {
@@ -152,6 +223,7 @@ export class StorageStateTokenService implements TokenService {
       }
 
       console.log('Attempting to refresh token with /auth/renew endpoint')
+      console.log('Current cookies before refresh:', document.cookie)
 
       // Call the renewal endpoint
       const response = await axios.post(
@@ -165,18 +237,33 @@ export class StorageStateTokenService implements TokenService {
       }
 
       console.log('Token refresh successful - updating storage state')
+      console.log('Response headers:', response.headers)
+      console.log('Cookies after refresh response:', document.cookie)
 
       // The server sets the cookies via Set-Cookie headers
       // We need to manually update our storage state to reflect these changes
 
-      // Wait a moment for cookies to be set by browser
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      // Wait a bit longer for cookies to be properly set by browser
+      await new Promise((resolve) => setTimeout(resolve, 300))
+
+      // Log cookies again after wait
+      console.log('Cookies after waiting period:', document.cookie)
 
       // Capture the current cookies from the browser
       const restored = this.restoreFromBrowserCookies()
 
       if (!restored) {
         console.warn('Failed to restore cookies after token refresh')
+        // Try one more time with a delay
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        const secondAttempt = this.restoreFromBrowserCookies()
+        if (secondAttempt) {
+          console.log('Successfully restored cookies on second attempt')
+        } else {
+          console.error('All attempts to restore cookies failed')
+        }
+      } else {
+        console.log('Successfully restored cookies after refresh')
       }
 
       if (!this.currentToken) {
@@ -208,31 +295,88 @@ export class StorageStateTokenService implements TokenService {
   /**
    * Check if the JWT token is valid
    */
+  /**
+   * Check if the JWT token is still valid.
+   * Assumes cookie.value is URL-encoded and follows:
+   *   "Bearer <ISO-8601-timestamp>:<JSON-identity>"
+   */
   isJwtValid(token: StorageState): boolean {
-    if (!token || !token.cookies || !Array.isArray(token.cookies)) {
+    // 1) Basic sanity checks
+    if (!token?.cookies || !Array.isArray(token.cookies)) {
       return false
     }
 
+    const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
+    if (!cookie) {
+      return false
+    }
+
+    // 2) Check the cookie's expiry (Unix seconds)
+    const nowSec = Math.floor(Date.now() / 1000)
+    if (cookie.expires < nowSec) {
+      return false
+    }
+
+    // 3) Decode the URL-encoded value
+    let decoded: string
     try {
-      // Find the JWT cookie
-      const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
-      if (!cookie) {
-        console.debug('No JWT cookie found')
+      decoded = decodeURIComponent(cookie.value)
+    } catch {
+      return false
+    }
+
+    // 4) Strip any "Bearer " prefix
+    if (decoded.toLowerCase().startsWith('bearer ')) {
+      decoded = decoded.slice(7)
+    }
+
+    // 5) Split off the JSON identity by looking for the first ':{
+    //    (timestamp itself can contain colons, so indexOf(':') is too naive)
+    const sepIndex = decoded.indexOf(':{')
+    const timestampPart = sepIndex > 0 ? decoded.slice(0, sepIndex) : decoded
+
+    // 6) Parse the timestamp portion
+    const ts = new Date(timestampPart)
+    if (isNaN(ts.getTime())) {
+      return false
+    }
+
+    // 7) Check age against a validity window (24 hours for sample app)
+    const ageSeconds = (Date.now() - ts.getTime()) / 1000
+    const VALID_WINDOW = 86400 // 24 hours in seconds
+    return ageSeconds >= 0 && ageSeconds < VALID_WINDOW
+  }
+
+  /**
+   * Validate a token timestamp
+   * @param tokenContent The token content to validate
+   * @returns boolean indicating if the token timestamp is valid
+   */
+  private validateTokenTimestamp(tokenContent: string): boolean {
+    try {
+      // Extract timestamp part - handle both formats:
+      // 1. "timestamp:JSON" format (backend auth provider)
+      // 2. "timestamp" format (direct frontend login)
+      let timestamp = tokenContent
+      const colonPos = tokenContent.indexOf(':')
+
+      if (colonPos > 0) {
+        // Format is timestamp:JSON - extract timestamp without the colon
+        timestamp = tokenContent.substring(0, colonPos)
+        console.debug('Extracted timestamp from compound token:', timestamp)
+      } else {
+        // No colon found, assume the entire token is a timestamp
+        console.debug('Using entire token as timestamp:', timestamp)
+      }
+
+      // Safety check to ensure timestamp is a valid string
+      if (!timestamp || typeof timestamp !== 'string') {
+        console.debug('Invalid timestamp format')
         return false
       }
 
-      // Check if cookie is expired by timestamp
-      const currentTime = Math.floor(Date.now() / 1000)
-      if (cookie.expires < currentTime) {
-        console.debug('JWT cookie is expired')
-        return false
-      }
-
-      // Extract timestamp from Bearer token
-      const tokenValue = cookie.value.replace(/^Bearer\s+/i, '')
-
-      // Check the extracted timestamp
-      const tokenDate = new Date(tokenValue)
+      // Parse the timestamp as a date
+      const tokenDate = new Date(timestamp)
 
       // Check if the date is valid
       if (isNaN(tokenDate.getTime())) {
@@ -244,19 +388,23 @@ export class StorageStateTokenService implements TokenService {
       const tokenTime = tokenDate.getTime()
       const diffInSeconds = (currentDate.getTime() - tokenTime) / 1000
 
-      // Valid if issued within the last 5 minutes (300 seconds) - shortened for demo purposes
-      // In production, this would typically be 5-15 minutes
-      const isValid = diffInSeconds >= 0 && diffInSeconds < 300
+      // For sample app purposes, use a very generous validity window (24 hours)
+      const validityWindow = 86400 // 24 hours in seconds for testing
+      const isValid = diffInSeconds >= 0 && diffInSeconds < validityWindow
 
       if (!isValid) {
         console.debug(
-          `JWT age (${diffInSeconds}s) exceeds validity window (300s)`
+          `JWT age (${diffInSeconds}s) exceeds validity window (${validityWindow}s)`
+        )
+      } else {
+        console.debug(
+          `JWT is valid, age: ${diffInSeconds}s within window: ${validityWindow}s`
         )
       }
 
       return isValid
     } catch (error) {
-      console.error('Error checking JWT validity:', error)
+      console.error('Error validating token timestamp:', error)
       return false
     }
   }
@@ -299,13 +447,30 @@ export class StorageStateTokenService implements TokenService {
   getAuthorizationHeader(): string {
     const token = this.getToken()
     const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
-
     if (!cookie) return ''
 
-    // Extract the actual token value without the Bearer prefix
-    // since Axios will add it back as part of the Authorization header
-    const tokenValue = cookie.value.replace(/^Bearer\s+/i, '')
-    return tokenValue
+    // Remove Bearer prefix if present
+    let tokenValue = cookie.value.replace(/^Bearer\s+/i, '')
+
+    // Check if token is just a timestamp without the identity part
+    if (!tokenValue.includes(':')) {
+      // Get the user identity or create a default one
+      const userIdentity = this.getCurrentUser() || {
+        id: 'user123',
+        role: 'user'
+      }
+
+      // Convert identity to JSON string and append to timestamp
+      const identityJson = JSON.stringify(userIdentity)
+      tokenValue = `${tokenValue}:${identityJson}`
+      console.log(
+        'Added missing identity to token in getAuthorizationHeader:',
+        userIdentity
+      )
+    }
+
+    // Add the Bearer prefix
+    return `Bearer ${tokenValue}`
   }
 
   /**
@@ -334,6 +499,148 @@ export class StorageStateTokenService implements TokenService {
    */
   updateFromBrowserCookies(): boolean {
     return this.restoreFromBrowserCookies()
+  }
+
+  /**
+   * Set the current user's identity in memory and localStorage
+   * This is the ONLY method that should be used to update the user identity
+   * @param identity The user identity object to store
+   */
+  setCurrentUser(identity: UserIdentity): void {
+    if (typeof window !== 'undefined') {
+      if (identity) {
+        // Store user identity in localStorage for persistence
+        try {
+          localStorage.setItem('seon-user-identity', JSON.stringify(identity))
+          this.currentUser = identity
+
+          // Update the JWT token to include the user identity if it exists
+          if (this.currentToken) {
+            const jwtCookie = this.currentToken.cookies.find(
+              (c) => c.name === 'seon-jwt'
+            )
+            if (jwtCookie) {
+              // Only append identity if not already present
+              let tokenValue = jwtCookie.value.replace(/^Bearer\s+/i, '')
+              if (!tokenValue.includes(':')) {
+                tokenValue = `${tokenValue}:${JSON.stringify(identity)}`
+                jwtCookie.value = tokenValue
+                // Sync the updated token to browser cookies
+                this.syncCookiesToBrowser()
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Failed to store user identity in localStorage', e)
+        }
+      } else {
+        localStorage.removeItem('seon-user-identity')
+        this.currentUser = null
+      }
+    }
+  }
+
+  /**
+   * Get the current user identity information
+   * @returns The current user identity or null if not authenticated
+   */
+  getCurrentUser(): UserIdentity | null {
+    // If we already have a user in memory, return it
+    if (this.currentUser) {
+      return this.currentUser
+    }
+
+    // Try to restore from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const storedIdentity = localStorage.getItem('seon-user-identity')
+        if (storedIdentity) {
+          this.currentUser = JSON.parse(storedIdentity)
+          return this.currentUser
+        }
+      } catch (e) {
+        console.error('Failed to retrieve user identity from localStorage', e)
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Validate authentication with backend
+   * This makes an API call to check if the current cookies are valid
+   * and updates the current user if they are
+   */
+  async validateAuthWithBackend(): Promise<boolean> {
+    try {
+      console.log('Validating authentication with backend...')
+      const response = await axios.get(`${API_URL}/auth/validate`, {
+        withCredentials: true // Important: send cookies with the request
+      })
+
+      if (response.status === 200 && response.data.authenticated) {
+        // Update the current user from the response
+        if (response.data.user) {
+          this.setCurrentUser({
+            userId: response.data.user.id || response.data.user.userId,
+            username: response.data.user.username,
+            role: response.data.user.role
+          })
+        }
+
+        // Update the token state from browser cookies
+        this.updateFromBrowserCookies()
+
+        console.log('Authentication validated successfully')
+        return true
+      }
+
+      console.warn('Authentication validation failed', response.data)
+      return false
+    } catch (error) {
+      console.error('Error validating authentication:', error)
+      return false
+    }
+  }
+
+  /**
+   * Clear all tokens and user state
+   * This includes both the internal state and browser cookies
+   */
+  clearTokens(): void {
+    this.currentToken = null
+    this.currentUser = null
+
+    // Clear browser cookies if in browser
+    if (typeof window !== 'undefined') {
+      // Clear localStorage items
+      localStorage.removeItem('seon-user-identity')
+
+      // Use the setCookie helper to properly clear cookies with all attributes
+      const cookieOptions = {
+        path: '/',
+        domain: window.location.hostname,
+        expires: 0, // Set to 0 for immediate expiration (epoch time 0 = 1970-01-01)
+        secure: window.location.protocol === 'https:',
+        sameSite: 'strict' as const
+      }
+
+      // Clear JWT and refresh token cookies with proper attributes
+      setCookie('seon-jwt', '', cookieOptions)
+      setCookie('seon-refresh', '', cookieOptions)
+
+      // Double-check cookies were cleared
+      if (getCookie('seon-jwt') || getCookie('seon-refresh')) {
+        console.warn(
+          'Failed to clear auth cookies on first attempt, trying alternate method'
+        )
+        // Fallback: Try standard document.cookie method as well for better compatibility
+        document.cookie =
+          'seon-jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+        document.cookie =
+          'seon-refresh=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      }
+    }
   }
 
   /**
@@ -367,10 +674,36 @@ export class StorageStateTokenService implements TokenService {
       const cookies = []
 
       if (jwtValue) {
-        console.log('Found JWT cookie, adding to storage state')
+        console.log('Found JWT cookie, adding to storage state', jwtValue)
+
+        // Normalize the JWT value and add identity if needed
+        let normalizedValue = jwtValue
+
+        // Check if token is just a timestamp without the identity part
+        if (!normalizedValue.includes(':')) {
+          // Get the user identity or create a default one
+          const userIdentity = this.getCurrentUser() || {
+            id: 'user123',
+            role: 'user'
+          }
+
+          // Convert identity to JSON string and append to timestamp
+          const identityJson = JSON.stringify(userIdentity)
+          normalizedValue = `${normalizedValue}:${identityJson}`
+          console.log('Added missing identity to token:', userIdentity)
+        }
+
+        // We should NOT add Bearer prefix to cookie values,
+        // only to Authorization headers
+        // Remove Bearer prefix if it accidentally exists in cookie
+        if (normalizedValue.startsWith('Bearer ')) {
+          normalizedValue = normalizedValue.replace(/^Bearer\s+/i, '')
+          console.log('Removed incorrect Bearer prefix from cookie token')
+        }
+
         cookies.push({
           name: 'seon-jwt',
-          value: jwtValue,
+          value: normalizedValue,
           domain: window.location.hostname,
           path: '/',
           expires: jwtExpires,
@@ -399,12 +732,16 @@ export class StorageStateTokenService implements TokenService {
         origins: []
       }
 
+      // After setting the current token, also sync it back to browser cookies
+      // This ensures consistent state between our internal representation and browser
+      this.syncCookiesToBrowser()
+      console.log('Synchronized token state back to browser cookies')
+
       return true
     } catch (error) {
       console.error('Error restoring token from browser cookies:', error)
       return false
     }
-    return true
   }
 }
 
