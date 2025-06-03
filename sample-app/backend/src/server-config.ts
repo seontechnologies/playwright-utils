@@ -159,9 +159,33 @@ server.get('/auth/validate', (req, res) => {
       decoded = decoded.slice(7)
     }
 
-    // Check if the token has an identity part
+    // Check token expiration - extract timestamp
     const sepIndex = decoded.indexOf(':{')
+    let timestamp: Date | null = null
+
     if (sepIndex > 0) {
+      // Token has timestamp and identity parts
+      const timestampStr = decoded.substring(0, sepIndex)
+      timestamp = new Date(timestampStr)
+
+      // Validate timestamp is valid and not expired
+      if (isNaN(timestamp.getTime())) {
+        return res.status(200).json({
+          authenticated: false,
+          message: 'Invalid token timestamp format'
+        })
+      }
+
+      // Check if token is expired - 24-hour expiration window
+      const now = new Date()
+      const expirationTime = new Date(timestamp.getTime() + 24 * 60 * 60 * 1000) // 24 hours
+      if (now > expirationTime) {
+        return res.status(200).json({
+          authenticated: false,
+          message: 'Token expired'
+        })
+      }
+
       // Extract and parse the identity JSON
       const identityJson = decoded.slice(sepIndex + 1)
       const identity = JSON.parse(identityJson)

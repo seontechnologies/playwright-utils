@@ -81,9 +81,9 @@
   - [x] Updated to use cookie-based authentication in headers
   - [x] Modified request format to match backend expectations
 - [x] refactor @custom-auth-provider.ts
-- [ ] Implement identity-aware token storage
-- [ ] Update test fixtures with identity support
-- [ ] Add test environment detection
+- [x] Implement identity-aware token storage
+- [x] Update test fixtures with identity support
+- [x] Add test environment detection
 
 ### Phase 4: Testing
 
