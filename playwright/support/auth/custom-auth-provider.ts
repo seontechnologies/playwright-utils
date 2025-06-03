@@ -20,7 +20,7 @@ import { log } from '../../../src/log'
 import { acquireToken } from './token/acquire'
 import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
-import { extractToken } from './token/extract'
+import { extractToken, extractCookies } from './token/extract'
 import { getEnvironment } from './get-environment'
 import { getUserRole } from './get-user-role'
 
@@ -34,6 +34,8 @@ const myCustomProvider: AuthProvider = {
 
   /** Extract JWT token from Playwright storage state format */
   extractToken,
+
+  extractCookies,
 
   /** Check if a token is expired */
   isTokenExpired,

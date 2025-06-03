@@ -26,6 +26,8 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Using Multiple User Roles in Tests](#using-multiple-user-roles-in-tests)
     - [Dynamic Role Selection](#dynamic-role-selection)
       - [3. Testing Interactions Between Multiple Roles in a Single Test](#3-testing-interactions-between-multiple-roles-in-a-single-test)
+    - [Ephemeral User Authentication](#ephemeral-user-authentication)
+      - [How Ephemeral Authentication Works](#how-ephemeral-authentication-works)
     - [UI Testing with Browser Context](#ui-testing-with-browser-context)
       - [OAuth2 Example](#oauth2-example)
       - [Token Pre-fetching](#token-pre-fetching)
@@ -378,7 +380,7 @@ import { log } from '../../../src/log'
 import { acquireToken } from './token/acquire'
 import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
-import { extractToken } from './token/extract'
+import { extractToken, extractCookies } from './token/extract'
 import { getEnvironment } from './get-environment'
 import { getUserRole } from './get-user-role'
 
@@ -391,6 +393,9 @@ const myCustomProvider: AuthProvider = {
 
   // Extract token from storage state
   extractToken,
+
+  // Extract cookies from token data
+  extractCookies,
 
   // Check if token is expired
   isTokenExpired,
@@ -864,6 +869,59 @@ This approach is much simpler than Playwright's built-in solution because:
 4. **Explicit role naming** - Uses semantic role names instead of file paths
 
 You can easily extend this pattern to create Page Object Models with role-specific authentication already applied.
+
+### Ephemeral User Authentication
+
+In some testing scenarios, particularly when testing with temporary test users or in parallel test environments, you may want to apply authentication without persisting tokens to disk. The auth-session library provides a dedicated utility for this purpose:
+
+```typescript
+import { applyUserCookiesToBrowserContext } from '@seontechnologies/playwright-utils/auth-session'
+import { createTestUser } from '../support/user-factory'
+
+test.describe('ephemeral user tests', () => {
+  let adminUser
+  let readUser
+
+  test.beforeAll(async () => {
+    // Create temporary test users
+    adminUser = await createTestUser({ role: 'admin' })
+    readUser = await createTestUser({ role: 'read' })
+  })
+
+  test.beforeEach(async ({ context }) => {
+    // Apply admin user authentication to browser context
+    await applyUserCookiesToBrowserContext(context, adminUser)
+  })
+
+  test('admin can access restricted features', async ({ page }) => {
+    await page.goto('/dashboard')
+    await expect(page.getByRole('button', { name: 'Add Item' })).toBeVisible()
+  })
+
+  test('read user has limited access', async ({ context, page }) => {
+    // Override with read-only user for this specific test
+    await applyUserCookiesToBrowserContext(context, readUser)
+
+    await page.goto('/dashboard')
+    await expect(
+      page.getByRole('button', { name: 'Add Item' })
+    ).not.toBeVisible()
+  })
+})
+```
+
+#### How Ephemeral Authentication Works
+
+1. The `applyUserCookiesToBrowserContext` utility extracts authentication cookies from the user data
+2. It applies these cookies directly to the Playwright browser context
+3. No tokens or cookies are written to the filesystem
+4. Each test can use different user credentials without persisting state
+
+This approach is particularly useful for:
+
+- Testing with temporary users created just for tests
+- Parallel testing where each worker needs independent authentication
+- Tests that require switching between different user roles
 
 ### UI Testing with Browser Context
 

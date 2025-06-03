@@ -32,6 +32,24 @@ export interface AuthProvider {
   extractToken(tokenData: Record<string, unknown>): string | null
 
   /**
+   * Extract cookies from formatted token data
+   * This allows providers to access cookies from their specific formats
+   *
+   * @param tokenData The formatted token data
+   * @returns Array of cookie objects ready for browser context
+   */
+  extractCookies(tokenData: Record<string, unknown>): Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    expires?: number
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: 'Strict' | 'Lax' | 'None'
+  }>
+
+  /**
    * Check if a token is expired
    * This allows providers to implement custom expiration logic
    *
