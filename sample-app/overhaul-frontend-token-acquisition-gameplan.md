@@ -65,6 +65,8 @@
   - [x] Add direct navigation to identity management
     - [x] Create route for identity page
     - [x] Allow switching between different roles/identities
+- [x] The token-service.ts to add a method that validates auth via API call instead of client-side
+- [x] The isAuthenticated() function in App-routes.tsx to use this new method
 
 ### Phase 3: Test Framework Integration
 

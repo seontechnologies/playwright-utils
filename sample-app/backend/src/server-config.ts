@@ -136,7 +136,63 @@ server.post('/auth/identity-token', (req, res) => {
   })
 })
 
-// Token renewal endpoint - uses refresh token to get a new JWT token
+// Validate authentication endpoint
+server.get('/auth/validate', (req, res) => {
+  const jwtToken = req.cookies?.['seon-jwt']
+
+  if (!jwtToken) {
+    return res.status(200).json({
+      authenticated: false,
+      message: 'No authentication token found'
+    })
+  }
+
+  // In a real app, validate the JWT signature and check expiration
+  // For this sample app, we'll just check the format and extract the identity
+
+  try {
+    // Parse the token (Bearer <timestamp>:<identity>)
+    let decoded = jwtToken
+
+    // Strip Bearer prefix if present
+    if (decoded.toLowerCase().startsWith('bearer ')) {
+      decoded = decoded.slice(7)
+    }
+
+    // Check if the token has an identity part
+    const sepIndex = decoded.indexOf(':{')
+    if (sepIndex > 0) {
+      // Extract and parse the identity JSON
+      const identityJson = decoded.slice(sepIndex + 1)
+      const identity = JSON.parse(identityJson)
+
+      return res.status(200).json({
+        authenticated: true,
+        user: identity,
+        message: 'Authentication valid'
+      })
+    } else {
+      // Token doesn't have identity, but it's still valid
+      // In a real app, you might want to require identity
+      return res.status(200).json({
+        authenticated: true,
+        user: {
+          userId: 'anonymous',
+          username: 'Anonymous User',
+          role: 'user'
+        },
+        message: 'Authentication valid (no identity)'
+      })
+    }
+  } catch (error) {
+    return res.status(200).json({
+      authenticated: false,
+      message: 'Invalid authentication token',
+      error: error instanceof Error ? error.message : String(error)
+    })
+  }
+})
+
 server.post('/auth/renew', (req, res) => {
   const refreshToken = req.cookies?.['seon-refresh']
 

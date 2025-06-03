@@ -72,7 +72,7 @@ test.describe('token acquisition', () => {
     expect(token).not.toEqual(refreshToken)
   })
 
-  test('should get an ID token & refresh with helper', async ({
+  test('should get an ID token, validate & refresh with helper', async ({
     apiRequest
   }) => {
     const userData = {
@@ -99,6 +99,31 @@ test.describe('token acquisition', () => {
       role: userData.role
     })
 
+    // After getting the token but before refreshing
+    await log.step('Validate the token')
+
+    const {
+      body: { authenticated, user },
+      status: validateStatus
+    } = await apiRequest<{
+      authenticated: boolean
+      user: typeof userData
+      message: string
+    }>({
+      baseUrl: API_URL,
+      method: 'GET',
+      path: '/auth/validate'
+    })
+
+    expect(validateStatus).toBe(200)
+    expect(authenticated).toBe(true)
+    expect(user).toEqual({
+      userId: `user_${userData.username}`,
+      username: userData.username,
+      role: userData.role
+    })
+
+    // Then proceed with your refresh test
     await log.step('Test the refresh token')
 
     const {

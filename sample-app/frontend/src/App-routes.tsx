@@ -23,19 +23,32 @@ type AppRoutesProps = Readonly<{
 
 /**
  * Check if user is authenticated by using the token service
- * This verifies both the token existence and user identity
- * @returns {boolean} True if authenticated
+ * This now uses a backend API call to verify authentication status
+ * @returns {Promise<boolean>} Promise resolving to true if authenticated
  */
-function isAuthenticated(): boolean {
-  // Check if we have a current user identity in the token service
+async function isAuthenticated(): Promise<boolean> {
+  // First try a quick check with existing data (for immediate response)
   const currentUser = tokenService.getCurrentUser()
-
-  // Simple authentication check: we need a valid user identity
-  // with a userId, and a valid token for API calls
   const token = tokenService.getToken()
-  const hasValidToken = token && Object.keys(token).length > 0
+  const hasExistingAuth =
+    !!currentUser?.userId && token && Object.keys(token).length > 0
 
-  return !!currentUser && !!currentUser.userId && hasValidToken
+  if (hasExistingAuth) {
+    // We have existing auth data, but let's validate with backend in the background
+    // This ensures auth state stays in sync without blocking the UI
+    tokenService.validateAuthWithBackend().catch((err) => {
+      console.error('Background auth validation failed:', err)
+    })
+    return true
+  }
+
+  // No existing auth data, we need to validate with the backend
+  try {
+    return await tokenService.validateAuthWithBackend()
+  } catch (error) {
+    console.error('Auth validation error:', error)
+    return false
+  }
 }
 
 /**
@@ -47,10 +60,26 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false)
 
   useEffect(() => {
-    // Check authentication
-    const auth = isAuthenticated()
-    setAuthenticated(auth)
-    setChecking(false)
+    // Create an async function inside useEffect
+    const checkAuth = async () => {
+      try {
+        // Check authentication with backend
+        const auth = await isAuthenticated()
+        setAuthenticated(auth)
+      } catch (error) {
+        console.error('Authentication check failed:', error)
+        setAuthenticated(false)
+      } finally {
+        setChecking(false)
+      }
+    }
+
+    // Call the async function and handle any errors
+    checkAuth().catch((error) => {
+      console.error('Error in checkAuth:', error)
+      setAuthenticated(false)
+      setChecking(false)
+    })
   }, [location.pathname])
 
   if (checking) {
@@ -70,9 +99,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   )
 }
 
+// This component ensures token state is updated from browser cookies on app load
+function TokenSynchronizer() {
+  useEffect(() => {
+    // Update token state from browser cookies on initial load
+    const updated = tokenService.updateFromBrowserCookies()
+    console.log('Token state updated from browser cookies:', updated)
+  }, [])
+  return null
+}
+
 export default function AppRoutes({ movies, onDelete }: AppRoutesProps) {
   return (
     <BrowserRouter>
+      <TokenSynchronizer />
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<LoginForm />} />

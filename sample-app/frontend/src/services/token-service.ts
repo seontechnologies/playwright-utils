@@ -49,6 +49,7 @@ export interface UserIdentity {
 
 export interface TokenService {
   getToken(): StorageState
+  validateAuthWithBackend(): Promise<boolean>
   /**
    * Explicitly set the token state
    * This is useful when we receive token information from an API response
@@ -563,6 +564,43 @@ export class StorageStateTokenService implements TokenService {
     }
 
     return null
+  }
+
+  /**
+   * Validate authentication with backend
+   * This makes an API call to check if the current cookies are valid
+   * and updates the current user if they are
+   */
+  async validateAuthWithBackend(): Promise<boolean> {
+    try {
+      console.log('Validating authentication with backend...')
+      const response = await axios.get(`${API_URL}/auth/validate`, {
+        withCredentials: true // Important: send cookies with the request
+      })
+
+      if (response.status === 200 && response.data.authenticated) {
+        // Update the current user from the response
+        if (response.data.user) {
+          this.setCurrentUser({
+            userId: response.data.user.id || response.data.user.userId,
+            username: response.data.user.username,
+            role: response.data.user.role
+          })
+        }
+
+        // Update the token state from browser cookies
+        this.updateFromBrowserCookies()
+
+        console.log('Authentication validated successfully')
+        return true
+      }
+
+      console.warn('Authentication validation failed', response.data)
+      return false
+    } catch (error) {
+      console.error('Error validating authentication:', error)
+      return false
+    }
   }
 
   /**

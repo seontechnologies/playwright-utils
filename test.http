@@ -21,6 +21,17 @@ Content-Type: application/json
 }
 
 ###
+# @name validateAuth
+# Test the authentication validation endpoint (without cookies)
+GET {{baseUrl}}/auth/validate
+
+###
+# @name validateAuthWithToken
+# Test the authentication validation endpoint with token
+GET {{baseUrl}}/auth/validate
+Authorization: {{token}}
+
+###
 # @name renewToken
 # This requires a valid refresh cookie to be present in your browser
 POST {{baseUrl}}/auth/renew
@@ -119,3 +130,5 @@ Authorization: {{token}}
 # @name deleteNonExistentMovie
 DELETE {{baseUrl}}/movies/999
 Authorization: {{token}}
+
+

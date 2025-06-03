@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/support/merged-fixtures'
 import { log } from 'src/log'
 
+test.use({
+  authSessionEnabled: false
+})
+
 test('should login', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveURL('/login')
