@@ -22,6 +22,9 @@ export {
 // Global setup helper (optional)
 export { initializeAuthForGlobalSetup } from './global-setup-helper'
 
+// Ephemeral auth
+export { applyUserCookiesToBrowserContext } from './apply-user-cookies-to-browser-context'
+
 // Storage utilities
 export {
   getStorageStatePath,

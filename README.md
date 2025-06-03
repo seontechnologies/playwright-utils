@@ -315,8 +315,6 @@ export const test = base.extend<AuthFixtures>({
 
   // Use the other fixtures directly
   ...createAuthFixtures()
-})
-
 // In your tests, use the auth token
 test('authenticated API request', async ({ authToken, request }) => {
   const response = await request.get('https://api.example.com/protected', {
@@ -325,9 +323,10 @@ test('authenticated API request', async ({ authToken, request }) => {
 
   expect(response.ok()).toBeTruthy()
 })
-```
 
-2. **Create Custom Auth Provider** - Implement token management with modular utilities:
+// 1. Create Auth Fixture - Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures
+
+// 2. Create Custom Auth Provider - Implement token management with modular utilities:
 
 ```typescript
 // playwright/support/auth/custom-auth-provider.ts
@@ -341,7 +340,7 @@ import { log } from '@seontechnologies/playwright-utils/log'
 import { acquireToken } from './token/acquire'
 import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
-import { extractToken } from './token/extract'
+import { extractToken, extractCookies } from './token/extract'
 import { getEnvironment } from './get-environment'
 import { getUserRole } from './get-user-role'
 
@@ -354,6 +353,9 @@ const myCustomProvider: AuthProvider = {
 
   // Extract token from storage state
   extractToken,
+
+  // Extract cookies from token data for browser context
+  extractCookies,
 
   // Check if token is expired
   isTokenExpired,
@@ -400,9 +402,12 @@ const myCustomProvider: AuthProvider = {
 export default myCustomProvider
 ```
 
-3. **Use the Auth Session in Your Tests**
+// 3. Use the Auth Session in Your Tests
 
-```typescript
+// 1. Update Your Playwright Config
+
+// 2. Configure Authentication Options
+
 // Usage in your tests
 import { test } from '../support/auth/auth-fixture'
 
@@ -414,6 +419,18 @@ test('access protected resources', async ({ page, authToken }) => {
 
   // Or use the pre-authenticated page
   await page.goto('/protected-area')
+})
+
+// Ephemeral user authentication
+import { applyUserCookiesToBrowserContext } from '@seontechnologies/playwright-utils/auth-session'
+
+test('ephemeral user auth', async ({ context, page }) => {
+  // Apply user auth directly to browser context (no disk persistence)
+  const user = await createTestUser({ role: 'admin' })
+  await applyUserCookiesToBrowserContext(context, user)
+
+  // Page is now authenticated with the user's token
+  await page.goto('/protected-page')
 })
 ```
 
