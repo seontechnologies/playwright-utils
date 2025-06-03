@@ -59,7 +59,7 @@ test.describe('CRUD movie with ephemeral users', () => {
     const { status: readUserAddStatus } = await addMovie(ReadUser.token, movie)
     expect(readUserAddStatus).toBe(403)
 
-    const movieId = createResponse.data?.id
+    const movieId = createResponse.data.id
     expect(createStatus).toBe(200)
     expect(createResponse).toMatchObject({
       status: 200,

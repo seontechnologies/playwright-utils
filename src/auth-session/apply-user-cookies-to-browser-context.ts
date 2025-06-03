@@ -19,21 +19,45 @@ export async function applyUserCookiesToBrowserContext(
   context: BrowserContext,
   tokenData: Record<string, unknown>
 ): Promise<BrowserContext> {
-  // Get cookies from the auth provider
-  const authProvider = getAuthProvider()
-  const cookies = authProvider.extractCookies(tokenData)
+  try {
+    // Get cookies from the auth provider
+    const authProvider = getAuthProvider()
 
-  // Log what we're doing
-  await log.info(`Applying user auth with ${cookies.length} cookies`)
+    try {
+      const cookies = authProvider.extractCookies(tokenData)
 
-  if (cookies.length > 0) {
-    // Apply the cookies to the browser context
-    await context.addCookies(cookies)
-    await log.info('Successfully applied auth cookies to browser context')
-  } else {
-    await log.warning('No auth cookies found to apply')
+      // Log what we're doing
+      await log.info(`Applying user auth with ${cookies.length} cookies`)
+
+      if (cookies.length > 0) {
+        try {
+          // Apply the cookies to the browser context
+          await context.addCookies(cookies)
+          await log.info('Successfully applied auth cookies to browser context')
+        } catch (cookieError) {
+          await log.error(
+            `Failed to apply auth cookies to browser context: ${String(cookieError)}`
+          )
+          throw new Error(
+            `Failed to apply auth cookies: ${String(cookieError)}`
+          )
+        }
+      } else {
+        await log.warning('No auth cookies found to apply')
+      }
+    } catch (extractError) {
+      await log.error(
+        `Failed to extract auth cookies from token data: ${String(extractError)}`
+      )
+      throw new Error(`Failed to extract auth cookies: ${String(extractError)}`)
+    }
+  } catch (error) {
+    await log.error(
+      `Error in applyUserCookiesToBrowserContext: ${String(error)}`
+    )
+    throw error
   }
 
-  // Always return the context
+  // Always return the context if no errors
   return context
 }

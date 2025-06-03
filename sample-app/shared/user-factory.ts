@@ -20,28 +20,31 @@ export async function createTestUser({
   // Make authentication request directly without involving storage
   // this would reuse storage:  request.newContext({ storageState: storageStatePath })
   const context = await request.newContext()
+  try {
+    const { status, body } = await apiRequest<AuthResponse>({
+      request: context,
+      method: 'POST',
+      path: '/auth/identity-token',
+      baseUrl: API_URL,
+      body: {
+        username,
+        password,
+        role
+      }
+    })
 
-  const { status, body } = await apiRequest<AuthResponse>({
-    request: context,
-    method: 'POST',
-    path: '/auth/identity-token',
-    baseUrl: API_URL,
-    body: {
-      username,
-      password,
-      role
+    if (status !== 200) {
+      throw new Error(`Failed to create ephemeral test user ${username}`)
     }
-  })
 
-  if (status !== 200) {
-    throw new Error(`Failed to create ephemeral test user ${username}`)
-  }
-
-  return {
-    token: body.token,
-    userId: body.identity.userId,
-    username: body.identity.username,
-    password
+    return {
+      token: body.token,
+      userId: body.identity.userId,
+      username: body.identity.username,
+      password
+    }
+  } finally {
+    await context.dispose()
   }
 }
 

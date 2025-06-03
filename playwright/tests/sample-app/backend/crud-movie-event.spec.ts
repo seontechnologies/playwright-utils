@@ -51,7 +51,7 @@ test.describe('CRUD movie', () => {
     )
 
     // Get the movie ID from the response or fallback to 1 if not found
-    const movieId = createResponse.data?.id || 1
+    const movieId = createResponse.data.id
 
     expect(createStatus).toBe(200)
     expect(createResponse).toMatchObject({
