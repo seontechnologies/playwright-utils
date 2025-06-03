@@ -187,13 +187,13 @@ export const updateMovie = async (
 }
 
 // Authentication Types
-type AuthRequest = {
+export type AuthRequest = {
   username: string
   password: string
   role?: string
 }
 
-type AuthResponse = {
+export type AuthResponse = {
   token: string
   expiresAt: string
   refreshToken: string

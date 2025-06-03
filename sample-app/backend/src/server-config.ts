@@ -217,17 +217,45 @@ server.post('/auth/renew', (req, res) => {
   let identity = undefined
   const parts = refreshToken.split('-')
 
-  if (parts.length >= 4) {
-    // Try to extract identity information from the token
-    try {
-      // The identity part is all parts between the timestamp and the random string
-      // Since the identity JSON itself might contain hyphens, we need to rejoin
-      const identityJson = parts.slice(2, parts.length - 1).join('-')
-      identity = JSON.parse(identityJson)
-    } catch {
-      // If identity parsing fails, continue without identity info
-      // This allows backward compatibility with old tokens
+  // More robust validation of token structure
+  if (parts.length >= 4 && parts[0] === 'Refresh') {
+    // Validate timestamp is a number
+    const timestamp = Number(parts[1])
+    if (!isNaN(timestamp)) {
+      try {
+        // The identity part is all parts between the timestamp and the random string
+        // Since the identity JSON itself might contain hyphens, we need to rejoin
+        const identityJson = parts.slice(2, parts.length - 1).join('-')
+        const parsedIdentity = JSON.parse(identityJson)
+
+        // Validate the parsed identity has the expected structure
+        if (parsedIdentity && typeof parsedIdentity === 'object') {
+          // Minimum validation - check for required fields
+          // Adjust these requirements based on your specific identity structure
+          if (
+            parsedIdentity.userId ||
+            (parsedIdentity.username && parsedIdentity.role)
+          ) {
+            identity = parsedIdentity
+          } else {
+            console.warn('Invalid identity structure in refresh token')
+          }
+        } else {
+          console.warn('Identity in refresh token is not a valid object')
+        }
+      } catch (error) {
+        // Log specific error for security monitoring and debugging
+        console.warn(
+          'Failed to parse identity in refresh token:',
+          error instanceof Error ? error.message : 'Unknown parsing error'
+        )
+        // Continue without identity
+      }
+    } else {
+      console.warn('Invalid timestamp format in refresh token')
     }
+  } else {
+    console.warn('Invalid refresh token structure')
   }
 
   // Generate a new JWT token
