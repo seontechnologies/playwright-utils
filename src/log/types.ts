@@ -95,8 +95,11 @@ export type LoggingConfig = {
   // Minimum log level to display (filters out messages below this level)
   level?: LogLevel
 
-  // Whether to run logging as part of a Playwright test.step()
-  testStep?: string
+  // Playwright test step integration
+  // - When string: Use as the step name
+  // - When true: Run as test step with auto-generated name
+  // - When false: Don't run as test step
+  testStep?: boolean | string
 }
 
 /** Parameters for the log fixture */
