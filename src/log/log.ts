@@ -6,12 +6,13 @@ import { logToConsole } from './outputs/log-to-console'
 import { mergeOptions, configure } from './utils/options'
 import { logToFile } from './outputs/log-to-file'
 import { isEnabled } from './utils/flag'
+import { LOG_LEVEL_PRIORITY } from './types'
 
 import type { TestContextInfo } from './config'
 import type { LogLevel, LoggingConfig } from './types'
 
 // Configuration constants
-const DEFAULT_MAX_LINE_LENGTH = 120
+const DEFAULT_MAX_LINE_LENGTH = 500
 
 /** Get formatting options by merging defaults with provided options */
 const getFormattingOptions = (options?: Partial<LoggingConfig>) => ({
@@ -36,14 +37,40 @@ const getWorkerIdConfig = (
   }
 }
 
-/** Handle console logging if enabled */
+/** Check if a log level meets the minimum configured level */
+const meetsMinimumLevel = (
+  messageLevel: LogLevel,
+  configuredLevel?: LogLevel
+): boolean => {
+  if (!configuredLevel) return true // No filter if level isn't set
+
+  const messagePriority = LOG_LEVEL_PRIORITY[messageLevel]
+  const configuredPriority = LOG_LEVEL_PRIORITY[configuredLevel]
+
+  return messagePriority >= configuredPriority
+}
+
+/** Handle console logging if enabled and meets minimum level requirement */
 const handleConsoleLogging = async (
   formattedMessage: string,
   level: LogLevel,
   options: Partial<LoggingConfig> = {},
   config: Partial<LoggingConfig> = {}
 ): Promise<void> => {
-  if (isEnabled(options.console, false) && isEnabled(config.console, true)) {
+  // if options has explicit console setting, use that
+  // otherwise fall back to config setting
+  const optionsConsole = isEnabled(options.console, undefined)
+  const configConsole = isEnabled(config.console, true)
+
+  // If options has explicit setting, use it, otherwise use config setting
+  const shouldLog =
+    optionsConsole !== undefined ? optionsConsole : configConsole
+
+  // Check if this message meets the minimum level requirement
+  const minLevel = options.level || config.level
+  const meetsLevelRequirement = meetsMinimumLevel(level, minLevel)
+
+  if (shouldLog && meetsLevelRequirement) {
     await logToConsole(formattedMessage, level)
   }
 }
@@ -67,7 +94,11 @@ const handleFileLogging = async (
   const shouldLogToFile =
     optionsFileLogging !== undefined ? optionsFileLogging : configFileLogging
 
-  if (shouldLogToFile) {
+  // Check if this message meets the minimum level requirement
+  const minLevel = options.level || config.level
+  const meetsLevelRequirement = meetsMinimumLevel(level, minLevel)
+
+  if (shouldLogToFile && meetsLevelRequirement) {
     try {
       await logToFile(formattedMessage, level, {
         testFile: options.testFile || testContext.testFile,
@@ -205,12 +236,17 @@ const logInfoSync = (
     'info',
     options
   )
-  if (isEnabled(merged.console, false) && isEnabled(config.console, true)) {
-    // Use console methods directly instead of the async wrapper
+  // Check level filtering
+  const minLevel = merged.level || config.level
+  const meetsLevelRequirement = meetsMinimumLevel('info', minLevel)
+
+  if (
+    isEnabled(merged.console, false) &&
+    isEnabled(config.console, true) &&
+    meetsLevelRequirement
+  ) {
     console.info(formatted)
   }
-  // Note: File logging is skipped in sync mode as it requires async operations
-  // Playwright steps are also skipped as they are async
 }
 
 const logStepSync = (
@@ -222,7 +258,15 @@ const logStepSync = (
     'step',
     options
   )
-  if (isEnabled(merged.console, false) && isEnabled(config.console, true)) {
+  // Check level filtering
+  const minLevel = merged.level || config.level
+  const meetsLevelRequirement = meetsMinimumLevel('step', minLevel)
+
+  if (
+    isEnabled(merged.console, false) &&
+    isEnabled(config.console, true) &&
+    meetsLevelRequirement
+  ) {
     console.log(formatted)
   }
 }
@@ -236,7 +280,15 @@ const logSuccessSync = (
     'success',
     options
   )
-  if (isEnabled(merged.console, false) && isEnabled(config.console, true)) {
+  // Check level filtering
+  const minLevel = merged.level || config.level
+  const meetsLevelRequirement = meetsMinimumLevel('success', minLevel)
+
+  if (
+    isEnabled(merged.console, false) &&
+    isEnabled(config.console, true) &&
+    meetsLevelRequirement
+  ) {
     console.log(formatted)
   }
 }
@@ -250,7 +302,15 @@ const logWarningSync = (
     'warning',
     options
   )
-  if (isEnabled(merged.console, false) && isEnabled(config.console, true)) {
+  // Check level filtering
+  const minLevel = merged.level || config.level
+  const meetsLevelRequirement = meetsMinimumLevel('warning', minLevel)
+
+  if (
+    isEnabled(merged.console, false) &&
+    isEnabled(config.console, true) &&
+    meetsLevelRequirement
+  ) {
     console.warn(formatted)
   }
 }
@@ -264,7 +324,15 @@ const logErrorSync = (
     'error',
     options
   )
-  if (isEnabled(merged.console, false) && isEnabled(config.console, true)) {
+  // Check level filtering
+  const minLevel = merged.level || config.level
+  const meetsLevelRequirement = meetsMinimumLevel('error', minLevel)
+
+  if (
+    isEnabled(merged.console, false) &&
+    isEnabled(config.console, true) &&
+    meetsLevelRequirement
+  ) {
     console.error(formatted)
   }
 }
@@ -278,7 +346,15 @@ const logDebugSync = (
     'debug',
     options
   )
-  if (isEnabled(merged.console, false) && isEnabled(config.console, true)) {
+  // Check level filtering
+  const minLevel = merged.level || config.level
+  const meetsLevelRequirement = meetsMinimumLevel('debug', minLevel)
+
+  if (
+    isEnabled(merged.console, false) &&
+    isEnabled(config.console, true) &&
+    meetsLevelRequirement
+  ) {
     console.debug(formatted)
   }
 }

@@ -48,10 +48,10 @@ test.use({
 // Boolean format (still supported via unified config type):
 // log.configure({ console: false })
 
-// Object format (preferred for new code):
-log.configure({
-  console: true
-})
+// We can control logging at file level
+// log.configure({
+//   console: true
+// })
 
 const TODO_ITEMS = [
   'buy some cheese',
@@ -75,10 +75,14 @@ test.describe('New Todo', () => {
     await log.success('success!')
 
     // Object with logging options
-    await log.warning(
-      { warning: 'This is a warning object', code: 'WARN001' },
-      { console: { enabled: true, colorize: true } }
-    )
+    // await log.warning(
+    //   {
+    //     warning:
+    //       'This is a warning object, can override global settings at test level',
+    //     code: 'WARN001'
+    //   },
+    //   { console: { enabled: true, colorize: true } }
+    // )
 
     await log.step(
       'You should not log an object here, steps only display strings'
@@ -118,12 +122,12 @@ test.describe('New Todo', () => {
     ])
 
     // Object with custom logging options
-    await log.success(
-      // Data to log
-      { todoItems: [TODO_ITEMS[0], TODO_ITEMS[1]], count: 2 },
-      // Custom logging options
-      { console: { enabled: true, colorize: true } }
-    )
+    // await log.success(
+    //   // Data to log
+    //   { todoItems: [TODO_ITEMS[0], TODO_ITEMS[1]], count: 2 },
+    //   // Custom logging options
+    //   { console: { enabled: true, colorize: true } }
+    // )
 
     await checkNumberOfTodosInLocalStorage(page, 2)
   })

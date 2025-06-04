@@ -18,6 +18,7 @@ import type {
   AuthIdentifiers,
   AuthStorageConfig
 } from './types'
+import { log } from 'src/log'
 
 /**  Default environment when none is specified */
 const DEFAULT_ENVIRONMENT = 'local'
@@ -145,10 +146,10 @@ export const saveStorageState = (
     // Write storage state to file
     fs.writeFileSync(tokenPath, JSON.stringify(storageState, null, 2))
     // Only use sync logging because this might be called during process exit
-    console.log(`Storage state saved to ${tokenPath}`)
+    log.infoSync(`Storage state saved to ${tokenPath}`)
     return true
   } catch (error) {
-    console.error(`Error saving storage state to ${tokenPath}:`, error)
+    log.errorSync(`Error saving storage state to ${tokenPath}: ${error}`)
     return false
   }
 }

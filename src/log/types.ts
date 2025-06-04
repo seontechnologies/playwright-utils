@@ -1,4 +1,4 @@
-/** Log level types */
+/** Log level types for different severity of messages */
 export type LogLevel =
   | 'info'
   | 'step'
@@ -6,6 +6,16 @@ export type LogLevel =
   | 'warning'
   | 'error'
   | 'debug'
+
+/** Log level hierarchy for filtering (lowest to highest priority) */
+export const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  step: 2,
+  success: 3,
+  warning: 4,
+  error: 5
+}
 
 /** Options for formatting log messages */
 export type FormatOptions = {
@@ -69,6 +79,8 @@ export type LoggingConfig = {
     prefix?: string
     // Add a new line after the message
     addNewLine?: boolean
+    // Maximum line length for formatted logs
+    maxLineLength?: number
   }
 
   // Additional metadata for structured logging
@@ -79,6 +91,12 @@ export type LoggingConfig = {
 
   // Test name (usually set automatically)
   testName?: string
+
+  // Minimum log level to display (filters out messages below this level)
+  level?: LogLevel
+
+  // Whether to run logging as part of a Playwright test.step()
+  testStep?: string
 }
 
 /** Parameters for the log fixture */
