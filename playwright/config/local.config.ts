@@ -17,19 +17,22 @@ import { log } from '../../src'
 //   }
 // })
 // Check environment variables for log configuration
-const DISABLE_LOGS = process.env.DISABLE_LOGS === 'true'
-
-const DISABLE_FILE_LOGS =
-  process.env.DISABLE_FILE_LOGS === 'true' || DISABLE_LOGS
-
+const SILENT = process.env.SILENT === 'true'
+const DISABLE_FILE_LOGS = process.env.DISABLE_FILE_LOGS === 'true' || SILENT
 const DISABLE_CONSOLE_LOGS =
-  process.env.DISABLE_CONSOLE_LOGS === 'true' || DISABLE_LOGS
+  process.env.DISABLE_CONSOLE_LOGS === 'true' || SILENT
 
 // ORGANIZED LOGS
 log.configure({
+  // Set console directly to false rather than using object format
   console: {
     enabled: !DISABLE_CONSOLE_LOGS
+  }, // This should disable console logs completely
+  format: {
+    maxLineLength: 2000 // Set your desired maximum line length
   },
+  // debug < info < step < success < warning < error
+  level: 'success', // show all logs, or limit them
   fileLogging: {
     enabled: !DISABLE_FILE_LOGS,
     defaultTestFolder: 'before-hooks', // all hooks go to the default folder

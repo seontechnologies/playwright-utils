@@ -15,6 +15,11 @@ A functional logging utility for Playwright tests with enhanced features for tes
       - [`log.configure`](#logconfigure)
       - [`captureTestContext`](#capturetestcontext)
   - [API Reference](#api-reference)
+    - [Logging Methods](#logging-methods)
+      - [Asynchronous Methods (Standard)](#asynchronous-methods-standard)
+      - [Synchronous Methods](#synchronous-methods)
+    - [Global Log Toggling](#global-log-toggling)
+      - [Environment Variable Control](#environment-variable-control)
     - [Log Levels](#log-levels)
     - [Configuration Options](#configuration-options)
     - [Logging examples](#logging-examples)
@@ -360,16 +365,17 @@ You can also toggle logging via environment variables in your config file:
 
 ```typescript
 // Check environment variables for log configuration
-const DISABLE_LOGS = process.env.DISABLE_LOGS === 'true'
-const DISABLE_FILE_LOGS = process.env.DISABLE_FILE_LOGS === 'true' || DISABLE_LOGS
-const DISABLE_CONSOLE_LOGS = process.env.DISABLE_CONSOLE_LOGS === 'true' || DISABLE_LOGS
+const SILENT = process.env.SILENT === 'true'
+const DISABLE_FILE_LOGS = process.env.DISABLE_FILE_LOGS === 'true' || SILENT
+const DISABLE_CONSOLE_LOGS =
+  process.env.DISABLE_CONSOLE_LOGS === 'true' || SILENT
 
 log.configure({
   console: {
     enabled: !DISABLE_CONSOLE_LOGS
   },
   fileLogging: {
-    enabled: !DISABLE_FILE_LOGS,
+    enabled: !DISABLE_FILE_LOGS
     // other file logging options...
   }
 })
@@ -379,7 +385,7 @@ This allows you to toggle logs from the command line:
 
 ```bash
 # Disable all logs
-DISABLE_LOGS=true npx playwright test
+SILENT=true npx playwright test
 
 # Disable only file logs
 DISABLE_FILE_LOGS=true npx playwright test
@@ -400,6 +406,29 @@ This is particularly useful for CI/CD pipelines where you may want to adjust ver
 | `warning` | Warning messages    | console.warn   | ⚠               |
 | `error`   | Error messages      | console.error  | ✖               |
 | `debug`   | Debug information   | console.debug  | 🔍               |
+
+### Log Level Filtering
+
+The logger now supports Winston-style log level filtering. You can set a minimum log level, and only messages at or above that level will be displayed:
+
+```typescript
+// debug < info < step < success < warning < error
+log.configure({
+  level: 'warning' // Only show warnings and errors, filter out debug, info, step, success
+})
+```
+
+The log level hierarchy is (from lowest to highest priority):
+
+```typescript
+debug < info < step < success < warning < error
+```
+
+This allows you to control verbosity based on your needs:
+
+- Development: Use 'debug' level to see all messages
+- Testing: Use 'info' or 'step' level for moderate output
+- Production/CI: Use 'warning' level to see only important alerts
 
 ### Configuration Options
 
@@ -425,6 +454,16 @@ log.configure({
     enabled: true, // Enable console output
     colorize: true, // Use ANSI colors in console (default)
     timestamps: true // Show timestamps in console
+  },
+
+  // Minimum log level to display
+  level: 'warning', // Only show warnings and errors
+
+  // Format options
+  format: {
+    prefix: '[App]', // Add a prefix to all log messages
+    addNewLine: true, // Add a newline after each message
+    maxLineLength: 2000 // Control max line length before truncation (default: 500)
   },
 
   // File logging configuration
