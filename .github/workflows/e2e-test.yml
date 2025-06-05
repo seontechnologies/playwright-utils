@@ -101,7 +101,7 @@ jobs:
       # 1. Extract the exact version of @playwright/test from package-lock.json
       - name: Get installed Playwright version
         id: playwright-version
-        run: echo "PLAYWRIGHT_VERSION=$(node -e \"console.log(require('./package-lock.json').dependencies['@playwright/test'].version)\")" >> $GITHUB_ENV
+        run: echo "PLAYWRIGHT_VERSION=$(node -e 'console.log(require(\"./package-lock.json\").dependencies[\"@playwright/test\"].version)')" >> $GITHUB_ENV
         # (caches under exactly this version so any upgrade invalidates automatically) :contentReference[oaicite:5]{index=5}
 
       # 2. Restore browse cache if it exists
