@@ -118,13 +118,19 @@ jobs:
             ${{ runner.os }}-playwright-
         # (saves/loads browser binaries at ~/.cache/ms-playwright)
 
-      # 3. Only install browsers if cache was a MISS
-      - name: Install Playwright Browsers
+      # 3. Only install system dependencies if cache was a MISS
+      - name: Install Playwright system dependencies
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
-          npx playwright install --with-deps chromium
-          npx playwright install --with-deps chrome
-        # (installs Chromium/Firefox/WebKit + system deps; skipped on cache-hit)
+          npx playwright install-deps chromium chrome
+        # (installs only system dependencies; skipped on cache-hit)
+
+      # 4. Always install browser binaries to ensure they're properly set up
+      - name: Install Playwright browsers
+        run: |
+          npx playwright install chromium
+          npx playwright install chrome
+        # (installs browser binaries only, fast operation)
 
       # 4. Verify that browsers are in place for debugging
       - name: Verify Browsers
