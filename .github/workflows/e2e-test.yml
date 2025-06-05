@@ -102,7 +102,8 @@ jobs:
       - name: Get installed Playwright version
         id: playwright-version
         run: |
-          echo "PLAYWRIGHT_VERSION=$(node -p \"require('./package-lock.json').packages['node_modules/@playwright/test'].version\")" >> $GITHUB_ENV
+          PLAYWRIGHT_VERSION=$(node -e "console.log(require('./package-lock.json').packages['node_modules/@playwright/test'].version)")
+          echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
         # (caches under exactly this version so any upgrade invalidates automatically)
 
       # 2. Restore browse cache if it exists
@@ -115,14 +116,15 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
           restore-keys: |
             ${{ runner.os }}-playwright-
-        # (saves/loads browser binaries at ~/.cache/ms-playwright) :contentReference[oaicite:6]{index=6}
+        # (saves/loads browser binaries at ~/.cache/ms-playwright)
 
       # 3. Only install browsers if cache was a MISS
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
-          npx playwright install --with-deps
-        # (installs Chromium/Firefox/WebKit + system deps; skipped on cache-hit) :contentReference[oaicite:7]{index=7}
+          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chrome
+        # (installs Chromium/Firefox/WebKit + system deps; skipped on cache-hit)
 
       # 4. Verify that browsers are in place for debugging
       - name: Verify Browsers
@@ -130,7 +132,7 @@ jobs:
           npx playwright install --dry-run
           echo "Playwright browsers installed at:"
           ls -la ~/.cache/ms-playwright/
-        # (quick check to confirm the cache or install succeeded) :contentReference[oaicite:8]{index=8}
+        # (quick check to confirm the cache or install succeeded)
 
       #######################################################################
       #  ↑↑↑  PLAYWRIGHT BROWSER CACHING ADDED ABOVE  ↑↑↑
