@@ -125,12 +125,13 @@ jobs:
           npx playwright install-deps chromium chrome
         # (installs only system dependencies; skipped on cache-hit)
 
-      # 4. Always install browser binaries to ensure they're properly set up
+      # 4. Only install browser binaries if cache was a MISS
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
           npx playwright install chromium
           npx playwright install chrome
-        # (installs browser binaries only, fast operation)
+        # (installs browser binaries only, skipped on cache-hit)
 
       # 4. Verify that browsers are in place for debugging
       - name: Verify Browsers
