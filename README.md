@@ -70,6 +70,28 @@ See [sample-app/README.md](./sample-app/README.md) for details on running and te
 
 The sample app uses `"@seontechnologies/playwright-utils": "*"` in its package.json so that changes to the library are immediately available for testing without requiring republishing or package updates.
 
+## CI/CD Configuration
+
+### Playwright Browser Caching
+
+The GitHub Actions workflow incorporates browser caching to improve CI performance:
+
+- **Cache Key Design**: Caches browser binaries based on OS and Playwright version
+- **System Dependencies**: Only installed when cache is missed using `npx playwright install-deps`
+- **Browser Binaries**: Only installed when cache is missed using `npx playwright install`
+- **Cache Busting**: Workflow includes a manual cache busting mechanism for troubleshooting
+
+#### Cache Busting
+
+If you encounter browser issues or corrupted caches (e.g., 403 rate-limiting errors during system package installation), you can force a cache refresh:
+
+1. Go to GitHub Actions workflow
+2. Select "Run workflow"
+3. Set the "Force browser cache refresh" option to "true"
+4. Run the workflow
+
+This adds a timestamp to the cache key, ensuring a fresh installation of all dependencies and browsers.
+
 ## Available Utilities
 
 The library provides the following utilities, each with both direct function imports and Playwright fixtures:

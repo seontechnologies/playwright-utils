@@ -3,6 +3,15 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
+    inputs:
+      browser_cache_bust:
+        description: 'Set to "true" to force browser cache refresh'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 # if this branch is pushed back to back, cancel the older branch's workflow
 concurrency:
@@ -104,6 +113,14 @@ jobs:
         run: |
           PLAYWRIGHT_VERSION=$(node -e "console.log(require('./package-lock.json').packages['node_modules/@playwright/test'].version)")
           echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
+
+          # Add cache busting timestamp if requested
+          if [ "${{ github.event.inputs.browser_cache_bust }}" == "true" ]; then
+            echo "CACHE_BUSTER=$(date +%s)" >> $GITHUB_ENV
+            echo "Cache busting enabled for browser installation"
+          else
+            echo "CACHE_BUSTER=0" >> $GITHUB_ENV
+          fi
         # (caches under exactly this version so any upgrade invalidates automatically)
 
       # 2. Restore browse cache if it exists
@@ -113,24 +130,22 @@ jobs:
         with:
           path: |
             ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ env.CACHE_BUSTER }}
           restore-keys: |
+            ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-
             ${{ runner.os }}-playwright-
         # (saves/loads browser binaries at ~/.cache/ms-playwright)
 
-      # 3. Only install system dependencies if cache was a MISS
+      # 3. Always install system dependencies (required even when browsers are cached)
       - name: Install Playwright system dependencies
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          npx playwright install-deps chromium chrome
-        # (installs only system dependencies; skipped on cache-hit)
+        run: npx playwright install-deps chromium chrome
+        # (installs system dependencies like libatk-1.0 that browsers need)
 
       # 4. Only install browser binaries if cache was a MISS
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
-          npx playwright install chromium
-          npx playwright install chrome
+          npx playwright install chromium chrome
         # (installs browser binaries only, skipped on cache-hit)
 
       # 4. Verify that browsers are in place for debugging
