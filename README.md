@@ -516,7 +516,7 @@ Setups and caches Playwright browsers for efficient CI runs. It handles:
 
 - `cache-hit`: Will be 'true' if the browser cache was hit, 'false' otherwise
 
-#### 3. Setup Node and Install Dependencies
+#### 2. Setup Node and Install Dependencies
 
 Handles Node.js setup, npm caching, and dependency installation.
 
