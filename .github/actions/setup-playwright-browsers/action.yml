@@ -59,10 +59,32 @@ runs:
       run: npx playwright install chromium chrome
 
     # 4. Always install system dependencies (required even when browsers are cached)
-    # Note: System dependencies can't be cached because they're OS-level packages
-    # installed across various system directories.
+    # Note: browsers are cached but the system dependencies for the browsers cannot be cached
+    # System dependencies can't be cached because they're OS-level packages installed across various system directories
     # Our Kubernetes runners start with minimal images that don't include these deps, so we need to install them every time.
     # Sometimes Ubuntu package repos rate-limit us, but this step is necessary for browsers to work.
+    # What we would have to do:
+    #
+      # Current configuration
+      # runs-on: kubernetes-default
+
+      # Modified configuration with custom image
+      # runs-on: 
+      #   kubernetes:
+      #     image: seontechnologies/playwright-runner:latest
+    #
+    # We would need a Dockerfile with all Playwright dependencies pre-installed
+      # FROM ubuntu:22.04
+      # RUN apt-get update && apt-get install -y --no-install-recommends \
+      #     libwoff1 libopus0 libwebp7 libwebpdemux2 libenchant-2-2 libgudev-1.0-0 \
+      #     libsecret-1-0 libhyphen0 libgdk-pixbuf2.0-0 libegl1 libnotify4 \
+      #     libxslt1.1 libevent-2.1-7 libgles2 libvpx7 libxcomposite1 \
+      #     libatk1.0-0 libatk-bridge2.0-0 libepoxy0 libgtk-3-0 libharfbuzz-icu0 \
+      #     libgstreamer-gl1.0-0 libgstreamer-plugins-bad1.0-0 gstreamer1.0-plugins-good \
+      #     gstreamer1.0-libav gstreamer1.0-plugins-bad gstreamer1.0-gl \
+      #     gstreamer1.0-plugins-base gstreamer1.0-plugins-base-apps
+      # # Add Node.js, npm, and other tools
+    #    
     - name: Install Playwright system dependencies
       shell: bash
       run: npx playwright install-deps chromium chrome

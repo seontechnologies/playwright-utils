@@ -520,14 +520,23 @@ Setups and caches Playwright browsers for efficient CI runs. It handles:
 
 Handles Node.js setup, npm caching, and dependency installation.
 
+**IMPORTANT**: This action must be used after a checkout step. Local composite actions require the repository to be checked out first.
+
 **Using in your workflow (from seontechnologies/playwright-utils repository):**
 
 ```yaml
+# Always check out repository first
+- name: Checkout code
+  uses: actions/checkout@v4
+  with:
+    ref: ${{ github.head_ref }}
+
+# Then use the install action
 - name: Setup Node and Install Dependencies
   uses: seontechnologies/playwright-utils/.github/actions/install@main
   with:
-    head-ref: ${{ github.head_ref }}
     install-command: 'npm ci'
+    node-version-file: '.nvmrc' # optional, defaults to '.nvmrc'
 ```
 
 #### Cache Busting for Playwright Browsers
@@ -561,7 +570,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Always check out the repository first when using local actions
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Setup Node.js and install dependencies
+      - name: Setup Node and Install Dependencies
+        uses: seontechnologies/playwright-utils/.github/actions/install@main
+        with:
+          install-command: 'npm ci'
+          node-version-file: '.nvmrc'
 
       # Use the reusable setup-playwright-browsers action
       - name: Setup Playwright browsers
