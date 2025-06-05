@@ -2,14 +2,6 @@ name: 'Setup Node and Install Dependencies'
 description: 'Sets up Node.js and installs dependencies with npm caching'
 
 inputs:
-  ref:
-    description: 'Git ref to checkout (branch or SHA)'
-    required: false
-    default: ''
-  fetch-depth:
-    description: 'How many commits to fetch for checkout'
-    required: false
-    default: '1'
   install-command:
     description: 'The npm install command to run'
     required: true
@@ -17,22 +9,10 @@ inputs:
     description: 'Path to file containing Node.js version'
     required: false
     default: '.nvmrc'
-  head-ref:
-    description: 'For PRs, reference to the branch that the PR head resides on'
-    required: false
-    default: ''
 
 runs:
   using: 'composite'
   steps:
-    # Checkout step varies between workflows
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        # If head-ref provided, use that (e2e-test.yml style)
-        # Otherwise, use ref parameter with fetch-depth (rwf-burn-in.yml style)
-        ref: ${{ inputs.head-ref != '' && inputs.head-ref || inputs.ref }}
-        fetch-depth: ${{ inputs.head-ref != '' && '1' || inputs.fetch-depth }}
 
     # Node.js setup
     - name: Setup Node.js

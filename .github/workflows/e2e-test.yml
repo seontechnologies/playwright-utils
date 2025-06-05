@@ -85,12 +85,18 @@ jobs:
         shardTotal: [2]
     runs-on: kubernetes-default
     steps:
+      # Always check out code first before using any local actions
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          
       # Use the install composite action
       - name: Setup Node and Install Dependencies
         uses: ./.github/actions/install
         with:
-          head-ref: ${{ github.head_ref }}
           install-command: ${{ needs.vars.outputs.install_command }}
+          node-version-file: '.nvmrc'
 
       #######################################################################
       #  ↓↓↓  PLAYWRIGHT BROWSER CACHING ↓↓↓

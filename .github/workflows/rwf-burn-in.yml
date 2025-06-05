@@ -101,13 +101,19 @@ jobs:
       contents: read
       packages: read
     steps:
+      # Always check out code first before using any local actions
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: '0'
+          
       # Use the install composite action
       - name: Setup Node and Install Dependencies
         uses: ./.github/actions/install
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: '0'
           install-command: ${{ inputs.install-command }}
+          node-version-file: '.nvmrc'
 
       #######################################################################
       #  ↓↓↓  PLAYWRIGHT BROWSER CACHING ↓↓↓
