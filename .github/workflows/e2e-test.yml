@@ -103,7 +103,7 @@ jobs:
         id: playwright-version
         run: |
           echo "PLAYWRIGHT_VERSION=$(node -p \"require('./package-lock.json').packages['node_modules/@playwright/test'].version\")" >> $GITHUB_ENV
-        # (caches under exactly this version so any upgrade invalidates automatically) :contentReference[oaicite:5]{index=5}
+        # (caches under exactly this version so any upgrade invalidates automatically)
 
       # 2. Restore browse cache if it exists
       - name: Restore Playwright browser cache
