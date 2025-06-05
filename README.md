@@ -19,6 +19,11 @@ All utilities can be used as Playwright fixtures by importing the test object
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
     - [Publishing Locally](#publishing-locally)
+  - [CI/CD Configuration](#cicd-configuration)
+    - [Reusable Composite Actions](#reusable-composite-actions)
+      - [1. Setup Playwright Browsers](#1-setup-playwright-browsers)
+      - [3. Setup Node and Install Dependencies](#3-setup-node-and-install-dependencies)
+      - [Cache Busting for Playwright Browsers](#cache-busting-for-playwright-browsers)
 
 ## Installation
 
@@ -66,31 +71,9 @@ The overall testing approach:
    - Authentication flows
    - Future: feature flag testing, email testing, etc.
 
-See [sample-app/README.md](./sample-app/README.md) for details on running and testing the sample app. TL, DR; `npm run start:sample-app`.
+To start the sample app backend and frontend; `npm run start:sample-app`.
 
 The sample app uses `"@seontechnologies/playwright-utils": "*"` in its package.json so that changes to the library are immediately available for testing without requiring republishing or package updates.
-
-## CI/CD Configuration
-
-### Playwright Browser Caching
-
-The GitHub Actions workflow incorporates browser caching to improve CI performance:
-
-- **Cache Key Design**: Caches browser binaries based on OS and Playwright version
-- **System Dependencies**: Only installed when cache is missed using `npx playwright install-deps`
-- **Browser Binaries**: Only installed when cache is missed using `npx playwright install`
-- **Cache Busting**: Workflow includes a manual cache busting mechanism for troubleshooting
-
-#### Cache Busting
-
-If you encounter browser issues or corrupted caches (e.g., 403 rate-limiting errors during system package installation), you can force a cache refresh:
-
-1. Go to GitHub Actions workflow
-2. Select "Run workflow"
-3. Set the "Force browser cache refresh" option to "true"
-4. Run the workflow
-
-This adds a timestamp to the cache key, ensuring a fresh installation of all dependencies and browsers.
 
 ## Available Utilities
 
@@ -261,13 +244,11 @@ test('Modify responses', async ({ page, interceptNetworkCall }) => {
 
 ### [Auth Session](./docs/auth-session.md)
 
-A robust authentication session management system for Playwright tests that persists tokens between test runs:
+An authentication session management system for Playwright tests that persists tokens between test runs:
 
-- Significantly faster tests with persistent token storage
-- Role-based authentication support
-- Environment-specific configuration
+- Faster tests with persistent token storage
+- Role-based, on the fly authentication support
 - Support for both UI and API testing
-- Session storage management
 
 #### Implementation Steps
 
@@ -315,6 +296,8 @@ export default globalSetup
    - Generally reusable across applications without modification
    - **CRITICAL: Register auth provider early to ensure it's always available**
 
+Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures
+
 ```typescript
 // 1. Create Auth Fixture (playwright/support/auth/auth-fixture.ts)
 import { test as base } from '@playwright/test'
@@ -337,6 +320,7 @@ export const test = base.extend<AuthFixtures>({
 
   // Use the other fixtures directly
   ...createAuthFixtures()
+
 // In your tests, use the auth token
 test('authenticated API request', async ({ authToken, request }) => {
   const response = await request.get('https://api.example.com/protected', {
@@ -345,10 +329,9 @@ test('authenticated API request', async ({ authToken, request }) => {
 
   expect(response.ok()).toBeTruthy()
 })
+```
 
-// 1. Create Auth Fixture - Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures
-
-// 2. Create Custom Auth Provider - Implement token management with modular utilities:
+2. Create Custom Auth Provider - Implement token management with modular utilities:
 
 ```typescript
 // playwright/support/auth/custom-auth-provider.ts
@@ -424,13 +407,9 @@ const myCustomProvider: AuthProvider = {
 export default myCustomProvider
 ```
 
-// 3. Use the Auth Session in Your Tests
+3. Use the Auth Session in Your Tests
 
-// 1. Update Your Playwright Config
-
-// 2. Configure Authentication Options
-
-// Usage in your tests
+```typescript
 import { test } from '../support/auth/auth-fixture'
 
 test('access protected resources', async ({ page, authToken }) => {
@@ -503,4 +482,93 @@ export GITHUB_TOKEN=your_personal_access_token
 
 # 2. Run the publish script
 npm run publish:local
+```
+
+## CI/CD Configuration
+
+### Reusable Composite Actions
+
+This repository provides several reusable GitHub composite actions that can be used in your own workflows:
+
+#### 1. Setup Playwright Browsers
+
+Setups and caches Playwright browsers for efficient CI runs. It handles:
+
+- **Cache Key Design**: Caches browser binaries based on OS and Playwright version
+- **System Dependencies**: Only installed when cache is missed using `npx playwright install-deps`
+- **Browser Binaries**: Only installed when cache is missed using `npx playwright install`
+- **Cache Busting**: Workflow includes a manual cache busting mechanism for troubleshooting
+
+**Using in your workflow (from seontechnologies/playwright-utils repository):**
+
+```yaml
+- name: Setup Playwright browsers
+  uses: seontechnologies/playwright-utils/.github/actions/setup-playwright-browsers@main
+  with:
+    browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
+```
+
+**Input Parameters:**
+
+- `browser-cache-bust` (optional): Set to "true" or a timestamp to force invalidate the cache. Default: ''
+
+**Output Parameters:**
+
+- `cache-hit`: Will be 'true' if the browser cache was hit, 'false' otherwise
+
+#### 3. Setup Node and Install Dependencies
+
+Handles Node.js setup, npm caching, and dependency installation.
+
+**Using in your workflow (from seontechnologies/playwright-utils repository):**
+
+```yaml
+- name: Setup Node and Install Dependencies
+  uses: seontechnologies/playwright-utils/.github/actions/install@main
+  with:
+    head-ref: ${{ github.head_ref }}
+    install-command: 'npm ci'
+```
+
+#### Cache Busting for Playwright Browsers
+
+If you encounter browser issues or corrupted caches (e.g., 403 rate-limiting errors during system package installation), you can force a cache refresh:
+
+1. Go to GitHub Actions workflow
+2. Select "Run workflow"
+3. Set the "Force browser cache refresh" option to "true"
+4. Run the workflow
+
+This adds a timestamp to the cache key, ensuring a fresh installation of all dependencies and browsers.
+
+**Creating a workflow with browser cache busting:**
+
+```yaml
+name: E2E Tests
+on:
+  workflow_dispatch:
+    inputs:
+      browser_cache_bust:
+        description: 'Force browser cache refresh'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Use the reusable setup-playwright-browsers action
+      - name: Setup Playwright browsers
+        id: setup-pw
+        uses: seontechnologies/playwright-utils/.github/actions/setup-playwright-browsers@main
+        with:
+          browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
+
+      # Rest of your workflow...
 ```

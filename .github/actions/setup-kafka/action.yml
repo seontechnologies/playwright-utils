@@ -1,0 +1,75 @@
+name: 'Setup and Manage Kafka'
+description: 'Sets up Kafka for testing, handles startup, health checks, and cleanup'
+
+inputs:
+  kafka-compose-file:
+    description: 'Path to the Kafka docker-compose file'
+    required: false
+    default: './sample-app/backend/src/events/kafka-cluster.yml'
+  health-check-script:
+    description: 'Path to the Kafka health check script'
+    required: false
+    default: './sample-app/backend/scripts/kafka-health-check.js'
+  continue-on-error:
+    description: 'Whether to continue if Kafka fails to start'
+    required: false
+    default: 'true'
+
+outputs:
+  kafka-ready:
+    description: 'Whether Kafka is successfully running'
+    value: ${{ steps.health-check.outputs.ready }}
+
+runs:
+  using: 'composite'
+  steps:
+    # 1. Start Kafka containers
+    - name: Start Kafka
+      id: start-kafka
+      continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+      shell: bash
+      run: |
+        docker compose -f ${{ inputs.kafka-compose-file }} up -d --no-recreate
+
+    # 2. Wait for Kafka to be ready with health checks
+    - name: Wait for Kafka to be ready
+      id: health-check
+      continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+      shell: bash
+      run: |
+        echo "ready=false" >> $GITHUB_OUTPUT
+        echo "Waiting for Kafka containers to initialize..."
+        # First wait for containers to fully start up (30 seconds max)
+        sleep 5
+        for i in {1..5}; do
+          echo "Attempt $i: Checking if Kafka containers are running..."
+          if docker ps | grep -q "events-kafka"; then
+            echo "Kafka container is running"
+            break
+          fi
+          sleep 5
+        done
+
+        # Now wait for Kafka to be responsive (allow up to 3 failures)
+        for i in {1..3}; do
+          echo "Attempt $i: Checking Kafka connectivity..."
+          if node ${{ inputs.health-check-script }}; then
+            echo "✅ Kafka is ready!"
+            echo "ready=true" >> $GITHUB_OUTPUT
+            break
+          else
+            echo "⚠️ Kafka health check failed on attempt $i, retrying..."
+            # Give Kafka a bit more time to initialize
+            sleep 10
+          fi
+        done
+
+        echo "Proceeding with tests (Kafka may or may not be fully ready)"
+
+    # 3. Register cleanup hook to run after tests
+    - name: Register Kafka cleanup
+      id: register-cleanup
+      shell: bash
+      run: |
+        echo "::save-state name=kafka_compose_file::${{ inputs.kafka-compose-file }}"
+        echo "Kafka cleanup will be performed at the end of the workflow"

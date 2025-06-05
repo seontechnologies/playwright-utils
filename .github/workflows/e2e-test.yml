@@ -85,116 +85,34 @@ jobs:
         shardTotal: [2]
     runs-on: kubernetes-default
     steps:
-      - uses: actions/checkout@v4
+      # Use the install composite action
+      - name: Setup Node and Install Dependencies
+        uses: ./.github/actions/install
         with:
-          ref: ${{ github.head_ref }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Cache node modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            npm-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: ${{ needs.vars.outputs.install_command }}
+          head-ref: ${{ github.head_ref }}
+          install-command: ${{ needs.vars.outputs.install_command }}
 
       #######################################################################
       #  ↓↓↓  PLAYWRIGHT BROWSER CACHING ↓↓↓
       #######################################################################
-      # 1. Extract the exact version of @playwright/test from package-lock.json
-      - name: Get installed Playwright version
-        id: playwright-version
-        run: |
-          PLAYWRIGHT_VERSION=$(node -e "console.log(require('./package-lock.json').packages['node_modules/@playwright/test'].version)")
-          echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
-
-          # Add cache busting timestamp if requested
-          if [ "${{ github.event.inputs.browser_cache_bust }}" == "true" ]; then
-            echo "CACHE_BUSTER=$(date +%s)" >> $GITHUB_ENV
-            echo "Cache busting enabled for browser installation"
-          else
-            echo "CACHE_BUSTER=0" >> $GITHUB_ENV
-          fi
-        # (caches under exactly this version so any upgrade invalidates automatically)
-
-      # 2. Restore browse cache if it exists
-      - name: Restore Playwright browser cache
-        id: playwright-cache
-        uses: actions/cache@v4
+      # Use the setup-playwright-browsers composite action
+      - name: Setup Playwright browsers
+        id: setup-pw
+        uses: ./.github/actions/setup-playwright-browsers
         with:
-          path: |
-            ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ env.CACHE_BUSTER }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-
-            ${{ runner.os }}-playwright-
-        # (saves/loads browser binaries at ~/.cache/ms-playwright)
-
-      # 3. Always install system dependencies (required even when browsers are cached)
-      - name: Install Playwright system dependencies
-        run: npx playwright install-deps chromium chrome
-        # (installs system dependencies like libatk-1.0 that browsers need)
-
-      # 4. Only install browser binaries if cache was a MISS
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          npx playwright install chromium chrome
-        # (installs browser binaries only, skipped on cache-hit)
-
-      # 4. Verify that browsers are in place for debugging
-      - name: Verify Browsers
-        run: |
-          npx playwright install --dry-run
-          echo "Playwright browsers installed at:"
-          ls -la ~/.cache/ms-playwright/
-        # (quick check to confirm the cache or install succeeded)
-
+          browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
       #######################################################################
-      #  ↑↑↑  PLAYWRIGHT BROWSER CACHING ADDED ABOVE  ↑↑↑
+      #  ↑↑↑  PLAYWRIGHT BROWSER CACHING ↑↑↑
       #######################################################################
 
-      - name: Start Kafka
-        continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
-        run: |
-          docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml up -d --no-recreate
-
-      # Add robust waiting for Kafka to be ready with health checks
-      - name: Wait for Kafka to be ready
-        continue-on-error: true # Tests can still run without Kafka
-        run: |
-          echo "Waiting for Kafka containers to initialize..."
-          # First wait for containers to fully start up (30 seconds max)
-          sleep 5
-          for i in {1..5}; do
-            echo "Attempt $i: Checking if Kafka containers are running..."
-            if docker ps | grep -q "events-kafka"; then
-              echo "Kafka container is running"
-              break
-            fi
-            sleep 5
-          done
-
-          # Now wait for Kafka to be responsive (allow up to 3 failures)
-          for i in {1..3}; do
-            echo "Attempt $i: Checking Kafka connectivity..."
-            if node ./sample-app/backend/scripts/kafka-health-check.js; then
-              echo "✅ Kafka is ready!"
-              break
-            else
-              echo "⚠️ Kafka health check failed on attempt $i, retrying..."
-              # Give Kafka a bit more time to initialize
-              sleep 10
-            fi
-          done
-
-          echo "Proceeding with tests (Kafka may or may not be fully ready)"
+      # Setup Kafka with the composite action
+      - name: Setup Kafka
+        id: setup-kafka
+        uses: ./.github/actions/setup-kafka
+        with:
+          kafka-compose-file: ./sample-app/backend/src/events/kafka-cluster.yml
+          health-check-script: ./sample-app/backend/scripts/kafka-health-check.js
+          continue-on-error: true
 
       - name: Run Playwright tests
         run: ${{ needs.vars.outputs.test_command }} -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}

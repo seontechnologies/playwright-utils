@@ -1,0 +1,77 @@
+name: 'Setup Playwright Browsers'
+description: 'Configures and caches Playwright browsers with efficient caching for CI environments'
+
+# Remote usage from another repository:
+# - name: Setup Playwright browsers
+#   uses: seontechnologies/playwright-utils/.github/actions/setup-playwright-browsers@main
+#   with:
+#     browser-cache-bust: 'false' # or true to force cache invalidation
+
+inputs:
+  browser-cache-bust:
+    description: 'Optional value to force browser cache invalidation (set to "true" or a timestamp to bust cache)'
+    required: false
+    default: 'false'
+
+outputs:
+  cache-hit:
+    description: 'Whether there was a cache hit for the browser binaries'
+    value: ${{ steps.playwright-cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    # 1. Extract the exact version of @playwright/test from package-lock.json
+    - name: Get installed Playwright version
+      id: playwright-version
+      shell: bash
+      run: |
+        PLAYWRIGHT_VERSION=$(node -e "console.log(require('./package-lock.json').packages['node_modules/@playwright/test'].version)")
+        echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
+
+        # Add cache busting timestamp if requested
+        if [ "${{ inputs.browser-cache-bust }}" == "true" ]; then
+          echo "CACHE_BUSTER=$(date +%s)" >> $GITHUB_ENV
+          echo "Cache busting enabled for browser installation"
+        else
+          echo "CACHE_BUSTER=0" >> $GITHUB_ENV
+        fi
+      # (caches under exactly this version so any upgrade invalidates automatically)
+
+    # 2. Restore browse cache if it exists
+    - name: Restore Playwright browser cache
+      id: playwright-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ env.CACHE_BUSTER }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-
+          ${{ runner.os }}-playwright-
+      # (saves/loads browser binaries at ~/.cache/ms-playwright)
+
+    # 3. Only install browser binaries if cache was a MISS
+    # (installs browser binaries only, skipped on cache-hit)
+    - name: Install Playwright browsers
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npx playwright install chromium chrome
+
+    # 4. Always install system dependencies (required even when browsers are cached)
+    # Note: System dependencies can't be cached because they're OS-level packages
+    # installed across various system directories.
+    # Our Kubernetes runners start with minimal images that don't include these deps, so we need to install them every time.
+    # Sometimes Ubuntu package repos rate-limit us, but this step is necessary for browsers to work.
+    - name: Install Playwright system dependencies
+      shell: bash
+      run: npx playwright install-deps chromium chrome
+
+    # 5. Verify that browsers are in place for debugging
+    # (quick check to confirm the cache or install succeeded)
+    - name: Verify Browsers
+      shell: bash
+      run: |
+        npx playwright install --dry-run
+        echo "Playwright browsers installed at:"
+        ls -la ~/.cache/ms-playwright/
