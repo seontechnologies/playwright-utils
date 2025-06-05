@@ -1,0 +1,37 @@
+name: 'Setup Node and Install Dependencies'
+description: 'Sets up Node.js and installs dependencies with npm caching'
+
+inputs:
+  install-command:
+    description: 'The npm install command to run'
+    required: true
+  node-version-file:
+    description: 'Path to file containing Node.js version'
+    required: false
+    default: '.nvmrc'
+
+runs:
+  using: 'composite'
+  steps:
+
+    # Node.js setup
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+
+    # Cache npm
+    - name: Cache node modules
+      id: npm-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
+    # Install dependencies
+    # Note: Still need to run npm install even with cache hit to run scripts, lifecycle hooks, and build binaries
+    - name: Install dependencies
+      shell: bash
+      run: ${{ inputs.install-command }}

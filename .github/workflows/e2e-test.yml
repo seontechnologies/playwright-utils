@@ -3,6 +3,15 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
+    inputs:
+      browser_cache_bust:
+        description: 'Set to "true" to force browser cache refresh'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 # if this branch is pushed back to back, cancel the older branch's workflow
 concurrency:
@@ -76,82 +85,40 @@ jobs:
         shardTotal: [2]
     runs-on: kubernetes-default
     steps:
-      - uses: actions/checkout@v4
+      # Always check out code first before using any local actions
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-
-      - uses: actions/setup-node@v4
+          
+      # Use the install composite action
+      - name: Setup Node and Install Dependencies
+        uses: ./.github/actions/install
         with:
+          install-command: ${{ needs.vars.outputs.install_command }}
           node-version-file: '.nvmrc'
 
-      - name: Cache node modules
-        uses: actions/cache@v4
+      #######################################################################
+      #  ↓↓↓  PLAYWRIGHT BROWSER CACHING ↓↓↓
+      #######################################################################
+      # Use the setup-playwright-browsers composite action
+      - name: Setup Playwright browsers
+        id: setup-pw
+        uses: ./.github/actions/setup-playwright-browsers
         with:
-          path: ~/.npm
-          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            npm-${{ runner.os }}-
+          browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
+      #######################################################################
+      #  ↑↑↑  PLAYWRIGHT BROWSER CACHING ↑↑↑
+      #######################################################################
 
-      - name: Install dependencies
-        run: ${{ needs.vars.outputs.install_command }}
-
-      # I wish this worked, but it breaks PW tests https://github.com/seontechnologies/playwright-utils/actions/runs/15164591575/job/42639824935#step:11:163
-      # - name: Cache Playwright Browsers
-      #   id: cache-browsers
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.cache/ms-playwright
-      #     key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
-      #     restore-keys: |
-      #       playwright-${{ runner.os }}-
-
-      - name: Install Playwright Browsers
-        # if: steps.cache-browsers.outputs.cache-hit != 'true' # I wish this worked
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright install --with-deps chrome
-
-      - name: Verify Browsers
-        run: |
-          npx playwright install --dry-run
-          echo "Playwright browsers installed at:"
-          ls -la ~/.cache/ms-playwright/
-
-      - name: Start Kafka
-        continue-on-error: true # If Kafka fails to start, tests without Kafka can still run
-        run: |
-          docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml up -d --no-recreate
-
-      # Add robust waiting for Kafka to be ready with health checks
-      - name: Wait for Kafka to be ready
-        continue-on-error: true # Tests can still run without Kafka
-        run: |
-          echo "Waiting for Kafka containers to initialize..."
-          # First wait for containers to fully start up (30 seconds max)
-          sleep 5
-          for i in {1..5}; do
-            echo "Attempt $i: Checking if Kafka containers are running..."
-            if docker ps | grep -q "events-kafka"; then
-              echo "Kafka container is running"
-              break
-            fi
-            sleep 5
-          done
-
-          # Now wait for Kafka to be responsive (allow up to 3 failures)
-          for i in {1..3}; do
-            echo "Attempt $i: Checking Kafka connectivity..."
-            if node ./sample-app/backend/scripts/kafka-health-check.js; then
-              echo "✅ Kafka is ready!"
-              break
-            else
-              echo "⚠️ Kafka health check failed on attempt $i, retrying..."
-              # Give Kafka a bit more time to initialize
-              sleep 10
-            fi
-          done
-
-          echo "Proceeding with tests (Kafka may or may not be fully ready)"
+      # Setup Kafka with the composite action
+      - name: Setup Kafka
+        id: setup-kafka
+        uses: ./.github/actions/setup-kafka
+        with:
+          kafka-compose-file: ./sample-app/backend/src/events/kafka-cluster.yml
+          health-check-script: ./sample-app/backend/scripts/kafka-health-check.js
+          continue-on-error: true
 
       - name: Run Playwright tests
         run: ${{ needs.vars.outputs.test_command }} -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
