@@ -22,7 +22,7 @@ All utilities can be used as Playwright fixtures by importing the test object
   - [CI/CD Configuration](#cicd-configuration)
     - [Reusable Composite Actions](#reusable-composite-actions)
       - [1. Setup Playwright Browsers](#1-setup-playwright-browsers)
-      - [2. Setup Node and Install Dependencies](#3-setup-node-and-install-dependencies)
+      - [2. Setup Node and Install Dependencies](#2-setup-node-and-install-dependencies)
       - [Cache Busting for Playwright Browsers](#cache-busting-for-playwright-browsers)
 
 ## Installation
