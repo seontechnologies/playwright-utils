@@ -1,3 +1,7 @@
+# With remote composite actions, for other repos to use this action, it has to be a root level folder
+# But, we are also using the composite action locally in this repo
+# therefore we are proxying the action to a nested folder
+
 name: 'Setup Playwright Browsers'
 description: 'Configures and caches Playwright browsers with caching for CI environments'
 
