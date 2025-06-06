@@ -21,12 +21,41 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    # 1. Extract the exact version of @playwright/test from package-lock.json
+    # 1. Detect package manager and extract the exact version of @playwright/test from the appropriate lock file
     - name: Get installed Playwright version
       id: playwright-version
       shell: bash
       run: |
-        PLAYWRIGHT_VERSION=$(node -e "console.log(require('./package-lock.json').packages['node_modules/@playwright/test'].version)")
+        # Auto-detect package manager from lock files
+        if [ -f "pnpm-lock.yaml" ]; then
+          PACKAGE_MANAGER="pnpm"
+        else
+          PACKAGE_MANAGER="npm"
+        fi
+        echo "Using package manager: $PACKAGE_MANAGER"
+        
+        # Extract Playwright version based on package manager's lock file
+        if [ "$PACKAGE_MANAGER" == "pnpm" ]; then
+          # For pnpm: Parse the pnpm-lock.yaml file
+          if [ -x "$(command -v pnpm)" ]; then
+            PLAYWRIGHT_VERSION=$(pnpm list @playwright/test --json | jq -r '.[0].dependencies["@playwright/test"].version')
+          else
+            # Fallback if pnpm is not installed
+            PLAYWRIGHT_VERSION=$(node -e "const fs=require('fs');const yaml=require('yaml');const lock=yaml.parse(fs.readFileSync('pnpm-lock.yaml','utf8'));console.log(Object.values(lock.packages).find(p=>p.name==='@playwright/test').version || '')")
+          fi
+        else
+          # For npm
+          PLAYWRIGHT_VERSION=$(node -e "console.log(require('./package-lock.json').packages['node_modules/@playwright/test'].version || '')")
+        fi
+        
+        # Check if we got a version
+        if [ -z "$PLAYWRIGHT_VERSION" ]; then
+          echo "Error: Could not determine Playwright version from lock file"
+          echo "Please ensure your lock file (package-lock.json or pnpm-lock.yaml) is up to date"
+          exit 1
+        fi
+        
+        echo "Detected Playwright version: $PLAYWRIGHT_VERSION"
         echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
 
         # Add cache busting timestamp if requested

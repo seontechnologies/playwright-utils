@@ -1,9 +1,9 @@
 name: 'Setup Node and Install Dependencies'
-description: 'Sets up Node.js and installs dependencies with npm caching'
+description: 'Sets up Node.js and installs dependencies with npm/pnpm caching'
 
 inputs:
   install-command:
-    description: 'The npm install command to run'
+    description: 'The install command to run (e.g., "npm ci" or "pnpm install")'
     required: true
   node-version-file:
     description: 'Path to file containing Node.js version'
@@ -20,18 +20,45 @@ runs:
       with:
         node-version-file: ${{ inputs.node-version-file }}
 
-    # Cache npm
-    - name: Cache node modules
-      id: npm-cache
+    # Detect package manager from install command
+    - name: Detect package manager
+      id: detect-pm
+      shell: bash
+      run: |
+        INSTALL_CMD="${{ inputs.install-command }}"
+        
+        if [[ "$INSTALL_CMD" == *"pnpm"* ]]; then
+          echo "detected=pnpm" >> $GITHUB_OUTPUT
+        else
+          echo "detected=npm" >> $GITHUB_OUTPUT
+        fi
+        echo "Using package manager: $(cat $GITHUB_OUTPUT | grep detected | cut -d= -f2)"
+      
+    # Cache dependencies based on package manager
+    - name: Cache dependencies
+      id: deps-cache
       uses: actions/cache@v4
       with:
-        path: ~/.npm
-        key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+        path: |
+          ${{ steps.detect-pm.outputs.detected == 'npm' && '~/.npm' || '' }}
+          ${{ steps.detect-pm.outputs.detected == 'pnpm' && '~/.local/share/pnpm/store' || '' }}
+        key: |
+          ${{ steps.detect-pm.outputs.detected }}-${{ runner.os }}-
+          ${{ steps.detect-pm.outputs.detected == 'npm' && hashFiles('**/package-lock.json') || '' }}
+          ${{ steps.detect-pm.outputs.detected == 'pnpm' && hashFiles('**/pnpm-lock.yaml') || '' }}
         restore-keys: |
-          npm-${{ runner.os }}-
+          ${{ steps.detect-pm.outputs.detected }}-${{ runner.os }}-
 
     # Install dependencies
-    # Note: Still need to run npm install even with cache hit to run scripts, lifecycle hooks, and build binaries
+    # Note: Still need to run install even with cache hit to run scripts, lifecycle hooks, and build binaries
     - name: Install dependencies
       shell: bash
-      run: ${{ inputs.install-command }}
+      run: |
+        # First ensure the package manager is installed if using pnpm
+        if [ "${{ steps.detect-pm.outputs.detected }}" == "pnpm" ] && ! command -v pnpm &> /dev/null; then
+          echo "Installing pnpm..."
+          npm install -g pnpm
+        fi
+        
+        # Then run the provided install command
+        ${{ inputs.install-command }}
