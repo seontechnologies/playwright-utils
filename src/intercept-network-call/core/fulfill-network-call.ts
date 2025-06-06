@@ -45,7 +45,11 @@ export async function fulfillNetworkCall(
   handler?: (route: Route, request: Request) => Promise<void> | void,
   timeout?: number
 ): Promise<NetworkCallResult> {
-  const routePattern = url?.startsWith('**') ? url : `**${url || '*'}`
+  const routePattern = url
+    ? url.startsWith('**')
+      ? url
+      : `**${url.startsWith('/') ? '' : '/'}${url}`
+    : '**/*'
   const preparedResponse = prepareResponse(fulfillResponse)
 
   // Create a promise that will resolve with the request data

@@ -23,6 +23,7 @@ All utilities can be used as Playwright fixtures by importing the test object
     - [Reusable Composite Actions](#reusable-composite-actions)
       - [1. Setup Playwright Browsers](#1-setup-playwright-browsers)
       - [2. Setup Node and Install Dependencies](#2-setup-node-and-install-dependencies)
+    - [Package Manager Support](#package-manager-support)
       - [Cache Busting for Playwright Browsers](#cache-busting-for-playwright-browsers)
 
 ## Installation
@@ -331,7 +332,7 @@ test('authenticated API request', async ({ authToken, request }) => {
 })
 ```
 
-2. Create Custom Auth Provider - Implement token management with modular utilities:
+1. Create Custom Auth Provider - Implement token management with modular utilities:
 
 ```typescript
 // playwright/support/auth/custom-auth-provider.ts
@@ -407,7 +408,7 @@ const myCustomProvider: AuthProvider = {
 export default myCustomProvider
 ```
 
-3. Use the Auth Session in Your Tests
+1. Use the Auth Session in Your Tests
 
 ```typescript
 import { test } from '../support/auth/auth-fixture'
@@ -518,7 +519,7 @@ Setups and caches Playwright browsers for efficient CI runs. It handles:
 
 #### 2. Setup Node and Install Dependencies
 
-Handles Node.js setup, npm caching, and dependency installation.
+Handles Node.js setup, dependency caching, and installation for npm and pnpm.
 
 **IMPORTANT**: This action must be used after a checkout step. Local composite actions require the repository to be checked out first.
 
@@ -535,9 +536,16 @@ Handles Node.js setup, npm caching, and dependency installation.
 - name: Setup Node and Install Dependencies
   uses: seontechnologies/playwright-utils/.github/actions/install@main
   with:
-    install-command: 'npm ci'
+    install-command: 'npm ci' # or 'pnpm install'
     node-version-file: '.nvmrc' # optional, defaults to '.nvmrc'
 ```
+
+### Package Manager Support
+
+This action automatically detects your package manager based on the install command:
+
+- **npm**: Uses `~/.npm` for caching and `package-lock.json` for cache key
+- **pnpm**: Uses `~/.local/share/pnpm/store` for caching and `pnpm-lock.yaml` for cache key
 
 #### Cache Busting for Playwright Browsers
 
