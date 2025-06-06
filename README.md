@@ -500,11 +500,22 @@ Setups and caches Playwright browsers for efficient CI runs. It handles:
 - **Browser Binaries**: Only installed when cache is missed using `npx playwright install`
 - **Cache Busting**: Workflow includes a manual cache busting mechanism for troubleshooting
 
-**Using in your workflow (from seontechnologies/playwright-utils repository):**
+**Using in your workflow from LOCAL repository:**
 
 ```yaml
+# When using within seontechnologies/playwright-utils repository
 - name: Setup Playwright browsers
-  uses: seontechnologies/playwright-utils/.github/actions/setup-playwright-browsers@main
+  uses: ./.github/actions/setup-playwright-browsers
+  with:
+    browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
+```
+
+**Using in your workflow from EXTERNAL repositories:**
+
+```yaml
+# When using from another repository
+- name: Setup Playwright browsers
+  uses: seontechnologies/playwright-utils/setup-playwright-browsers@main
   with:
     browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
 ```
