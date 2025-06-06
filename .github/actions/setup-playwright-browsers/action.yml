@@ -3,7 +3,7 @@ description: 'Configures and caches Playwright browsers with efficient caching f
 
 # Remote usage from another repository:
 # - name: Setup Playwright browsers
-#   uses: seontechnologies/playwright-utils/.github/actions/setup-playwright-browsers@main
+#   uses: seontechnologies/playwright-utils/setup-playwright-browsers@main
 #   with:
 #     browser-cache-bust: 'false' # or true to force cache invalidation
 
