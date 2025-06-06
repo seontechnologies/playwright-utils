@@ -1,0 +1,21 @@
+name: 'Setup Playwright Browsers'
+description: 'Configures and caches Playwright browsers with caching for CI environments'
+
+inputs:
+  browser-cache-bust:
+    description: 'Optional value to force browser cache invalidation (set to "true" or a timestamp to bust cache)'
+    required: false
+    default: 'false'
+
+outputs:
+  cache-hit:
+    description: 'Whether there was a cache hit for the browser binaries'
+    value: ${{ steps.nested-action.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: nested-action
+      uses: ../.github/actions/setup-playwright-browsers
+      with:
+        browser-cache-bust: ${{ inputs.browser-cache-bust }}
