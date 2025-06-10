@@ -7,63 +7,75 @@
   ],
   "author": "Murat Ozcan",
   "license": "UNLICENSED",
-  "main": "dist/playwright-utils.js",
-  "types": "dist/playwright-utils.d.ts",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "require": "./dist/index.js",
-      "import": "./dist/index.js"
+      "types": "./dist/types/index.d.ts",
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/esm/index.js",
+      "default": "./dist/cjs/index.js"
     },
     "./api-request": {
-      "types": "./dist/api-request/index.d.ts",
-      "require": "./dist/api-request/index.js",
-      "import": "./dist/api-request/index.js"
+      "types": "./dist/types/api-request/index.d.ts",
+      "require": "./dist/cjs/api-request/index.js",
+      "import": "./dist/esm/api-request/index.js",
+      "default": "./dist/cjs/api-request/index.js"
     },
     "./api-request/fixtures": {
-      "types": "./dist/api-request/fixtures.d.ts",
-      "require": "./dist/api-request/fixtures.js",
-      "import": "./dist/api-request/fixtures.js"
+      "types": "./dist/types/api-request/fixtures.d.ts",
+      "require": "./dist/cjs/api-request/fixtures.js",
+      "import": "./dist/esm/api-request/fixtures.js",
+      "default": "./dist/cjs/api-request/fixtures.js"
     },
     "./intercept-network-call": {
-      "types": "./dist/intercept-network-call/index.d.ts",
-      "require": "./dist/intercept-network-call/index.js",
-      "import": "./dist/intercept-network-call/index.js"
+      "types": "./dist/types/intercept-network-call/index.d.ts",
+      "require": "./dist/cjs/intercept-network-call/index.js",
+      "import": "./dist/esm/intercept-network-call/index.js",
+      "default": "./dist/cjs/intercept-network-call/index.js"
     },
     "./intercept-network-call/fixtures": {
-      "types": "./dist/intercept-network-call/fixtures.d.ts",
-      "require": "./dist/intercept-network-call/fixtures.js",
-      "import": "./dist/intercept-network-call/fixtures.js"
+      "types": "./dist/types/intercept-network-call/fixtures.d.ts",
+      "require": "./dist/cjs/intercept-network-call/fixtures.js",
+      "import": "./dist/esm/intercept-network-call/fixtures.js",
+      "default": "./dist/cjs/intercept-network-call/fixtures.js"
     },
     "./log": {
-      "types": "./dist/log/index.d.ts",
-      "require": "./dist/log/index.js",
-      "import": "./dist/log/index.js"
+      "types": "./dist/types/log/index.d.ts",
+      "require": "./dist/cjs/log/index.js",
+      "import": "./dist/esm/log/index.js",
+      "default": "./dist/cjs/log/index.js"
     },
     "./log/fixtures": {
-      "types": "./dist/log/fixtures.d.ts",
-      "require": "./dist/log/fixtures.js",
-      "import": "./dist/log/fixtures.js"
+      "types": "./dist/types/log/fixtures.d.ts",
+      "require": "./dist/cjs/log/fixtures.js",
+      "import": "./dist/esm/log/fixtures.js",
+      "default": "./dist/cjs/log/fixtures.js"
     },
     "./recurse": {
-      "types": "./dist/recurse/index.d.ts",
-      "require": "./dist/recurse/index.js",
-      "import": "./dist/recurse/index.js"
+      "types": "./dist/types/recurse/index.d.ts",
+      "require": "./dist/cjs/recurse/index.js",
+      "import": "./dist/esm/recurse/index.js",
+      "default": "./dist/cjs/recurse/index.js"
     },
     "./recurse/fixtures": {
-      "types": "./dist/recurse/fixtures.d.ts",
-      "require": "./dist/recurse/fixtures.js",
-      "import": "./dist/recurse/fixtures.js"
+      "types": "./dist/types/recurse/fixtures.d.ts",
+      "require": "./dist/cjs/recurse/fixtures.js",
+      "import": "./dist/esm/recurse/fixtures.js",
+      "default": "./dist/cjs/recurse/fixtures.js"
     },
     "./auth-session": {
-      "types": "./dist/auth-session/index.d.ts",
-      "require": "./dist/auth-session/index.js",
-      "import": "./dist/auth-session/index.js"
+      "types": "./dist/types/auth-session/index.d.ts",
+      "require": "./dist/cjs/auth-session/index.js",
+      "import": "./dist/esm/auth-session/index.js",
+      "default": "./dist/cjs/auth-session/index.js"
     },
     "./auth-session/fixtures": {
-      "types": "./dist/auth-session/fixtures.d.ts",
-      "require": "./dist/auth-session/fixtures.js",
-      "import": "./dist/auth-session/fixtures.js"
+      "types": "./dist/types/auth-session/fixtures.d.ts",
+      "require": "./dist/cjs/auth-session/fixtures.js",
+      "import": "./dist/esm/auth-session/fixtures.js",
+      "default": "./dist/cjs/auth-session/fixtures.js"
     }
   },
   "files": [
@@ -91,7 +103,11 @@
     "start:backend": "cd sample-app/backend && npm start",
     "prepare": "npm run build",
     "publish:local": "./scripts/publish.sh",
-    "build": "rm -rf dist && tsc -p tsconfig-build.json",
+    "build": "npm run clean && npm run build:types && npm run build:cjs && npm run build:esm",
+    "clean": "rm -rf dist",
+    "build:types": "tsc -p tsconfig-build.json --declaration --declarationDir dist/types --emitDeclarationOnly",
+    "build:cjs": "tsc -p tsconfig-build.json --outDir dist/cjs --module commonjs",
+    "build:esm": "tsc -p tsconfig-build.json --outDir dist/esm --module es2020",
     "prettier": "prettier --ignore-path .gitignore \"**/*.+(js|ts|json)\"",
     "fix:format": "npm run prettier -- --write",
     "validate": "npm-run-all --parallel typecheck lint test fix:format",
