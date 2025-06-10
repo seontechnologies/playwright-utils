@@ -2,9 +2,31 @@
 
 A collection of utilities for Playwright tests at SEON Technologies, designed to make testing more efficient and maintainable.
 
-All utilities can be used as Playwright fixtures by importing the test object
+All utilities can be used as Playwright fixtures by importing the test object.
+
+## Design Principles
+
+Why this library was created:
+
+- To bring consistent reusable Playwright utilities to projects at SEON.
+- To implement common testing patterns as **standardized fixtures**, to avoid duplication and boilerplate.
+- To follow a **functional-first** design: the core logic is always a standalone function that can be used directly, while fixtures provide convenience.
+- To support **typed API requests**, **polling patterns**, **auth session management**, **logging**, and **network interception** with clear APIs.
+- To make it easy to adopt and extend the utilities in other projects, without coupling tightly to any single app.
+
+Design patterns used:
+
+- **Fixture pattern**: all utilities can be consumed as fixtures to provide maximum flexibility.
+- **Functional core, fixture shell**: utilities can be used both directly and as fixtures.
+- **Decoupled logging and reporting**: logging is built to integrate cleanly into Playwright reports.
+- **Composable auth sessions**: auth session utilities can handle complex multi-role auth in a reusable way.
+- **Test-focused network interception**: network interception is designed for real-world test needs, not just simple mocking.
+- **Typed API request utility**: apiRequest provides a reusable, typed client for API tests and Playwright request fixture usage.
+
+This library is not a general-purpose Playwright wrapper. It is designed to cover the most common test automation needs at SEON and to serve as a foundation for further project-specific extensions.
 
 - [Playwright Utils](#playwright-utils)
+  - [Design Principles](#design-principles)
   - [Installation](#installation)
   - [Development](#development)
     - [Testing Strategy](#testing-strategy)
@@ -36,6 +58,27 @@ pnpm i -D @seontechnologies/playwright-utils
 > **Note:** This package requires `@playwright/test` as a peer dependency. It should already be installed in your repository.
 
 ## Development
+
+Quick start (this repo):
+
+```
+git clone https://github.com/seontechnologies/playwright-utils.git
+
+cd playwright-utils
+
+nvm use
+
+npm install
+
+# start docker
+# running the app initially may require docker to download things for a few minutes
+npm run start:sample-app
+
+# open a new tab, and run a test
+# run with UI, with headless, and if you want also the IDE
+npm run test:pw-ui
+npm run test:pw
+```
 
 ```bash
 # Install dependencies
