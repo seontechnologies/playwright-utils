@@ -28,6 +28,7 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
 - [Playwright Utils](#playwright-utils)
   - [Design Principles](#design-principles)
   - [Installation](#installation)
+  - [Module Format Support](#module-format-support)
   - [Development](#development)
     - [Testing Strategy](#testing-strategy)
   - [Available Utilities](#available-utilities)
@@ -74,10 +75,10 @@ Example usage:
 
 ```typescript
 // Works in both CommonJS and ESM environments
-import { log } from '@seontechnologies/playwright-utils';
+import { log } from '@seontechnologies/playwright-utils'
 
 // Subpath imports also work in both formats
-import { recurse } from '@seontechnologies/playwright-utils/recurse';
+import { recurse } from '@seontechnologies/playwright-utils/recurse'
 ```
 
 ## Development
@@ -513,12 +514,12 @@ npm run build
 # Create a tarball package
 npm pack
 
-# Install in a target repository
+# Install in a target repository (change the version according to the file name)
 # For npm projects:
-npm install /path/to/playwright-utils-1.0.0.tgz
+npm install ../playwright-utils/seontechnologies-playwright-utils-1.0.1.tgz
 
 # For pnpm projects:
-pnpm add file:/path/to/playwright-utils-1.0.0.tgz
+pnpm add file:/path/to/playwright-utils-1.0.1.tgz
 ```
 
 ## Release and Publishing
