@@ -57,6 +57,29 @@ pnpm i -D @seontechnologies/playwright-utils
 
 > **Note:** This package requires `@playwright/test` as a peer dependency. It should already be installed in your repository.
 
+## Module Format Support
+
+This package supports both CommonJS and ES Modules formats:
+
+- **CommonJS**: For projects using `require()` syntax or CommonJS module resolution
+- **ES Modules**: For projects using `import` syntax with ES modules
+
+The package automatically detects which format to use based on your project's configuration. This means:
+
+- You can use this package in both legacy CommonJS projects and modern ESM projects
+- No need to change import paths or add file extensions
+- TypeScript type definitions work for both formats
+
+Example usage:
+
+```typescript
+// Works in both CommonJS and ESM environments
+import { log } from '@seontechnologies/playwright-utils';
+
+// Subpath imports also work in both formats
+import { recurse } from '@seontechnologies/playwright-utils/recurse';
+```
+
 ## Development
 
 Quick start (this repo):

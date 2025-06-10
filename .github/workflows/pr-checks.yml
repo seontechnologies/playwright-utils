@@ -44,5 +44,10 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Verify build process
+        run: npm run build
+
       - name: Run unit test for backend
         run: npm run test:backend
+
+      # frontend tests are in their own file: vitest-ct.yml
