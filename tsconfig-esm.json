@@ -6,9 +6,10 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "module": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "noEmit": false,
-    "outDir": "dist",
-    "target": "esnext"
+    "outDir": "dist/esm",
+    "target": "es2020"
   }
 }
