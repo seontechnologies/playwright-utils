@@ -18,7 +18,7 @@ import type {
   AuthIdentifiers,
   AuthStorageConfig
 } from './types'
-import { log } from 'src/log'
+import { log } from '../../log'
 
 /**  Default environment when none is specified */
 const DEFAULT_ENVIRONMENT = 'local'
