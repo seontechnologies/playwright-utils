@@ -50,7 +50,7 @@ A functional logging utility for Playwright tests with enhanced features for tes
 ## Installation
 
 ```bash
-npm install @seon/playwright-utils
+npm install @seontechnologies/playwright-utils
 ```
 
 ## Quick Start
@@ -61,7 +61,7 @@ npm install @seon/playwright-utils
 // todo-with-logs.spec.ts
 import type { Page } from '@playwright/test'
 import { test, expect } from '../support/fixtures'
-import { log, methodTestStep, functionTestStep } from '@seon/playwright-utils'
+import { log, methodTestStep, functionTestStep } from '@seontechnologies/playwright-utils'
 
 // Simple logging with different levels in a test
 test('should allow me to add todo items', async ({ page }) => {
@@ -123,7 +123,7 @@ By default we async-log to console and to PW-UI test steps. Additionally we can 
 // *.config.ts
 
 // ....
-import { log } from '@seon/playwright-utils'
+import { log } from '@seontechnologies/playwright-utils'
 
 // IMPORTANT: the setup for logging to files needs to be uniform between test files
 // best place to put it is in a config file
@@ -147,7 +147,7 @@ export default defineConfig(
 //  support/fixtures.ts
 
 import { test as base } from '@playwright/test'
-import { captureTestContext } from '@seon/playwright-utils'
+import { captureTestContext } from '@seontechnologies/playwright-utils'
 
 // a hook that will run before each test in the suite
 // this is like having the below code in each test file
@@ -200,7 +200,7 @@ It will be turned on when `log.configure` and `captureTestContext` are utilized.
 // In your playwright/config/base.config.ts
 
 // ...
-import { log } from '@seon/playwright-utils'
+import { log } from '@seontechnologies/playwright-utils'
 
 // Configure all logging in base config
 log.configure({
@@ -223,7 +223,7 @@ export default defineConfig()
 // -------------------------------------------------------
 // dev.config.ts
 // ...
-import { log } from '@seon/playwright-utils'
+import { log } from '@seontechnologies/playwright-utils'
 
 // ALL logging configuration in environment config
 
@@ -267,7 +267,7 @@ There are two recommended approaches:
 // OPTION 1: Create a shared fixture with beforeEach hook (RECOMMENDED)
 // In playwright/support/fixtures.ts or where your main fixture is
 import { test as base } from '@playwright/test'
-import { captureTestContext } from '@seon/playwright-utils'
+import { captureTestContext } from '@seontechnologies/playwright-utils'
 
 // Capture test context in a beforeEach hook
 base.beforeEach(async ({}, testInfo) => {
@@ -289,7 +289,7 @@ test('example test', async () => {
 
 // OPTION 2: Add the hook in each test file individually
 import { test } from '@playwright/test'
-import { log, captureTestContext } from '@seon/playwright-utils'
+import { log, captureTestContext } from '@seontechnologies/playwright-utils'
 
 // Add the context capture in each test file's beforeEach hook
 test.beforeEach(async ({}, testInfo) => {
@@ -621,7 +621,7 @@ Parallel tests may need worker IDs for debugging multi-worker runs. Worker ID lo
 ```typescript
 // playwright/config/base.config.ts
 import { defineConfig } from '@playwright/test'
-import { log } from '@seon/playwright-utils'
+import { log } from '@seontechnologies/playwright-utils'
 
 // Default configuration (worker IDs enabled automatically)
 // log.configure({
@@ -659,7 +659,7 @@ While the global worker ID format is set in your configuration, you can override
 
 ```typescript
 import { test } from '@playwright/test'
-import { log } from '@seon/playwright-utils'
+import { log } from '@seontechnologies/playwright-utils'
 
 test('example with custom worker ID', async () => {
   // Use the default worker ID format
@@ -749,7 +749,7 @@ class LoginPage {
 The `methodTestStep` decorator is perfect for Page Object Model classes, automatically logging method execution and showing class context.
 
 ```typescript
-import { methodTestStep } from '@seon/playwright-utils'
+import { methodTestStep } from '@seontechnologies/playwright-utils'
 
 class LoginPage {
   constructor(private page) {}
@@ -783,7 +783,7 @@ test('user can login', async ({ page }) => {
 The `functionTestStep` decorator is ideal for standalone utility functions / functional helpers that aren't part of a class.
 
 ```typescript
-import { functionTestStep } from '@seon/playwright-utils'
+import { functionTestStep } from '@seontechnologies/playwright-utils'
 
 // Create a decorated utility function
 const checkElementCount = functionTestStep(
@@ -814,7 +814,7 @@ Source file tracking is enabled by default for decorators but the file paths are
 
 ```typescript
 // Global configuration - in your playwright config
-import { log } from '@seon/playwright-utils'
+import { log } from '@seontechnologies/playwright-utils'
 
 log.configure({
   sourceFileTracking: {

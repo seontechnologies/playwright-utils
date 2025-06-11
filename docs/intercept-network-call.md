@@ -183,7 +183,7 @@ This makes tests more maintainable, less error-prone, and much easier to read an
 The network interception utility works by setting up interceptions that return promises which resolve when the network call is made:
 
 ```typescript
-import { interceptNetworkCall } from '@seon/playwright-utils'
+import { interceptNetworkCall } from '@seontechnologies/playwright-utils'
 import { test } from '@playwright/test'
 
 test('intercept example', async ({ page }) => {
@@ -211,7 +211,7 @@ test('intercept example', async ({ page }) => {
 The fixture version simplifies your test code by automatically injecting the page context:
 
 ```typescript
-import { test } from '@seon/playwright-utils/fixtures'
+import { test } from '@seontechnologies/playwright-utils/fixtures'
 
 test('intercept fixture example', async ({ page, interceptNetworkCall }) => {
   // Set up interception - notice 'page' is not needed in the options

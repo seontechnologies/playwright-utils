@@ -17,7 +17,7 @@ The utility can be used in two ways:
 ### 1. As a Plain Function
 
 ```typescript
-import { apiRequest } from '@seon/playwright-utils'
+import { apiRequest } from '@seontechnologies/playwright-utils'
 
 // Inside a test or another function
 const response = await apiRequest({
@@ -36,7 +36,7 @@ console.log(response.body) // Parsed response body
 
 ```typescript
 // Import the fixture
-import { test } from '@seon/playwright-utils/fixtures'
+import { test } from '@seontechnologies/playwright-utils/fixtures'
 
 // Use the fixture in your tests
 test('should fetch user data', async ({ apiRequest }) => {
@@ -97,7 +97,7 @@ type ApiRequestResponse<T = unknown> = {
 ### GET Request with Authentication
 
 ```typescript
-import { test } from '@seon/playwright-utils/api-request/fixtures'
+import { test } from '@seontechnologies/playwright-utils/api-request/fixtures'
 
 test('fetch user profile', async ({ apiRequest }) => {
   const { status, body } = await apiRequest<UserProfile>({
@@ -116,7 +116,7 @@ test('fetch user profile', async ({ apiRequest }) => {
 #### POST Request with Body
 
 ```typescript
-import { test } from '@seon/playwright-utils/api-request/fixtures'
+import { test } from '@seontechnologies/playwright-utils/api-request/fixtures'
 
 test('create new item', async ({ apiRequest }) => {
   const { status, body } = await apiRequest<CreateItemResponse>({
@@ -179,7 +179,7 @@ test('handles different response types', async ({ apiRequest }) => {
 ### Using in Non-Test Contexts (Global Setup, Helpers)
 
 ```typescript
-import { apiRequest } from '@seon/playwright-utils'
+import { apiRequest } from '@seontechnologies/playwright-utils'
 import { request } from '@playwright/test'
 
 // For use in global setup or outside of test.step() contexts
@@ -209,7 +209,7 @@ async function fetchToken() {
 > 4. Absolute URLs in the `path` parameter are used as-is
 
 ```typescript
-import { test } from '@seon/playwright-utils/api-request/fixtures'
+import { test } from '@seontechnologies/playwright-utils/api-request/fixtures'
 
 test('demonstrates URL resolution', async ({ apiRequest }) => {
   // 1. Explicit baseUrl takes precedence
@@ -404,7 +404,7 @@ test('should wait for resource creation', async ({
 ## URL Resolution Strategy Examples
 
 ```typescript
-import { test } from '@seon/playwright-utils/api-request/fixtures'
+import { test } from '@seontechnologies/playwright-utils/api-request/fixtures'
 
 test('demonstrates URL resolution', async ({ apiRequest }) => {
   // 1. Explicit baseUrl takes precedence
