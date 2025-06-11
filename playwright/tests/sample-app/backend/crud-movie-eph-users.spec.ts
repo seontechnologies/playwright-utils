@@ -46,6 +46,7 @@ test.describe('CRUD movie with ephemeral users', () => {
     getMovieByName,
     updateMovie,
     deleteMovie
+    // we are not using authSession here, so no need to pass authToken from auth-fixture
   }) => {
     await log.step(
       'WITH API TESTING, users on the fly is similar to vanilla PW'
@@ -55,9 +56,6 @@ test.describe('CRUD movie with ephemeral users', () => {
       AdminUser.token,
       movie
     )
-    await log.step('ReadUser cannot add a movie')
-    const { status: readUserAddStatus } = await addMovie(ReadUser.token, movie)
-    expect(readUserAddStatus).toBe(403)
 
     const movieId = createResponse.data.id
     expect(createStatus).toBe(200)
@@ -65,6 +63,10 @@ test.describe('CRUD movie with ephemeral users', () => {
       status: 200,
       data: { ...movieProps, id: movieId }
     })
+
+    await log.step('ReadUser cannot add a movie')
+    const { status: readUserAddStatus } = await addMovie(ReadUser.token, movie)
+    expect(readUserAddStatus).toBe(403)
 
     await log.step('ReadUser can get all movies')
     const { body: getAllResponse, status: getAllStatus } = await getAllMovies(

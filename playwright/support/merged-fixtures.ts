@@ -1,9 +1,9 @@
 import { test as base, mergeTests } from '@playwright/test'
+import { test as apiRequest } from '../../src/api-request/fixtures'
+import { test as interceptNetworkCall } from '../../src/intercept-network-call/fixtures'
 import { captureTestContext } from '../../src/log'
 import { test as authFixture } from './auth/auth-fixture'
-import { test as interceptNetworkCall } from '../../src/intercept-network-call/fixtures'
 import { test as crudHelper } from './fixtures/crud-helper-fixture'
-import { test as apiRequest } from '../../src/api-request/fixtures'
 
 // a hook that will run before each test in the suite
 base.beforeEach(async ({}, testInfo) => {
@@ -18,4 +18,4 @@ const test = mergeTests(
   crudHelper
 )
 const expect = base.expect
-export { test, expect }
+export { expect, test }
