@@ -23,7 +23,6 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Configure Authentication Options](#configure-authentication-options)
     - [Use the Auth Session in Your Tests](#use-the-auth-session-in-your-tests)
       - [Cookie-Based Authentication](#cookie-based-authentication)
-    - [Using Multiple User Roles in Tests](#using-multiple-user-roles-in-tests)
     - [Dynamic Role Selection](#dynamic-role-selection)
       - [3. Testing Interactions Between Multiple Roles in a Single Test](#3-testing-interactions-between-multiple-roles-in-a-single-test)
     - [Ephemeral User Authentication](#ephemeral-user-authentication)
@@ -33,8 +32,8 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-        - [Our Enhanced Approach](#our-enhanced-approach)
+      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+      - [Our Enhanced Approach](#our-enhanced-approach)
     - [Storage/\*\_ Options for the auth session \_/](#storage_-options-for-the-auth-session-_)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
 
@@ -622,12 +621,12 @@ test('authenticated API request', async ({ authToken, request }) => {
 
 The `authToken` fixture returns the token value extracted from the cookie set by the authentication endpoint. This approach is automatically handled by the auth provider's `extractToken` method, which extracts the token value from the Playwright storage state.
 
+```typescript
 test('authenticated UI test', async ({ page }) => {
-// The page is already authenticated!
-await page.goto('/protected-area')
-await expect(page.locator('h1')).toHaveText('Protected Content')
+  // The page is already authenticated!
+  await page.goto('/protected-area')
+  await expect(page.locator('h1')).toHaveText('Protected Content')
 })
-
 ```
 
 // Advanced usage
@@ -668,7 +667,7 @@ userRole
 console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
 }
 
-```
+````
 
 ### Using Multiple User Roles in Tests
 
@@ -740,7 +739,7 @@ test('Complex user journey across roles', async ({
   // Clean up
   await Promise.all(contexts.map((context) => context.close()))
 })
-```
+````
 
 ### Dynamic Role Selection
 
