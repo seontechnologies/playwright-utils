@@ -47,7 +47,7 @@ test.describe('Auth Session Example', () => {
 
     // Log token for debugging (shortened for security)
     const tokenPreview = createTokenPreview(authToken)
-    await log.info(
+    await log.step(
       `Second test reuses the token without fetching again: ${tokenPreview}`
     )
   })

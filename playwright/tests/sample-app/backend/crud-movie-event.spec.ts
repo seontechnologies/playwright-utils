@@ -25,12 +25,17 @@ test.describe('CRUD movie', () => {
   }
 
   let isKafkaWorking: boolean
-  test.beforeAll(() => {
+  test.beforeAll(async () => {
     const responseCode = runCommand(
-      `curl -s -o /dev/null -w "%{http_code}" ${process.env.KAFKA_UI_URL}`
+      'curl -s -o /dev/null -w "%{http_code}" http://localhost:8085'
     )
-    if (responseCode !== '200') {
+    if (responseCode === '200') {
+      isKafkaWorking = true
+    } else {
       isKafkaWorking = false
+      await log.warning(
+        'Kafka is not working, skipping Kafka event checks in this test'
+      )
     }
   })
 
@@ -41,7 +46,7 @@ test.describe('CRUD movie', () => {
     getMovieByName,
     updateMovie,
     deleteMovie,
-    authToken
+    authToken // auth-session fixture provides us with the token
   }) => {
     await log.info(authToken)
     // Add a movie
@@ -59,8 +64,8 @@ test.describe('CRUD movie', () => {
       data: { ...movieProps, id: movieId }
     })
 
+    await log.step('isKafkaWorking: ' + isKafkaWorking)
     if (isKafkaWorking) {
-      // Wait for 'movie-created' Kafka event using recurse
       await recurse(
         async () => {
           const topic = 'movie-created'

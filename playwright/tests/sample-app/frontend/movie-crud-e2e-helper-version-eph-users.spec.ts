@@ -259,6 +259,17 @@ test.describe('movie crud e2e with ephemeral users (playwright-utils helpers)', 
         // eslint-disable-next-line quotes
         error: "Access denied: Role 'read' is not authorized for this resource"
       })
+
+      await log.step(
+        'KEY FEATURE: overwrite the user context (as admin) inside the test block and delete the movie'
+      )
+      await applyUserCookiesToBrowserContext(context, AdminUser)
+      await page.goto(`/movies/${id}`)
+      await log.step('delete movie using the UI as admin user')
+      await page.getByTestId('delete-movie').click()
+      await expect(page).toHaveURL('/movies')
+      await page.waitForSelector(`text=${editedName}`, { state: 'detached' })
+      await log.step('movie deleted successfully')
     })
   })
 })
