@@ -84,20 +84,23 @@ The Admin React app currently uses a custom authentication implementation for it
 
 ### Immediate Benefits of Integration
 
-1. **Provider-Based Architecture**: The auth-session library's provider interface would allow for a clean separation between token acquisition logic and token management, it would be adaptable to Admin, as well as any UI app or backend service.
+1. **Provider-Based Architecture**: The auth-session library's provider interface allows for a clean separation between token acquisition logic and token management, making it adaptable to Admin, as well as any UI app or backend service. This architecture enables customization of authentication without changing test code.
 
 2. **Robust Token Storage**: Structured environment and role-based token directory management with standardized `storage-state.json` files replaces hardcoded paths and enables multi-user support with the same role.
 
-3. **Performance Optimization**: In-memory caching would significantly reduce disk I/O operations during test runs.
+3. **Performance Optimization**: In-memory caching significantly reduces disk I/O operations during test runs, making tests execute faster.
 
-4. **Enhanced Token Validation**: Support for validating JWT tokens beyond just expiration checks.
+4. **Enhanced Token Validation**: Support for validating JWT tokens beyond just expiration checks, ensuring more reliable authentication.
 
-5. **Unified API for Token Management**: Clear, consistent API for token acquisition, validation, clearing, and applying to both API and browser contexts.
+5. **Unified API for Token Management**: Clear, consistent API for token acquisition, validation, clearing, and applying to both API and browser contexts - one approach for all test types.
 
-6. **Better Testing Patterns**:
+6. **On-the-fly User Creation**: Support for ephemeral test users created during test execution, enabling testing of multi-user interactions without preset accounts. This is particularly valuable for testing scenarios involving newly created users with specific attributes.
+
+7. **Better Testing Patterns**:
    - Easy switching between authenticated/unauthenticated states
    - Testing with multiple user roles in the same test
    - Parallel testing with worker-specific accounts
+   - Dynamic role selection during test execution
 
 ### Implementation Approach
 

@@ -153,7 +153,7 @@ A typed, flexible HTTP client for making API requests in tests.
 
 ```typescript
 // Direct import
-import { apiRequest } from '@seon/playwright-utils'
+import { apiRequest } from '@seontechnologies/playwright-utils'
 
 test('example', async ({ request }) => {
   const { status, body } = await apiRequest({
@@ -164,7 +164,7 @@ test('example', async ({ request }) => {
 })
 
 // As a fixture
-import { test } from '@seon/playwright-utils/fixtures'
+import { test } from '@seontechnologies/playwright-utils/fixtures'
 // or use your own main fixture (with mergeTests) and import from there
 
 test('example', async ({ apiRequest }) => {
@@ -185,7 +185,7 @@ A powerful polling utility for waiting on asynchronous conditions.
 // note that there is no need to pass in request or page context from Playwright
 
 // Direct import
-import { recurse } from 'playwright-utils/recurse'
+import { recurse } from '@seontechnologies/playwright-utils/recurse'
 
 test('example', async ({}) => {
   const result = await recurse(
@@ -196,7 +196,7 @@ test('example', async ({}) => {
 })
 
 // As a fixture
-import { test } from '@seon/playwright-utils/fixtures'
+import { test } from '@seontechnologies/playwright-utils/fixtures'
 // or use your own main fixture (with mergeTests) and import from there
 
 test('example', async ({ recurse }) => {
@@ -216,7 +216,7 @@ A specialized logging utility that integrates with Playwright's test reports.
 
 ```typescript
 // Direct import
-import { log } from '@seon/playwright-utils'
+import { log } from '@seontechnologies/playwright-utils'
 
 await log.info('Information message')
 await log.step('Starting a new test step')
@@ -225,7 +225,7 @@ await log.error('Something went wrong', false) // Disable console output
 
 ```typescript
 // As a fixture
-import { test } from '@seon/playwright-utils/log/fixtures'
+import { test } from '@seontechnologies/playwright-utils/log/fixtures'
 
 test('example', async ({ log }) => {
   await log({
@@ -243,7 +243,7 @@ A powerful utility for intercepting, observing, and mocking network requests in 
 
 ```typescript
 // Direct import
-import { interceptNetworkCall } from '@seon/playwright-utils'
+import { interceptNetworkCall } from '@seontechnologies/playwright-utils'
 
 test('Spy on the network', async ({ page }) => {
   // Set up the interception before navigating
@@ -265,7 +265,7 @@ test('Spy on the network', async ({ page }) => {
 
 ```typescript
 // As a fixture
-import { test } from '@seon/playwright-utils/fixtures'
+import { test } from '@seontechnologies/playwright-utils/fixtures'
 
 test('Stub the network', async ({ page, interceptNetworkCall }) => {
   // With fixture, you don't need to pass the page object

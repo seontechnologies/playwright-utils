@@ -19,7 +19,7 @@ The utility can be used in two ways:
 ### 1. As a Plain Function
 
 ```typescript
-import { recurse } from 'playwright-utils/recurse'
+import { recurse } from '@seontechnologies/playwright-utils/recurse'
 
 // Inside a test or another function
 const result = await recurse(
@@ -39,7 +39,7 @@ const result = await recurse(
 
 ```typescript
 // Import the fixture
-import { test } from 'playwright-utils/recurse/fixtures'
+import { test } from '@seontechnologies/playwright-utils/recurse/fixtures'
 
 // Use the fixture in your tests
 test('should wait for resource to be ready', async ({
