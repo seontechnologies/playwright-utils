@@ -14,6 +14,7 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Approach 2: Global Setup Function](#approach-2-global-setup-function)
       - [Write tests that use the authenticated state](#write-tests-that-use-the-authenticated-state)
     - [Limitations of Playwright’s Approach vs. What This Library Adds](#limitations-of-playwrights-approach-vs-what-this-library-adds)
+  - [](#)
   - [Quick Start Guide](#quick-start-guide)
     - [Configure Global Setup](#configure-global-setup)
     - [Create Auth Fixture](#create-auth-fixture)
@@ -23,7 +24,10 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Configure Authentication Options](#configure-authentication-options)
     - [Use the Auth Session in Your Tests](#use-the-auth-session-in-your-tests)
       - [Cookie-Based Authentication](#cookie-based-authentication)
-    - [Dynamic Role Selection](#dynamic-role-selection)
+    - [Using Multiple User Roles in Tests](#using-multiple-user-roles-in-tests)
+      - [Simple Role Override with authOptions](#simple-role-override-with-authoptions)
+      - [Role-Specific Test Fixtures](#role-specific-test-fixtures)
+    - [Direct Use of Storage State (Vanilla Playwright Approach)](#direct-use-of-storage-state-vanilla-playwright-approach)
       - [3. Testing Interactions Between Multiple Roles in a Single Test](#3-testing-interactions-between-multiple-roles-in-a-single-test)
     - [Ephemeral User Authentication](#ephemeral-user-authentication)
       - [How Ephemeral Authentication Works](#how-ephemeral-authentication-works)
@@ -32,8 +36,8 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-      - [Our Enhanced Approach](#our-enhanced-approach)
+        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+        - [Our Enhanced Approach](#our-enhanced-approach)
     - [Storage/\*\_ Options for the auth session \_/](#storage_-options-for-the-auth-session-_)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
 
@@ -105,6 +109,8 @@ export default defineConfig({
 })
 ```
 
+</details>
+
 #### Approach 2: Global Setup Function
 
 Alternatively, you can use a global setup function that runs once before all tests:
@@ -165,6 +171,8 @@ export default defineConfig({
 })
 ```
 
+</details>
+
 #### Write tests that use the authenticated state
 
 <details><summary><strong>Expand for details:</strong></summary>
@@ -182,6 +190,8 @@ test('access dashboard page', async ({ page }) => {
   await expect(page.locator('h1')).toHaveText('Dashboard')
 })
 ```
+
+</details>
 
 ### Limitations of Playwright’s Approach vs. What This Library Adds
 
@@ -228,6 +238,8 @@ test('access dashboard page', async ({ page }) => {
 > 4. **Unified Storage State**: We properly configure Playwright's `storageState` so UI Mode tests automatically get the authentication state without any manual steps.
 >
 > Essentially, our solution treats authentication as a seamless part of the test execution instead of a separate setup step. Since it's integrated with the normal test fixtures and flow, UI Mode "just works" without any special handling.
+
+</details>
 
 <details><summary><strong>More on parallel worker authentication:</strong></summary>
 
@@ -286,7 +298,9 @@ test('access dashboard page', async ({ page }) => {
 >
 > The system is designed to be compatible with Playwright's recommended patterns for authentication in both API testing and UI testing contexts while solving the performance and usability limitations of the built-in approach.
 
----
+</details>
+
+## </details>
 
 ## Quick Start Guide
 
@@ -627,7 +641,6 @@ test('authenticated UI test', async ({ page }) => {
   await page.goto('/protected-area')
   await expect(page.locator('h1')).toHaveText('Protected Content')
 })
-```
 
 // Advanced usage
 const data = await response.json()
@@ -666,140 +679,86 @@ userRole
 // Add custom logging for this provider implementation
 console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
 }
-
-````
+```
 
 ### Using Multiple User Roles in Tests
 
-Test with different user personas to cover various access patterns:
+#### Simple Role Override with authOptions
+
+The simplest way to specify a user role for your tests is to override the `authOptions` fixture:
 
 ```typescript
-import { test } from '@playwright/test'
-import { createAuthFixtures } from './auth/fixtures'
+// fraudAnalystFlow.spec.ts
+import { test } from '../support/auth/auth-fixture'
+import { expect } from '@playwright/test'
 
-// Define role-specific test objects
-const userTest = test.extend({
+test.describe('Fraud Analyst Features', () => {
+  // Override authOptions for all tests in this file
+  test.use({
+    authOptions: { userRole: 'fraudAnalyst' }
+  })
+
+  test('can view fraud queue', async ({ page }) => {
+    // Page is already authenticated as fraud analyst
+    await page.goto('/fraud-queue')
+    await expect(page.getByText('Fraud Queue')).toBeVisible()
+  })
+})
+```
+
+#### Role-Specific Test Fixtures
+
+For frequently used roles, create dedicated fixtures:
+
+```typescript
+// Role-specific test fixtures
+import { test as baseTest } from '../support/base-fixtures'
+import { createAuthFixtures } from '@seontechnologies/playwright-utils/auth-session'
+
+// Create user-specific fixtures
+export const userTest = baseTest.extend({
   ...createAuthFixtures({ userRole: 'user' })
 })
 
-const adminTest = test.extend({
+// Create admin-specific fixtures
+export const adminTest = baseTest.extend({
   ...createAuthFixtures({ userRole: 'admin' })
 })
 
-// Test with different roles
-userTest('Regular users see limited dashboard', async ({ page }) => {
+// Use in your tests
+userTest('Regular users have limited access', async ({ page }) => {
+  // Page already authenticated as regular user
   await page.goto('/dashboard')
-  await expect(page.getByText('User Dashboard')).toBeVisible()
-  await expect(
-    page.getByRole('link', { name: 'Admin Panel' })
-  ).not.toBeVisible()
 })
 
 adminTest('Admins can access advanced features', async ({ page }) => {
-  await page.goto('/dashboard')
-  await expect(page.getByRole('link', { name: 'Admin Panel' })).toBeVisible()
-  await page.getByRole('link', { name: 'User Management' }).click()
-  await expect(
-    page.getByRole('heading', { name: 'User Management' })
-  ).toBeVisible()
+  // Page already authenticated as admin
+  await page.goto('/admin-dashboard')
 })
+```
 
-// Multi-role testing in a single test
-test('Complex user journey across roles', async ({
-  browser,
-  request,
-  authOptions
-}) => {
-  // Create contexts for different user roles
-  const contexts = await Promise.all([
-    createAuthContext(browser, request, { ...authOptions, userRole: 'admin' }),
-    createAuthContext(browser, request, { ...authOptions, userRole: 'user' })
-  ])
+### Direct Use of Storage State (Vanilla Playwright Approach)
 
-  const [adminContext, userContext] = contexts
-  const adminPage = await adminContext.newPage()
-  const userPage = await userContext.newPage()
-
-  // Run parallel workflows to test interactions between roles
-  await Promise.all([
-    // Admin workflow
-    (async () => {
-      await adminPage.goto('/admin/users')
-      await adminPage.getByRole('button', { name: 'Create User' }).click()
-      // Create a new test user
-    })(),
-
-    // User workflow
-    (async () => {
-      await userPage.goto('/dashboard')
-      // Verify user-specific content
-    })()
-  ])
-
-  // Clean up
-  await Promise.all(contexts.map((context) => context.close()))
-})
-````
-
-### Dynamic Role Selection
-
-For more maintainable role-based testing, create a helper function that dynamically selects the appropriate role:
+If you prefer to use Playwright's native storage state approach directly, our library supports this seamlessly:
 
 ```typescript
-// auth-helpers.ts
-import { Browser, BrowserContext, Request } from '@playwright/test'
-import { getToken, getStorageStatePath } from './auth'
+// Get storage state path for a specific role
+import { getStorageStatePath } from '@seontechnologies/playwright-utils/auth-session'
 
-// Create an authenticated context for any role
-async function createAuthContext(
-  browser: Browser,
-  request: Request,
-  options: { userRole: string; environment?: string }
-): Promise<BrowserContext> {
-  // Get token for the specified role
-  await getToken(request, options)
-
-  // Create browser context with the role's storage state
-  return browser.newContext({
-    storageState: getStorageStatePath(options)
-  })
-}
-
-// Use in tests for flexible role switching
-test('Role-based testing', async ({ browser, request }) => {
-  // Create context for any role dynamically
-  const adminContext = await createAuthContext(browser, request, {
-    userRole: 'admin'
-  })
-  const adminPage = await adminContext.newPage()
-
-  // Test admin-specific functionality
-  await adminPage.goto('/admin')
-  await expect(adminPage.getByText('Admin Dashboard')).toBeVisible()
-
-  await adminContext.close()
-})
-import { adminTest } from '../fixtures/role-fixtures'
-
-adminTest('admin can access settings', async ({ authToken, request }) => {
-  // This uses the admin token
-  const response = await request.get('/api/admin/settings', {
-    headers: { Cookie: `seon-jwt=${authToken}` }
-  })
-
-  expect(response.ok()).toBeTruthy()
+const fraudAnalystStorageState = getStorageStatePath({
+  userRole: 'fraudAnalyst',
+  environment: process.env.TEST_ENV || 'local'
 })
 
-// Use user fixture for user-only tests
-import { userTest } from '../fixtures/role-fixtures'
+// Use Playwright's native storage state approach
+test.describe('Fraud Analyst Tests', () => {
+  // Apply to all tests in this describe block
+  test.use({ storageState: fraudAnalystStorageState })
 
-userTest('regular user profile access', async ({ authToken, request }) => {
-  // This uses the user token
-  const response = await request.get('/api/profile', {
-    headers: { Cookie: `seon-jwt=${authToken}` }
+  test('can view fraud queue', async ({ page }) => {
+    await page.goto('/fraud-queue')
+    // Test already authenticated as fraud analyst
   })
-
-  expect(response.ok()).toBeTruthy()
 })
 ```
 
