@@ -5,5 +5,5 @@ export function getEnvironment(options: AuthOptions = {}) {
   // 1. Options passed from test via auth.useEnvironment({ environment: 'staging' })
   // 2. Environment variables
   // 3. Default environment
-  return options.environment || process.env.TEST_ENV || 'localhost'
+  return options.environment || process.env.TEST_ENV || 'local'
 }

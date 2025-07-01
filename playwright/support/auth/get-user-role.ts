@@ -1,14 +1,10 @@
-import { type AuthOptions } from 'src/auth-session'
-import { getEnvironment } from './get-environment'
+import type { AuthOptions } from '@seontechnologies/playwright-utils/auth-session'
+import { VALID_TEST_USERS } from '../global-setup'
 
-export function getUserRole(options: AuthOptions = {}) {
-  // Role priority:
-  // 1. Options passed from test via auth.useRole({ userRole: 'admin' })
-  // 2. Default role based on environment
-  const environment = getEnvironment(options)
-  // You could implement environment-specific default roles
-  let defaultRole = 'admin' // Match the core library default role
-  if (environment === 'staging') defaultRole = 'tester'
-  if (environment === 'production') defaultRole = 'readonly'
-  return options.userRole || process.env.TEST_USER_ROLE || defaultRole
+export const getUserRole = (options: Partial<AuthOptions> = {}) => {
+  // Default to admin if no role specified
+  const testUser = options.userRole || 'admin'
+
+  // Check if the user is a valid key in VALID_ROLES object
+  return Object.keys(VALID_TEST_USERS).includes(testUser) ? testUser : 'admin'
 }

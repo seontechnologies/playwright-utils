@@ -106,13 +106,36 @@ export function createAuthFixtures() {
       const browserContextOptions =
         (browser._options && browser._options.contextOptions) || {}
 
+      // Import Playwright's BASE_URL directly for reliability
+      // This is a key change - we're getting BASE_URL directly from the config
+      // rather than relying on it to be passed through context options
+      let configBaseURL: string | undefined
+
+      try {
+        // Try to import from Playwright config
+        // This is the most reliable source of baseURL
+        configBaseURL = require('@playwright/config/local.config').BASE_URL
+      } catch {
+        // Fallback to context options or environment
+        configBaseURL = browserContextOptions.baseURL || process.env.BASE_URL
+      }
+
+      // If authOptions doesn't have baseUrl, use the config value
+      // This ensures baseUrl is always available even when authOptions is partially overridden
+      const effectiveBaseURL = authOptions.baseUrl || configBaseURL
+
+      if (!effectiveBaseURL) {
+        console.warn(
+          'Warning: No baseURL found in authOptions, Playwright config, or environment. Navigation to relative URLs may fail.'
+        )
+      }
+
       // Create context with preserved baseURL and other settings from Playwright config
       const context = await browser.newContext({
         // Preserve all browser context options from Playwright config
         ...browserContextOptions,
-        // Override with user-provided baseURL if specified in authOptions
-        baseURL:
-          authOptions.baseUrl || browserContextOptions.baseURL || undefined,
+        // Use the effective baseURL
+        baseURL: effectiveBaseURL,
         // Only use storage state if auth session is enabled
         ...(authSessionEnabled
           ? {

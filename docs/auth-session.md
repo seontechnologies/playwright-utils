@@ -706,6 +706,8 @@ test.describe('Fraud Analyst Features', () => {
 })
 ```
 
+> **Note about baseURL:** When overriding `authOptions` for different user roles, you don't need to explicitly include the `baseUrl` property. The system automatically uses the baseURL from your Playwright configuration, ensuring that relative URL navigation like `page.goto('/')` works correctly even with non-default user roles.
+
 #### Role-Specific Test Fixtures
 
 For frequently used roles, create dedicated fixtures:
