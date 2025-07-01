@@ -19,6 +19,22 @@ import {
   authGlobalInit
 } from '../../src/auth-session'
 
+type UserOptions = {
+  admin: string
+  fraudAnalystUser: string
+  settingsAdminUser: string
+  freeUser: string
+  shopifyUser: string
+}
+
+export const VALID_TEST_USERS: UserOptions = {
+  admin: 'admin',
+  freeUser: 'freeUser',
+  settingsAdminUser: 'settingsAdminUser',
+  fraudAnalystUser: 'fraudAnalystUser',
+  shopifyUser: 'shopifyUser'
+}
+
 // Uncomment to use the custom auth provider
 import myCustomProvider from './auth/custom-auth-provider'
 
@@ -32,7 +48,16 @@ async function globalSetup() {
   // STEP 1: Configure minimal auth storage settings
   // ========================================================================
   // Ensure storage directories exist (required for both auth approaches)
-  authStorageInit()
+
+  // if single role
+  // authStorageInit()
+
+  // if multiple roles
+  for (const role of Object.values(VALID_TEST_USERS)) {
+    authStorageInit({
+      userRole: role
+    })
+  }
   // This just sets up where tokens will be stored and debug options
   configureAuthSession({
     debug: true
