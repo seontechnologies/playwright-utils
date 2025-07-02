@@ -23,9 +23,13 @@ import { isTokenExpired } from './token/is-expired'
 import { extractToken, extractCookies } from './token/extract'
 import { getEnvironment } from './get-environment'
 import { getUserRole } from './get-user-role'
+import { getBaseUrl } from './get-base-url'
 
 // Create a fully custom provider implementation
 const myCustomProvider: AuthProvider = {
+  // Get the current base URL to use
+  getBaseUrl,
+
   // Get the current environment to use
   getEnvironment,
 

@@ -19,6 +19,7 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Configure Global Setup](#configure-global-setup)
     - [Create Auth Fixture](#create-auth-fixture)
     - [Implement Custom Auth Provider](#implement-custom-auth-provider)
+      - [BaseURL Resolution](#baseurl-resolution)
     - [Create Token Acquisition Logic](#create-token-acquisition-logic)
     - [Update Your Playwright Config](#update-your-playwright-config)
     - [Configure Authentication Options](#configure-authentication-options)
@@ -375,7 +376,42 @@ export const test = base.extend<AuthFixtures>({
 
 ### Implement Custom Auth Provider
 
-Create a custom auth provider to handle token acquisition, validation, and management. Here's the actual implementation used in the codebase:
+Create a custom auth provider to handle token acquisition, validation, and management. Your auth provider can also provide custom baseURL resolution logic for multi-role testing scenarios.
+
+The `AuthProvider` interface includes an optional `getBaseUrl` method that allows you to implement custom logic for resolving the baseURL when using multiple user roles. This is particularly useful for tests that require different baseURLs for different roles or environments.
+
+#### BaseURL Resolution
+
+When creating a browser context, the baseURL is resolved in the following priority order:
+
+1. `authOptions.baseUrl` - Explicitly provided in test configuration
+2. `authProvider.getBaseUrl(authOptions)` - Custom provider logic if implemented
+3. `browserContextOptions.baseURL` - From Playwright config
+4. `process.env.BASE_URL` - Environment variable
+
+By implementing the `getBaseUrl` method in your custom provider, you can insert project-specific logic for determining the baseURL based on the current environment and user role.
+
+```typescript
+// Example implementation of getBaseUrl in a custom auth provider
+getBaseUrl() {
+  const env = getEnvironment()
+
+  // Example: Different URLs for different environments or roles
+  if (env === 'local') {
+    return 'http://localhost:3000'
+  }
+
+  if (env === 'staging') {
+    return 'https://staging.example.com'
+  }
+
+  // Return undefined to fall back to browserContextOptions.baseURL or env vars
+  return undefined
+}
+
+```
+
+Here's a complete example of a custom auth provider implementation:
 
 ```typescript
 // playwright/support/auth/custom-auth-provider.ts
@@ -396,8 +432,12 @@ import { isTokenExpired } from './token/is-expired'
 import { extractToken, extractCookies } from './token/extract'
 import { getEnvironment } from './get-environment'
 import { getUserRole } from './get-user-role'
+import { getBaseUrl } from './get-base-url'
 
 const myCustomProvider: AuthProvider = {
+  // Get the current base URL to use
+  getBaseUrl,
+
   // Get the current environment to use
   getEnvironment,
 
