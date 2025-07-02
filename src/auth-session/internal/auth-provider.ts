@@ -76,6 +76,15 @@ export interface AuthProvider {
    * @param options Optional auth options that may override the provider's defaults
    */
   clearToken(options?: Partial<AuthOptions>): void
+
+  /**
+   * Get the base URL for the current environment/configuration
+   * This allows providers to implement custom baseUrl resolution logic
+   *
+   * @param options Optional auth options that may override the provider's defaults
+   * @returns The base URL string or undefined if not available
+   */
+  getBaseUrl?(options?: Partial<AuthOptions>): string | undefined
 }
 
 // Global provider instance that can be configured
