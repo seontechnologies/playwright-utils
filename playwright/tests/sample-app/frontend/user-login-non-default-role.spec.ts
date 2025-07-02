@@ -8,7 +8,12 @@ test.use({
   }
 })
 
-test(`should login with a different role; ${role}`, async ({ page }) => {
+test(`should login with a different role; ${role}`, async ({
+  page,
+  authToken
+}) => {
+  expect(authToken).toBeDefined() // wait for auth token to be ready, to avoid race conditions
+
   await page.goto('/')
 
   await expect(page).toHaveURL('/movies')
