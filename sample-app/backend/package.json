@@ -22,7 +22,7 @@
     "generate:api-docs": "rm -rf docs && npx redocly build-docs src/api-docs/openapi.yml -o docs/api-docs.html"
   },
   "devDependencies": {
-    "@redocly/cli": "^1.34.3",
+    "@redocly/cli": "^1.34.4",
     "@seontechnologies/playwright-utils": "*",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
@@ -34,11 +34,11 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "7.3.4",
-    "@prisma/client": "6.10.1",
+    "@prisma/client": "6.11.1",
     "cookie-parser": "^1.4.7",
     "express": "4.21.2",
     "kafkajs": "2.2.4",
-    "prisma": "6.10.1",
-    "zod": "3.25.67"
+    "prisma": "6.11.1",
+    "zod": "3.25.74"
   }
 }
