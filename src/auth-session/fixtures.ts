@@ -24,7 +24,7 @@ export function createAuthFixtures() {
 
   return {
     /** Auth options to configure environment and user identifier
-     * @default { environment: process.env.TEST_ENV || 'local', userRole: 'default' }     */
+     * @default { environment: process.env.TEST_ENV || 'local', userIdentifier: 'default' }     */
     authOptions: [defaultAuthOptions, { option: true }],
 
     /** Toggle to enable/disable authentication session

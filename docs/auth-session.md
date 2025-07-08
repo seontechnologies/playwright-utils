@@ -1286,7 +1286,7 @@ You can extend our authentication library to handle session storage by adding th
 // This assumes you're using a page to authenticate rather than an API request
 async captureSessionStorage(page, options = {}) {
 	const environment = this.getEnvironment(options);
-	const userIdentifier = this.getUserRole(options);
+	const userIdentifier = this.getUserIdentifier(options);
 
 	// Extract session storage data
 	const sessionStorage = await page.evaluate(() => {

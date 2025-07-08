@@ -504,7 +504,7 @@ export class AuthSessionManager {
     }
 
     // Use the provider to get the token - now returns a storage state object
-    // We don't need to pass environment/userRole options because the provider will use what it has configured
+    // We don't need to pass environment/userIdentifier options because the provider will use what it has configured
     const storageState = await provider.manageAuthToken(request, {})
 
     if (!storageState) {
