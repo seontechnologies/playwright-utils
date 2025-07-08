@@ -3,9 +3,9 @@ import { test, expect } from '@playwright/support/merged-fixtures'
 
 const userIdentifiers = Object.values(VALID_TEST_USERS)
 
+// KEY: Describe block has to be used, and the forEach has to wrap the describe block
 userIdentifiers.forEach((userIdentifier) => {
   test.describe(`User: ${userIdentifier}`, () => {
-    // Properly scoped test.use() within describe block
     test.use({
       authOptions: {
         userIdentifier

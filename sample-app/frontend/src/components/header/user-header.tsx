@@ -32,9 +32,9 @@ export const UserHeader = ({ className = '' }: UserHeaderProps) => {
     <SHeader className={className}>
       <SUserInfo>
         <SUserName>{currentUser.username || 'User'}</SUserName>
-        <SUserRole>
+        <SUserIdentifier>
           {currentUser.userIdentifier || 'Unknown User Identifier'}
-        </SUserRole>
+        </SUserIdentifier>
       </SUserInfo>
       <SLogoutButton onClick={handleLogout} aria-label="Logout">
         Logout
@@ -69,7 +69,7 @@ const SUserName = styled.span`
   font-family: Times, serif;
 `
 
-const SUserRole = styled.span`
+const SUserIdentifier = styled.span`
   font-size: 0.8rem;
   opacity: 0.8;
   font-family: Times, serif;
