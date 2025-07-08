@@ -26,6 +26,7 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Cookie-Based Authentication](#cookie-based-authentication)
     - [Using Multiple User Identifiers in Tests](#using-multiple-user-identifiers-in-tests)
       - [Simple User Override with authOptions](#simple-user-override-with-authoptions)
+      - [Parallel Test Execution with Multiple User Identifiers](#parallel-test-execution-with-multiple-user-identifiers)
       - [User-Specific Test Fixtures](#user-specific-test-fixtures)
     - [Direct Use of Storage State (Vanilla Playwright Approach)](#direct-use-of-storage-state-vanilla-playwright-approach)
       - [3. Testing Interactions Between Multiple Users in a Single Test](#3-testing-interactions-between-multiple-users-in-a-single-test)
@@ -727,21 +728,59 @@ The simplest way to specify a user identifier for your tests is to override the 
 import { test } from '../support/auth/auth-fixture'
 import { expect } from '@playwright/test'
 
-test.describe('Fraud Analyst Features', () => {
-  // Override authOptions for all tests in this file
-  test.use({
-    authOptions: { userIdentifier: 'fraudAnalyst' }
-  })
+// Override authOptions for all tests in this file
+test.use({
+  authOptions: { userIdentifier: 'fraudAnalyst' }
+})
 
-  test('can view fraud queue', async ({ page }) => {
-    // Page is already authenticated as fraud analyst
-    await page.goto('/fraud-queue')
-    await expect(page.getByText('Fraud Queue')).toBeVisible()
-  })
+test('can view fraud queue', async ({ page }) => {
+  // Page is already authenticated as fraud analyst
+  await page.goto('/fraud-queue')
+  await expect(page.getByText('Fraud Queue')).toBeVisible()
 })
 ```
 
 > **Note about baseURL:** When overriding `authOptions` for different user identifiers, you don't need to explicitly include the `baseUrl` property. The system automatically uses the baseURL from your Playwright configuration, ensuring that relative URL navigation like `page.goto('/')` works correctly even with non-default user identifiers.
+
+#### Parallel Test Execution with Multiple User Identifiers
+
+**IMPORTANT:** When running parallel tests with multiple user identifiers, you **must** use a specific pattern to ensure proper test isolation. Failure to do so can cause token contamination between tests.
+
+For a single user identifier, this simple pattern works fine:
+
+```typescript
+// Simple single-user override works fine
+test.use({
+  authOptions: {
+    userIdentifier: 'freeUser'
+  }
+})
+
+test('should login with non-default user', async ({ page }) => {
+  // Test code here
+})
+```
+
+However, for multiple user identifiers in parallel tests, you **must** wrap each `test.use()` in its own `test.describe()` block:
+
+```typescript
+// REQUIRED PATTERN: Wrap each test.use() in a test.describe() block
+userIdentifiers.forEach((userIdentifier) => {
+  test.describe(`User: ${userIdentifier}`, () => {
+    test.use({
+      authOptions: {
+        userIdentifier
+      }
+    })
+
+    test(`should login with ${userIdentifier}`, async ({ page }) => {
+      // Test code here
+    })
+  })
+})
+```
+
+This pattern ensures proper isolation of auth tokens and browser contexts between parallel test runs. Without it, you may experience race conditions where user tokens get mixed up between tests.
 
 #### User-Specific Test Fixtures
 
