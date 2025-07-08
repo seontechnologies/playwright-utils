@@ -1,14 +1,8 @@
+import { VALID_TEST_USERS } from '@playwright/support/global-setup'
 import { test, expect } from '@playwright/support/merged-fixtures'
 
-const userIdentifiers = [
-  'admin',
-  'fraudAnalystUser',
-  'freeUser',
-  'settingsAdminUser',
-  'shopifyUser'
-]
+const userIdentifiers = Object.values(VALID_TEST_USERS)
 
-// Use test.describe() for proper test isolation instead of forEach
 userIdentifiers.forEach((userIdentifier) => {
   test.describe(`User: ${userIdentifier}`, () => {
     // Properly scoped test.use() within describe block
