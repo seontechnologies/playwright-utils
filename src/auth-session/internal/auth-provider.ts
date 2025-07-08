@@ -17,10 +17,10 @@ export interface AuthProvider {
   getEnvironment(options?: Partial<AuthOptions>): string
 
   /**
-   * Get the current user role
+   * Get the current user identifier
    * @param options Optional auth options that may override the provider's defaults
    */
-  getUserRole(options?: Partial<AuthOptions>): string
+  getUserIdentifier(options?: Partial<AuthOptions>): string
 
   /**
    * Extract the raw token from formatted token data

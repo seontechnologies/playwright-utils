@@ -9,11 +9,11 @@ import {
 import { vi } from 'vitest'
 
 const username = 'testuser'
-const role = 'admin'
+const userIdentifier = 'admin'
 // Define mock before the test - vi.mock is hoisted to the top
 vi.mock('../../hooks/use-auth', () => ({
   useAuth: () => ({
-    currentUser: { username, role },
+    currentUser: { username, userIdentifier },
     logout: vi.fn()
   })
 }))
@@ -23,7 +23,7 @@ describe('<UserHeader />', () => {
     wrappedRender(<UserHeader />)
 
     expect(screen.getByText(username)).toBeInTheDocument()
-    expect(screen.getByText(role)).toBeInTheDocument()
+    expect(screen.getByText(userIdentifier)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument()
   })
 })

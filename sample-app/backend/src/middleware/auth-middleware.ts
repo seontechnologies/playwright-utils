@@ -9,13 +9,13 @@ import type { Request, Response, NextFunction } from 'express'
 type Identity = {
   userId: string
   username: string
-  role: string
+  userIdentifier: string
 }
 
 // Define a type for the token's structure, which contains the issuedAt date and identity.
 type Token = {
   issuedAt: Date // the token contains a precise Date object
-  identity?: Identity // identity information with user role
+  identity?: Identity // identity information with user identifier
 }
 
 // Cookie name that contains the authentication token

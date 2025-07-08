@@ -16,7 +16,7 @@ import { log } from '../../log'
  * Creates necessary directories and empty storage state files for Playwright.
  * Call this in your global setup to ensure proper directory structure.
  *
- * @param options Optional environment and user role overrides
+ * @param options Optional environment and user identifier overrides
  * @returns Object containing created storage paths */
 export const authStorageInit = (options?: AuthIdentifiers): AuthSessionConfig =>
   initStorage(options)
@@ -24,7 +24,7 @@ export const authStorageInit = (options?: AuthIdentifiers): AuthSessionConfig =>
 /**  Pre-fetch authentication tokens during global setup
  *
  * This function creates a Playwright request context and fetches tokens
- * for specified roles or the default role, storing them for future test runs.
+ * for specified user identifiers, storing them for future test runs.
  *
  * Use this in your global setup to improve test performance by
  * avoiding repeated token fetches.
@@ -32,14 +32,14 @@ export const authStorageInit = (options?: AuthIdentifiers): AuthSessionConfig =>
  * @param options Configuration options
  * @param options.baseURL Application base URL (defaults to process.env.BASE_URL)
  * @param options.authBaseURL Authentication service base URL (defaults to options.baseURL or process.env.AUTH_BASE_URL)
- * @param options.userRoles Optional array of user roles to initialize tokens for (defaults to the provider's default role)
+ * @param options.userIdentifiers Optional array of user identifiers to initialize tokens for (defaults to the provider's default identifier)
  * @param options.environment Optional environment override (defaults to the provider's default environment)
  * @returns Promise that resolves when auth initialization is complete
  */
 export async function authGlobalInit(options?: {
   baseURL?: string
   authBaseURL?: string
-  userRoles?: string[]
+  userIdentifiers?: string[]
   environment?: string
 }): Promise<boolean> {
   log.infoSync('Initializing auth token')
@@ -103,30 +103,32 @@ export async function authGlobalInit(options?: {
   })
 
   try {
-    // If userRoles is provided, initialize tokens for each role
-    if (options?.userRoles && options.userRoles.length > 0) {
+    // If userIdentifiers is provided, initialize tokens for each user
+    if (options?.userIdentifiers && options.userIdentifiers.length > 0) {
       log.infoSync(
-        `Initializing tokens for roles: ${options.userRoles.join(', ')}`
+        `Initializing tokens for users: ${options.userIdentifiers.join(', ')}`
       )
 
-      // Initialize tokens for each specified role
-      for (const role of options.userRoles) {
+      // Initialize tokens for each specified user
+      for (const identifier of options.userIdentifiers) {
         try {
-          log.infoSync(`Initializing token for role: ${role}`)
+          log.infoSync(`Initializing token for user: ${identifier}`)
           await getAuthToken(requestContext, {
-            userRole: role,
+            userIdentifier: identifier,
             environment: options.environment
           })
-          log.successSync(`Token for role '${role}' initialized successfully`)
-        } catch (roleError) {
-          log.errorSync(
-            `Failed to initialize token for role '${role}': ${roleError instanceof Error ? roleError.message : String(roleError)}`
+          log.successSync(
+            `Token for user '${identifier}' initialized successfully`
           )
-          // Continue with other roles even if one fails
+        } catch (userError) {
+          log.errorSync(
+            `Failed to initialize token for user '${identifier}': ${userError instanceof Error ? userError.message : String(userError)}`
+          )
+          // Continue with other users even if one fails
         }
       }
     } else {
-      // Get the default auth token if no roles specified
+      // Get the default auth token if no user identifiers specified
       await getAuthToken(requestContext, {
         environment: options?.environment
       })

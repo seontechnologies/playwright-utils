@@ -12,7 +12,7 @@ import type { Movie } from '@shared/types/movie-types'
 // which is responsible for interacting with the data source (Prisma).
 
 // Since this is an adapter in the hexagonal architecture (ports & adapters),
-// its primary role is to handle data persistence and retrieval,
+// its primary purpose is to handle data persistence and retrieval,
 // and the tests here ensure that it behaves correctly in terms of data handling and error management.
 //
 // By mocking PrismaClient, we isolate the tests to focus solely on the adapter's logic and its interaction with Prisma's API.

@@ -3,7 +3,19 @@ import { authMiddleware } from './auth-middleware'
 
 describe('authMiddleware', () => {
   let mockRequest: Partial<Request>
-  let mockResponse: Partial<Response>
+  // Use a more specific type that includes locals to prevent TypeScript errors
+  type MockResponse = Partial<Response> & {
+    locals: {
+      user?: {
+        identity?: {
+          userId: string
+          username: string
+          userIdentifier: string
+        }
+      }
+    }
+  }
+  let mockResponse: MockResponse
   let nextFunction: NextFunction
 
   beforeEach(() => {
@@ -14,7 +26,8 @@ describe('authMiddleware', () => {
     mockResponse = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
-      clearCookie: jest.fn().mockReturnThis()
+      clearCookie: jest.fn().mockReturnThis(),
+      locals: {} // Initialize with empty object
     }
     nextFunction = jest.fn()
   })
@@ -67,5 +80,26 @@ describe('authMiddleware', () => {
     })
     expect(mockResponse.clearCookie).toHaveBeenCalledWith('seon-jwt')
     expect(nextFunction).not.toHaveBeenCalled()
+  })
+
+  it('should attach identity with userIdentifier to the response locals', () => {
+    const validDate = new Date()
+    const identity = {
+      userId: 'user_test',
+      username: 'test',
+      userIdentifier: 'admin'
+    }
+    // Token with identity information
+    mockRequest.cookies = {
+      'seon-jwt': `Bearer ${validDate.toISOString()}:${JSON.stringify(identity)}`
+    }
+    authMiddleware(
+      mockRequest as Request,
+      mockResponse as Response,
+      nextFunction
+    )
+
+    expect(nextFunction).toHaveBeenCalledTimes(1)
+    expect(mockResponse.locals.user).toEqual({ identity })
   })
 })

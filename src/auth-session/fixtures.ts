@@ -17,13 +17,13 @@ import { log } from '../log'
 export function createAuthFixtures() {
   const defaultAuthOptions: AuthIdentifiers = {
     environment: process.env.TEST_ENV || 'local',
-    userRole: 'default'
+    userIdentifier: 'default'
   }
 
   const authProvider = getAuthProvider()
 
   return {
-    /** Auth options to configure environment and user role
+    /** Auth options to configure environment and user identifier
      * @default { environment: process.env.TEST_ENV || 'local', userRole: 'default' }     */
     authOptions: [defaultAuthOptions, { option: true }],
 
@@ -192,12 +192,17 @@ export function createAuthFixtures() {
 }
 
 /**
- * Creates role-specific test fixtures
+ * Creates user-specific test fixtures
  * @param testBase The base test object to extend
- * @param role The user role to authenticate as
- * @returns A test object configured for the specified role
+ * @param userIdentifier The user identifier to authenticate as
+ * @returns A test object configured for the specified user
  */
-export const createRoleSpecificTest = (testBase: any, role: string) =>
+export const createUserSpecificTest = (testBase: any, userIdentifier: string) =>
   testBase.extend({
-    authOptions: { userRole: role }
+    authOptions: { userIdentifier }
   })
+
+/**
+ * @deprecated Use createUserSpecificTest instead
+ */
+export const createRoleSpecificTest = createUserSpecificTest

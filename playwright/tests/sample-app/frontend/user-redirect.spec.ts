@@ -17,6 +17,6 @@ test('authenticated redirect works correctly', async ({ page }) => {
   // When authenticated, we should be redirected to the movies path
   await expect(page).toHaveURL('/movies')
 
-  // default role is admin
+  // default userIdentifier is admin
   await expect(page.getByText('admin')).toBeVisible()
 })

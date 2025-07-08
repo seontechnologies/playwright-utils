@@ -193,8 +193,9 @@ test.describe('movie crud e2e with ephemeral users (playwright-utils helpers)', 
       const { responseJson: addMovieResponseBody } = await loadAddMovie
       expect(addMovieResponseBody).toEqual({
         status: 403,
-        // eslint-disable-next-line quotes
-        error: "Access denied: Role 'read' is not authorized for this resource"
+        error:
+          // eslint-disable-next-line quotes
+          "Access denied: User identifier 'read' is not authorized for this resource"
       })
     })
 
@@ -234,8 +235,9 @@ test.describe('movie crud e2e with ephemeral users (playwright-utils helpers)', 
       const { responseJson: deleteMovieResponseBody } = await loadDeleteMovie
       expect(deleteMovieResponseBody).toEqual({
         status: 403,
-        // eslint-disable-next-line quotes
-        error: "Access denied: Role 'read' is not authorized for this resource"
+        error:
+          // eslint-disable-next-line quotes
+          "Access denied: User identifier 'read' is not authorized for this resource"
       })
 
       await log.step('try to edit movie using the UI as basic user')
@@ -256,8 +258,9 @@ test.describe('movie crud e2e with ephemeral users (playwright-utils helpers)', 
       const { responseJson: editMovieResponseBody } = await loadEditMovie
       expect(editMovieResponseBody).toEqual({
         status: 403,
-        // eslint-disable-next-line quotes
-        error: "Access denied: Role 'read' is not authorized for this resource"
+        error:
+          // eslint-disable-next-line quotes
+          "Access denied: User identifier 'read' is not authorized for this resource"
       })
 
       await log.step(

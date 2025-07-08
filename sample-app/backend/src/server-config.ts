@@ -68,7 +68,7 @@ server.post('/auth/fake-token', (_req, res) => {
 
 // Identity-based authentication endpoint
 server.post('/auth/identity-token', (req, res) => {
-  const { username, password, role } = req.body
+  const { username, password, userIdentifier } = req.body
 
   // Validate required fields
   if (!username || !password) {
@@ -79,7 +79,7 @@ server.post('/auth/identity-token', (req, res) => {
   }
 
   // In a real app, we would validate credentials against a database
-  // For this sample, we'll accept any credentials and use the provided role
+  // For this sample, we'll accept any credentials and use the provided userIdentifier
 
   // Generate a user ID based on the username (in a real app this would come from a database)
   const userId = `user_${username.replace(/\s+/g, '_').toLowerCase()}`
@@ -88,7 +88,7 @@ server.post('/auth/identity-token', (req, res) => {
   const identity = {
     userId,
     username,
-    role: role || 'user' // Default to 'user' if no role provided
+    userIdentifier: userIdentifier || 'user' // Default to 'user' if no userIdentifier provided
   }
 
   // JWT token - short lived (5 minutes)
@@ -203,7 +203,7 @@ server.get('/auth/validate', (req, res) => {
         user: {
           userId: 'anonymous',
           username: 'Anonymous User',
-          role: 'user'
+          userIdentifier: 'user'
         },
         message: 'Authentication valid (no identity)'
       })
@@ -258,7 +258,7 @@ server.post('/auth/renew', (req, res) => {
           // Adjust these requirements based on your specific identity structure
           if (
             parsedIdentity.userId ||
-            (parsedIdentity.username && parsedIdentity.role)
+            (parsedIdentity.username && parsedIdentity.userIdentifier)
           ) {
             identity = parsedIdentity
           } else {

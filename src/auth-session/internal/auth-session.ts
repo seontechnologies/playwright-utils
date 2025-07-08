@@ -182,32 +182,28 @@ export class AuthSessionManager {
       ...mergedOptions // Apply any user-provided options
     }
 
-    // get the auth provider for environment and role information
+    // get the auth provider for environment and user identifier information
     const provider = getAuthProvider()
 
     // Extract the identifiers from options
-    const { environment, userRole, userIdentifier } = this.options
+    const { environment, userIdentifier } = this.options
 
-    // get environment and user role from the provider (may apply defaults)
+    // get environment and user identifier from the provider (may apply defaults)
     const resolvedEnvironment = provider.getEnvironment({
       environment,
-      userRole,
       userIdentifier
     })
-    const resolvedUserRole = provider.getUserRole({
+    const resolvedUserIdentifier = provider.getUserIdentifier({
       environment,
-      userRole,
       userIdentifier
     })
 
-    // Get storage paths based on environment, user role, and user identifier
     // Simplified storage path logic for better consistency
     this.storageDir =
       this.options.storageDir ??
       getStorageDir({
         environment: resolvedEnvironment,
-        userRole: resolvedUserRole,
-        userIdentifier
+        userIdentifier: resolvedUserIdentifier
       })
 
     // Always construct the file path from the directory and filename
@@ -415,10 +411,8 @@ export class AuthSessionManager {
     } catch (error) {
       // If we couldn't acquire lock, another process is writing
       // or there was some other error
-      const { environment, userRole, userIdentifier } = this.options
-      const userInfo = userIdentifier
-        ? `${environment}/${userRole}/${userIdentifier}`
-        : `${environment}/${userRole}`
+      const { environment, userIdentifier } = this.options
+      const userInfo = `${environment}/${userIdentifier}`
 
       if (this.options.debug) {
         log.warningSync(
@@ -444,10 +438,8 @@ export class AuthSessionManager {
   public clearToken(): boolean {
     try {
       // Extract user info for more detailed logging
-      const { environment, userRole, userIdentifier } = this.options
-      const userInfo = userIdentifier
-        ? `${environment}/${userRole}/${userIdentifier}`
-        : `${environment}/${userRole}`
+      const { environment, userIdentifier } = this.options
+      const userInfo = `${environment}/${userIdentifier}`
 
       // Clear from file storage if exists
       if (fs.existsSync(this.storageFile)) {

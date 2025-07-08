@@ -4,7 +4,7 @@
  * This demonstrates how to create a fully custom authentication provider
  * that can handle specialized auth flows beyond the default implementation.
  *
- * The provider is the source of truth for environment and role information.
+ * The provider is the source of truth for environment and user identifier information.
  */
 import type { APIRequestContext } from '@playwright/test'
 import {
@@ -22,7 +22,7 @@ import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
 import { extractToken, extractCookies } from './token/extract'
 import { getEnvironment } from './get-environment'
-import { getUserRole } from './get-user-role'
+import { getUserIdentifier } from './get-user-identifier'
 import { getBaseUrl } from './get-base-url'
 
 // Create a fully custom provider implementation
@@ -33,8 +33,8 @@ const myCustomProvider: AuthProvider = {
   // Get the current environment to use
   getEnvironment,
 
-  // Get the current user role to use
-  getUserRole,
+  // Get the current user identifier to use
+  getUserIdentifier,
 
   /** Extract JWT token from Playwright storage state format */
   extractToken,
@@ -48,20 +48,18 @@ const myCustomProvider: AuthProvider = {
    * Main token management method
    * Can be called directly for API testing, or will be called by fixture for UI testing
    * @param request - APIRequestContext from Playwright
-   * @param options - Optional auth options (like environment or userRole)
+   * @param options - Optional auth options (like environment or userIdentifier)
    */
   async manageAuthToken(
     request: APIRequestContext,
     options: AuthOptions = {}
   ): Promise<Record<string, unknown>> {
     const environment = this.getEnvironment(options)
-    const userRole = this.getUserRole(options)
-    const userIdentifier = options.userIdentifier
+    const userIdentifier = this.getUserIdentifier(options)
 
     // Use the utility functions to get standardized paths with the fixed storage location
     const tokenPath = getTokenFilePath({
       environment,
-      userRole,
       userIdentifier,
       tokenFileName: 'storage-state.json'
     })
@@ -75,13 +73,13 @@ const myCustomProvider: AuthProvider = {
     // No valid token found, continue with getting a new one
 
     // STEP 2: Initialize storage directories using the core utility
-    authStorageInit({ environment, userRole, userIdentifier })
+    authStorageInit({ environment, userIdentifier })
 
     // STEP 3: Acquire a new token (since no valid token exists)
     const storageState = await acquireToken(
       request,
       environment,
-      userRole,
+      userIdentifier,
       options
     )
 
@@ -95,13 +93,11 @@ const myCustomProvider: AuthProvider = {
   // Clear token when needed
   clearToken(options: AuthOptions = {}) {
     const environment = this.getEnvironment(options)
-    const userRole = this.getUserRole(options)
-    const userIdentifier = options.userIdentifier
+    const userIdentifier = this.getUserIdentifier(options)
 
     // Get the storage directory with correct user-specific path
     const storageDir = getStorageDir({
       environment,
-      userRole,
       userIdentifier
     })
 
@@ -112,9 +108,7 @@ const myCustomProvider: AuthProvider = {
     })
 
     // Use the AuthSessionManager's clearToken method
-    log.infoSync(
-      `Clearing token for ${environment}/${userRole}${userIdentifier ? `/${userIdentifier}` : ''}`
-    )
+    log.infoSync(`Clearing token for ${environment}/${userIdentifier}`)
     authManager.clearToken()
 
     return true

@@ -32,7 +32,9 @@ export const UserHeader = ({ className = '' }: UserHeaderProps) => {
     <SHeader className={className}>
       <SUserInfo>
         <SUserName>{currentUser.username || 'User'}</SUserName>
-        <SUserRole>{currentUser.role || 'Unknown Role'}</SUserRole>
+        <SUserRole>
+          {currentUser.userIdentifier || 'Unknown User Identifier'}
+        </SUserRole>
       </SUserInfo>
       <SLogoutButton onClick={handleLogout} aria-label="Logout">
         Logout

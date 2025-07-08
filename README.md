@@ -19,7 +19,7 @@ Design patterns used:
 - **Fixture pattern**: all utilities can be consumed as fixtures to provide maximum flexibility.
 - **Functional core, fixture shell**: utilities can be used both directly and as fixtures.
 - **Decoupled logging and reporting**: logging is built to integrate cleanly into Playwright reports.
-- **Composable auth sessions**: auth session utilities can handle complex multi-role auth in a reusable way.
+- **Composable auth sessions**: auth session utilities can handle complex multi-user auth in a reusable way.
 - **Test-focused network interception**: network interception is designed for real-world test needs, not just simple mocking.
 - **Typed API request utility**: apiRequest provides a reusable, typed client for API tests and Playwright request fixture usage.
 
@@ -315,7 +315,7 @@ test('Modify responses', async ({ page, interceptNetworkCall }) => {
 An authentication session management system for Playwright tests that persists tokens between test runs:
 
 - Faster tests with persistent token storage
-- Role-based, on the fly authentication support
+- User-based, on the fly authentication support
 - Support for both UI and API testing
 
 #### Implementation Steps
@@ -415,14 +415,14 @@ import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
 import { extractToken, extractCookies } from './token/extract'
 import { getEnvironment } from './get-environment'
-import { getUserRole } from './get-user-role'
+import { getUserIdentifier } from './get-user-identifier'
 
 const myCustomProvider: AuthProvider = {
   // Get the current environment to use
   getEnvironment,
 
-  // Get the current user role to use
-  getUserRole,
+  // Get the current user identifier to use
+  getUserIdentifier,
 
   // Extract token from storage state
   extractToken,
@@ -436,10 +436,10 @@ const myCustomProvider: AuthProvider = {
   // Main token management method
   async manageAuthToken(request, options = {}) {
     const environment = this.getEnvironment(options)
-    const userRole = this.getUserRole(options)
+    const userIdentifier = this.getUserIdentifier(options)
     const tokenPath = getTokenFilePath({
       environment,
-      userRole,
+      userIdentifier,
       tokenFileName: 'storage-state.json'
     })
 
@@ -448,11 +448,11 @@ const myCustomProvider: AuthProvider = {
     if (validToken) return validToken
 
     // Initialize storage and acquire new token if needed
-    authStorageInit({ environment, userRole })
+    authStorageInit({ environment, userIdentifier })
     const storageState = await acquireToken(
       request,
       environment,
-      userRole,
+      userIdentifier,
       options
     )
 
@@ -464,8 +464,8 @@ const myCustomProvider: AuthProvider = {
   // Clear token when needed
   clearToken(options = {}) {
     const environment = this.getEnvironment(options)
-    const userRole = this.getUserRole(options)
-    const storageDir = getStorageDir({ environment, userRole })
+    const userIdentifier = this.getUserIdentifier(options)
+    const storageDir = getStorageDir({ environment, userIdentifier })
     const authManager = AuthSessionManager.getInstance({ storageDir })
     authManager.clearToken()
     return true
@@ -495,7 +495,7 @@ import { applyUserCookiesToBrowserContext } from '@seontechnologies/playwright-u
 
 test('ephemeral user auth', async ({ context, page }) => {
   // Apply user auth directly to browser context (no disk persistence)
-  const user = await createTestUser({ role: 'admin' })
+  const user = await createTestUser({ userIdentifier: 'admin' })
   await applyUserCookiesToBrowserContext(context, user)
 
   // Page is now authenticated with the user's token
