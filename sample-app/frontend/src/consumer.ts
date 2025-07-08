@@ -190,7 +190,7 @@ export const updateMovie = async (
 export type AuthRequest = {
   username: string
   password: string
-  role?: string
+  userIdentifier?: string
 }
 
 export type AuthResponse = {
@@ -201,7 +201,7 @@ export type AuthResponse = {
   identity: {
     userId: string
     username: string
-    role: string
+    userIdentifier: string
   }
   status: number
   message: string
@@ -212,7 +212,7 @@ type AuthError = {
   status: number
 }
 
-// Login with username/password/role
+// Login with username/password/userIdentifier
 export const login = async (
   credentials: AuthRequest
 ): Promise<AuthResponse | AuthError> => {

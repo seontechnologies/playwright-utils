@@ -10,12 +10,12 @@ import { getAuthToken } from './core'
  * This helper simplifies the integration into the globalSetup function.
  *
  * @param request - Playwright APIRequestContext for making API calls
- * @param options - Optional environment and user role settings
+ * @param options - Optional environment and user identifier settings
  * @returns Promise that resolves when auth initialization is complete
  */
 export async function initializeAuthForGlobalSetup(
   request: APIRequestContext,
-  options?: { environment?: string; userRole?: string }
+  options?: { environment?: string; userIdentifier?: string }
 ): Promise<void> {
   console.log('Initializing auth token')
 

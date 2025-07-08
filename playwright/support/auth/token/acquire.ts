@@ -35,7 +35,7 @@ const getAuthBaseUrl = (environment: string, customUrl?: string) => {
 export const acquireToken = async (
   _request: APIRequestContext, // We won't use the passed request, we'll create a fresh one
   environment: string,
-  userRole: string,
+  userIdentifier: string,
   options: Record<string, string | undefined> = {}
 ): Promise<Record<string, unknown>> => {
   // Use the application-specific URL construction logic
@@ -60,7 +60,7 @@ export const acquireToken = async (
     data: JSON.stringify({
       username: options.username || 'test-user',
       password: options.password || 'password123',
-      role: userRole || 'admin'
+      userIdentifier: userIdentifier || 'admin'
     })
   })
 

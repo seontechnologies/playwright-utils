@@ -38,7 +38,7 @@ export type TokenDataFormatter = (
 /** Options for the auth session */
 export type AuthSessionOptions = AuthIdentifiers & {
   /** Root directory for auth session storage (default: process.cwd()/.auth)
-   * Note: The environment and user role will be appended to this path by the provider */
+   * Note: The environment and user identifier will be appended to this path by the provider */
   storageDir?: string
   /** Token filename (default: storage-state.json) */
   tokenFileName?: string
@@ -85,16 +85,12 @@ export type AuthFixtures = {
 
 /**
  * Base identification options used across the auth system
- * These identifiers determine which environment and role to use
+ * These identifiers determine which environment and user identifier to use
  */
 export type AuthIdentifiers = {
   /** Environment to use for authentication
    * @default process.env.TEST_ENV || 'local' */
   environment?: string
-
-  /** User role to authenticate as
-   * @default 'default' */
-  userRole?: string
 
   /** User identifier; email or username */
   userIdentifier?: string

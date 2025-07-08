@@ -23,7 +23,7 @@ export const useAuth = () => {
 
   /**
    * Handle user login
-   * @param credentials User credentials with username, password and optional role
+   * @param credentials User credentials with username, password and optional userIdentifier
    * @returns Success status and any error message
    */
   const handleLogin = async (

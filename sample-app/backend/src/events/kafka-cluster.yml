@@ -1,7 +1,7 @@
 # This docker-compose file can be used to start Kafka and its dependencies locally.
 # If Kafka is not running, movie CRUD operations will still work but the movie events will not be published.
 
-version: '3.8'  # Version of Docker Compose file format
+# Docker Compose file format is inferred from structure
 
 services:
   kafka:
@@ -83,13 +83,14 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'  # Enables dynamic configuration in the UI
 
   zookeeper:
-    image: ghcr.io/geoff2k/confluentinc-cp-zookeeper-dev:6.0.14  # Using GHCR mirror to avoid Docker Hub rate limits
+    image: bitnami/zookeeper:3.8.1  # Using public Bitnami image from Docker Hub
     platform: linux/amd64  # Ensures compatibility with AMD64 architecture
     ports:
       - '22181:2181'  # Exposes Zookeeper on port 2181 for external access
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181  # Default client port for Zookeeper communication
       ZOOKEEPER_TICK_TIME: 2000  # Zookeeper heartbeat interval in milliseconds
+      ALLOW_ANONYMOUS_LOGIN: 'yes'  # Allows connections without authentication
 
 volumes:
   kafka_data:

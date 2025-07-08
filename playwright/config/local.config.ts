@@ -32,7 +32,7 @@ log.configure({
     maxLineLength: 2000 // Set your desired maximum line length
   },
   // debug < info < step < success < warning < error
-  level: 'step', // show all logs, or limit them
+  // level: 'step', // show all logs, or limit them
   fileLogging: {
     enabled: !DISABLE_FILE_LOGS,
     defaultTestFolder: 'before-hooks', // all hooks go to the default folder

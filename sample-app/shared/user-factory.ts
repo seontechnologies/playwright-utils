@@ -6,11 +6,11 @@ import type { AuthResponse } from 'sample-app/frontend/src/consumer'
 export async function createTestUser({
   username,
   password,
-  role
+  userIdentifier
 }: {
   username: string
   password: string
-  role: string
+  userIdentifier: string
 }): Promise<{
   token: string
   userId: string
@@ -29,7 +29,7 @@ export async function createTestUser({
       body: {
         username,
         password,
-        role
+        userIdentifier
       }
     })
 
@@ -48,14 +48,15 @@ export async function createTestUser({
   }
 }
 
-const generateUsername = (role: string) => `${role}-${Date.now()}`
+const generateUsername = (userIdentifier: string) =>
+  `${userIdentifier}-${Date.now()}`
 const generatePassword = () =>
   `pwd-${Math.random().toString(36).substring(2, 10)}`
 
-export const generateUserData = (role: string) => ({
-  username: generateUsername(role),
+export const generateUserData = (userIdentifier: string) => ({
+  username: generateUsername(userIdentifier),
   password: generatePassword(),
-  role
+  userIdentifier
 })
 
 export type UserData = {

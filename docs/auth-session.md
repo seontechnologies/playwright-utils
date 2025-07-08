@@ -14,7 +14,6 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Approach 2: Global Setup Function](#approach-2-global-setup-function)
       - [Write tests that use the authenticated state](#write-tests-that-use-the-authenticated-state)
     - [Limitations of Playwright’s Approach vs. What This Library Adds](#limitations-of-playwrights-approach-vs-what-this-library-adds)
-  - [](#)
   - [Quick Start Guide](#quick-start-guide)
     - [Configure Global Setup](#configure-global-setup)
     - [Create Auth Fixture](#create-auth-fixture)
@@ -25,11 +24,12 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Configure Authentication Options](#configure-authentication-options)
     - [Use the Auth Session in Your Tests](#use-the-auth-session-in-your-tests)
       - [Cookie-Based Authentication](#cookie-based-authentication)
-    - [Using Multiple User Roles in Tests](#using-multiple-user-roles-in-tests)
-      - [Simple Role Override with authOptions](#simple-role-override-with-authoptions)
-      - [Role-Specific Test Fixtures](#role-specific-test-fixtures)
+    - [Using Multiple User Identifiers in Tests](#using-multiple-user-identifiers-in-tests)
+      - [Simple User Override with authOptions](#simple-user-override-with-authoptions)
+      - [Parallel Test Execution with Multiple User Identifiers](#parallel-test-execution-with-multiple-user-identifiers)
+      - [User-Specific Test Fixtures](#user-specific-test-fixtures)
     - [Direct Use of Storage State (Vanilla Playwright Approach)](#direct-use-of-storage-state-vanilla-playwright-approach)
-      - [3. Testing Interactions Between Multiple Roles in a Single Test](#3-testing-interactions-between-multiple-roles-in-a-single-test)
+      - [3. Testing Interactions Between Multiple Users in a Single Test](#3-testing-interactions-between-multiple-users-in-a-single-test)
     - [Ephemeral User Authentication](#ephemeral-user-authentication)
       - [How Ephemeral Authentication Works](#how-ephemeral-authentication-works)
     - [UI Testing with Browser Context](#ui-testing-with-browser-context)
@@ -201,7 +201,7 @@ test('access dashboard page', async ({ page }) => {
 | 1       | **Complex setup** – Requires configuration across multiple files and understanding of projects/dependencies.                                                                                                     | **Simplified setup** – Single configuration approach with built-in token expiration checking and programmatic refresh capabilities.                                                 |
 | 2       | **Manual token management** – No built-in handling of token expiration or refreshing.                                                                                                                            | **Structured token storage** – Organized acquisition and persistence of tokens with optional validation.                                                                            |
 | 3       | **No multi-environment support** – No straightforward way to handle different environments (dev/staging/prod).                                                                                                   | **Multi-environment support** – First-class support for different environments (dev/staging/prod).                                                                                  |
-| 4       | **No multi-role support** – No built-in system for managing different user roles (admin/user/guest).                                                                                                             | **Role-based testing** – Built-in system for managing different user roles (admin/user/guest).                                                                                      |
+| 4       | **No multi-user support** – No built-in system for managing different user identifiers (admin/user/guest).                                                                                                       | **User-based testing** – Built-in system for managing different user identifiers (admin/user/guest).                                                                                |
 | 5       | **Limited programmatic control** – No simple API for clearing or refreshing tokens during test execution.                                                                                                        | **Rich programmatic control** – Clear APIs for managing tokens during test execution.                                                                                               |
 | 6       | **Separate implementations** – Different approaches needed for API vs UI authentication.                                                                                                                         | **Unified implementation** – Same approach works for both API and browser testing.                                                                                                  |
 | 7       | **Performance bottleneck** – Relies solely on file storage, requiring disk I/O and JSON parsing for every test run, causing slowdowns.                                                                           | **Performance optimization** – In-memory caching eliminates repeated file reads and JSON parsing operations that slow down Playwright’s approach.                                   |
@@ -213,8 +213,8 @@ test('access dashboard page', async ({ page }) => {
 **Additional Benefits**:
 
 1. **Provider architecture** - Extensible design for custom authentication flows
-2. **Single source of truth** - Auth provider centralizes environment and role configuration
-3. **Isolated storage** - Tokens are stored by environment and user role, preventing cross-contamination
+2. **Single source of truth** - Auth provider centralizes environment and user identifier configuration
+3. **Isolated storage** - Tokens are stored by environment and user identifier, preventing cross-contamination
 
 <details><summary><strong>More on UI mode integration:</strong></summary>
 
@@ -301,8 +301,6 @@ test('access dashboard page', async ({ page }) => {
 
 </details>
 
-## </details>
-
 ## Quick Start Guide
 
 ⚠️ **IMPORTANT**: The authentication system requires explicit configuration before use. You MUST set up authentication in your global setup file with **both** `configureAuthSession` AND `setAuthProvider` in the correct order.
@@ -376,9 +374,9 @@ export const test = base.extend<AuthFixtures>({
 
 ### Implement Custom Auth Provider
 
-Create a custom auth provider to handle token acquisition, validation, and management. Your auth provider can also provide custom baseURL resolution logic for multi-role testing scenarios.
+Create a custom auth provider to handle token acquisition, validation, and management. Your auth provider can also provide custom baseURL resolution logic for multi-user testing scenarios.
 
-The `AuthProvider` interface includes an optional `getBaseUrl` method that allows you to implement custom logic for resolving the baseURL when using multiple user roles. This is particularly useful for tests that require different baseURLs for different roles or environments.
+The `AuthProvider` interface includes an optional `getBaseUrl` method that allows you to implement custom logic for resolving the baseURL when using multiple user identifiers. This is particularly useful for tests that require different baseURLs for different users or environments.
 
 #### BaseURL Resolution
 
@@ -389,14 +387,14 @@ When creating a browser context, the baseURL is resolved in the following priori
 3. `browserContextOptions.baseURL` - From Playwright config
 4. `process.env.BASE_URL` - Environment variable
 
-By implementing the `getBaseUrl` method in your custom provider, you can insert project-specific logic for determining the baseURL based on the current environment and user role.
+By implementing the `getBaseUrl` method in your custom provider, you can insert project-specific logic for determining the baseURL based on the current environment and user identifier.
 
 ```typescript
 // Example implementation of getBaseUrl in a custom auth provider
 getBaseUrl() {
   const env = getEnvironment()
 
-  // Example: Different URLs for different environments or roles
+  // Example: Different URLs for different environments or users
   if (env === 'local') {
     return 'http://localhost:3000'
   }
@@ -431,7 +429,7 @@ import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
 import { extractToken, extractCookies } from './token/extract'
 import { getEnvironment } from './get-environment'
-import { getUserRole } from './get-user-role'
+import { getUserIdentifier } from './get-user-identifier'
 import { getBaseUrl } from './get-base-url'
 
 const myCustomProvider: AuthProvider = {
@@ -441,8 +439,8 @@ const myCustomProvider: AuthProvider = {
   // Get the current environment to use
   getEnvironment,
 
-  // Get the current user role to use
-  getUserRole,
+  // Get the current user identifier to use
+  getUserIdentifier,
 
   // Extract token from storage state
   extractToken,
@@ -456,13 +454,11 @@ const myCustomProvider: AuthProvider = {
   // Main token management method
   async manageAuthToken(request: APIRequestContext, options: AuthOptions = {}) {
     const environment = this.getEnvironment(options)
-    const userRole = this.getUserRole(options)
-    const userIdentifier = options.userIdentifier
+    const userIdentifier = this.getUserIdentifier(options)
 
     // Get the path for storing the token
     const tokenPath = getTokenFilePath({
       environment,
-      userRole,
       userIdentifier,
       tokenFileName: 'storage-state.json'
     })
@@ -474,11 +470,11 @@ const myCustomProvider: AuthProvider = {
     }
 
     // No valid token found, initialize storage and get a new one
-    authStorageInit({ environment, userRole, userIdentifier })
+    authStorageInit({ environment, userIdentifier })
     const storageState = await acquireToken(
       request,
       environment,
-      userRole,
+      userIdentifier,
       options
     )
 
@@ -490,8 +486,8 @@ const myCustomProvider: AuthProvider = {
   // Clear token when needed
   clearToken(options: AuthOptions = {}) {
     const environment = this.getEnvironment(options)
-    const userRole = this.getUserRole(options)
-    const storageDir = getStorageDir({ environment, userRole })
+    const userIdentifier = this.getUserIdentifier(options)
+    const storageDir = getStorageDir({ environment, userIdentifier })
     const authManager = AuthSessionManager.getInstance({ storageDir })
     authManager.clearToken()
     return true
@@ -542,7 +538,7 @@ const getAuthBaseUrl = (environment: string, customUrl?: string) => {
 export const acquireToken = async (
   _request: APIRequestContext, // We won't use the passed request, we'll create a fresh one
   environment: string,
-  userRole: string,
+  userIdentifier: string,
   options: Record<string, string | undefined> = {}
 ): Promise<Record<string, unknown>> => {
   // Use the application-specific URL construction logic
@@ -564,7 +560,7 @@ export const acquireToken = async (
       data: {
         username: process.env.USER_USERNAME || 'test-user',
         password: process.env.USER_PASSWORD || 'password123',
-        role: userRole,
+        userIdentifier,
         ...options.credentials // Allow overriding credentials via options
       },
       headers: {
@@ -586,7 +582,7 @@ export const acquireToken = async (
       ...storageState,
       metadata: {
         environment,
-        userRole,
+        userIdentifier,
         acquiredAt: new Date().toISOString()
       }
     }
@@ -597,7 +593,7 @@ export const acquireToken = async (
 }
 ```
 
-> **Note**: For more complex token acquisition with role-based auth, refresh tokens, or OAuth flows, see the [authentication recipes](https://github.com/seontechnologies/playwright-utils/tree/main/examples/auth-recipes) directory.
+> **Note**: For more complex token acquisition with user-based auth, refresh tokens, or OAuth flows, see the [authentication recipes](https://github.com/seontechnologies/playwright-utils/tree/main/examples/auth-recipes) directory.
 
 ### Update Your Playwright Config
 
@@ -641,7 +637,7 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
 // Default auth options with explicit baseUrl
 const defaultAuthOptions: AuthOptions = {
   environment: process.env.TEST_ENV || 'local',
-  userRole: 'default',
+  userIdentifier: 'default',
   baseUrl: BASE_URL // Explicitly pass baseUrl to the auth session
 }
 
@@ -709,11 +705,11 @@ const data = await response.json()
 async getToken(request, options = {}) {
 // Use our own methods to ensure consistency
 const environment = this.getEnvironment(options)
-const userRole = this.getUserRole(options)
+const userIdentifier = this.getUserIdentifier(options)
 // Use the utility functions to get standardized paths
 const tokenPath = getTokenFilePath({
 environment,
-userRole
+userIdentifier
 })
 // Check if we already have a valid token using the core utility
 // Add custom logging for this provider implementation
@@ -721,36 +717,74 @@ console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
 }
 ```
 
-### Using Multiple User Roles in Tests
+### Using Multiple User Identifiers in Tests
 
-#### Simple Role Override with authOptions
+#### Simple User Override with authOptions
 
-The simplest way to specify a user role for your tests is to override the `authOptions` fixture:
+The simplest way to specify a user identifier for your tests is to override the `authOptions` fixture:
 
 ```typescript
 // fraudAnalystFlow.spec.ts
 import { test } from '../support/auth/auth-fixture'
 import { expect } from '@playwright/test'
 
-test.describe('Fraud Analyst Features', () => {
-  // Override authOptions for all tests in this file
-  test.use({
-    authOptions: { userRole: 'fraudAnalyst' }
-  })
+// Override authOptions for all tests in this file
+test.use({
+  authOptions: { userIdentifier: 'fraudAnalyst' }
+})
 
-  test('can view fraud queue', async ({ page }) => {
-    // Page is already authenticated as fraud analyst
-    await page.goto('/fraud-queue')
-    await expect(page.getByText('Fraud Queue')).toBeVisible()
+test('can view fraud queue', async ({ page }) => {
+  // Page is already authenticated as fraud analyst
+  await page.goto('/fraud-queue')
+  await expect(page.getByText('Fraud Queue')).toBeVisible()
+})
+```
+
+> **Note about baseURL:** When overriding `authOptions` for different user identifiers, you don't need to explicitly include the `baseUrl` property. The system automatically uses the baseURL from your Playwright configuration, ensuring that relative URL navigation like `page.goto('/')` works correctly even with non-default user identifiers.
+
+#### Parallel Test Execution with Multiple User Identifiers
+
+**IMPORTANT:** When running parallel tests with multiple user identifiers, you **must** use a specific pattern to ensure proper test isolation. Failure to do so can cause token contamination between tests.
+
+For a single user identifier, this simple pattern works fine:
+
+```typescript
+// Simple single-user override works fine
+test.use({
+  authOptions: {
+    userIdentifier: 'freeUser'
+  }
+})
+
+test('should login with non-default user', async ({ page }) => {
+  // Test code here
+})
+```
+
+However, for multiple user identifiers in parallel tests, you **must** wrap each `test.use()` in its own `test.describe()` block:
+
+```typescript
+// REQUIRED PATTERN: Wrap each test.use() in a test.describe() block
+userIdentifiers.forEach((userIdentifier) => {
+  test.describe(`User: ${userIdentifier}`, () => {
+    test.use({
+      authOptions: {
+        userIdentifier
+      }
+    })
+
+    test(`should login with ${userIdentifier}`, async ({ page }) => {
+      // Test code here
+    })
   })
 })
 ```
 
-> **Note about baseURL:** When overriding `authOptions` for different user roles, you don't need to explicitly include the `baseUrl` property. The system automatically uses the baseURL from your Playwright configuration, ensuring that relative URL navigation like `page.goto('/')` works correctly even with non-default user roles.
+This pattern ensures proper isolation of auth tokens and browser contexts between parallel test runs. Without it, you may experience race conditions where user tokens get mixed up between tests.
 
-#### Role-Specific Test Fixtures
+#### User-Specific Test Fixtures
 
-For frequently used roles, create dedicated fixtures:
+For frequently used user identifiers, create dedicated fixtures:
 
 ```typescript
 // Role-specific test fixtures
@@ -759,12 +793,12 @@ import { createAuthFixtures } from '@seontechnologies/playwright-utils/auth-sess
 
 // Create user-specific fixtures
 export const userTest = baseTest.extend({
-  ...createAuthFixtures({ userRole: 'user' })
+  ...createAuthFixtures({ userIdentifier: 'user' })
 })
 
 // Create admin-specific fixtures
 export const adminTest = baseTest.extend({
-  ...createAuthFixtures({ userRole: 'admin' })
+  ...createAuthFixtures({ userIdentifier: 'admin' })
 })
 
 // Use in your tests
@@ -784,11 +818,11 @@ adminTest('Admins can access advanced features', async ({ page }) => {
 If you prefer to use Playwright's native storage state approach directly, our library supports this seamlessly:
 
 ```typescript
-// Get storage state path for a specific role
+// Get storage state path for a specific user
 import { getStorageStatePath } from '@seontechnologies/playwright-utils/auth-session'
 
 const fraudAnalystStorageState = getStorageStatePath({
-  userRole: 'fraudAnalyst',
+  userIdentifier: 'fraudAnalyst',
   environment: process.env.TEST_ENV || 'local'
 })
 
@@ -804,23 +838,23 @@ test.describe('Fraud Analyst Tests', () => {
 })
 ```
 
-#### 3. Testing Interactions Between Multiple Roles in a Single Test
+#### 3. Testing Interactions Between Multiple Users in a Single Test
 
-Sometimes you need to test how different user roles interact with each other. Our authentication library makes this easy by allowing you to explicitly request tokens for different roles within the same test:
+Sometimes you need to test how different user identifiers interact with each other. Our authentication library makes this easy by allowing you to explicitly request tokens for different user identifiers within the same test:
 
 ```typescript
-// example of testing multiple roles in a single test
+// example of testing multiple users in a single test
 import { test, expect } from '../support/fixtures'
 import { chromium } from '@playwright/test'
 
 test('admin and regular user interaction', async ({ page, request }) => {
-  // Get tokens for different roles
+  // Get tokens for different users
   const adminToken = await test.step('Get admin token', async () => {
-    return getAuthToken(request, { userRole: 'admin' })
+    return getAuthToken(request, { userIdentifier: 'admin' })
   })
 
   const userToken = await test.step('Get user token', async () => {
-    return getAuthToken(request, { userRole: 'user' })
+    return getAuthToken(request, { userIdentifier: 'user' })
   })
 
   // Use tokens for API requests
@@ -839,19 +873,19 @@ test('admin and regular user interaction', async ({ page, request }) => {
 
   // Admin browser context
   const adminContext = await browser.newContext()
-  await applyAuthToContext(adminContext, { userRole: 'admin' })
+  await applyAuthToContext(adminContext, { userIdentifier: 'admin' })
   const adminPage = await adminContext.newPage()
 
   // User browser context
   const userContext = await browser.newContext()
-  await applyAuthToContext(userContext, { userRole: 'user' })
+  await applyAuthToContext(userContext, { userIdentifier: 'user' })
   const userPage = await userContext.newPage()
 
   // Now you can interact with both contexts
   await adminPage.goto('/admin-dashboard')
   await userPage.goto('/user-profile')
 
-  // Test interactions between the two roles
+  // Test interactions between the two users
   // ...
 
   // Clean up
@@ -861,14 +895,14 @@ test('admin and regular user interaction', async ({ page, request }) => {
 })
 ```
 
-This approach is much simpler than Playwright's built-in solution because:
+This approach is much simpler than Playwright's approach because:
 
 1. **No manual storage state files** - Our library manages token storage automatically
 2. **Consistent API** - Same approach works for both API and UI testing
 3. **Type safety** - All functions have proper TypeScript types
-4. **Explicit role naming** - Uses semantic role names instead of file paths
+4. **Explicit user identifier naming** - Uses semantic user identifier names instead of file paths
 
-You can easily extend this pattern to create Page Object Models with role-specific authentication already applied.
+You can easily extend this pattern to create Page Object Models with user-specific authentication already applied.
 
 ### Ephemeral User Authentication
 
@@ -884,8 +918,8 @@ test.describe('ephemeral user tests', () => {
 
   test.beforeAll(async () => {
     // Create temporary test users
-    adminUser = await createTestUser({ role: 'admin' })
-    readUser = await createTestUser({ role: 'read' })
+    adminUser = await createTestUser({ userIdentifier: 'admin' })
+    readUser = await createTestUser({ userIdentifier: 'read' })
   })
 
   test.beforeEach(async ({ context }) => {
@@ -921,7 +955,7 @@ This approach is particularly useful for:
 
 - Testing with temporary users created just for tests
 - Parallel testing where each worker needs independent authentication
-- Tests that require switching between different user roles
+- Tests that require switching between different user identifiers
 
 ### UI Testing with Browser Context
 
@@ -939,11 +973,11 @@ test('authenticated UI test', async ({ page }) => {
 
 #### Custom Authentication Provider
 
-For specialized authentication needs, the custom provider becomes the source of truth for environment and role information.
+For specialized authentication needs, the custom provider becomes the source of truth for environment and user identifier information.
 
 #### Understanding the Options Flow for Auth Provider Methods
 
-The `AuthProvider` interface methods (like `getEnvironment` and `getUserRole`) accept options parameters that might seem confusing at first. Here's how these options are passed:
+The `AuthProvider` interface methods (like `getEnvironment` and `getUserIdentifier`) accept options parameters that might seem confusing at first. Here's how these options are passed:
 
 1. **In Test Files**: When you call methods on the auth fixture:
    ```typescript
@@ -951,18 +985,18 @@ The `AuthProvider` interface methods (like `getEnvironment` and `getUserRole`) a
      // This passes options to getEnvironment() internally
      await auth.useEnvironment('staging');
 
-     // This passes options to getUserRole() internally
-     await auth.useRole('admin');
+     // This passes options to getUserIdentifier() internally
+     await auth.useUserIdentifier('admin');
    });
 ````
 
 2. **Direct API Calls**: When directly calling API functions with options:
 
    ```typescript
-   // Passes options to both getEnvironment() and getUserRole()
+   // Passes options to both getEnvironment() and getUserIdentifier()
    const token = await getAuthToken(request, {
      environment: 'staging',
-     userRole: 'admin'
+     userIdentifier: 'admin'
    })
    ```
 
@@ -983,28 +1017,28 @@ Here's how to implement OAuth2 authentication in your custom auth provider:
 
 ```typescript
 // Inside your custom-auth-provider.ts
-import { getEnvironment, getUserRole } from './auth-helpers'
+import { getEnvironment, getUserIdentifier } from './auth-helpers'
 
 const myCustomProvider: AuthProvider = {
-  // Standard methods for environment and role
+  // Standard methods for environment and user identifier
   getEnvironment(options = {}) {
     return getEnvironment(options)
   },
-  getUserRole(options = {}) {
-    return getUserRole(options)
+  getUserIdentifier(options = {}) {
+    return getUserIdentifier(options)
   },
 	getEnvironment(options = {}) { ... },
-	getUserRole(options = {}) { ... },
+	getUserIdentifier(options = {}) { ... },
 
 	// OAuth2-specific token retrieval
 	async getToken(request, options = {}) {
 		const environment = this.getEnvironment(options)
-		const userRole = this.getUserRole(options)
+		const userIdentifier = this.getUserIdentifier(options)
 
 		// Get token path using utility function
 		const tokenPath = getTokenFilePath({
 			environment,
-			userRole,
+			userIdentifier,
 			tokenFileName: 'oauth-token.json'
 		})
 
@@ -1015,7 +1049,7 @@ const myCustomProvider: AuthProvider = {
 		}
 
 		// Initialize storage if needed
-		authStorageInit({ environment, userRole })
+		authStorageInit({ environment, userIdentifier })
 
 		// Get OAuth config from environment or defaults
 		const oauthConfig = {
@@ -1045,7 +1079,7 @@ const myCustomProvider: AuthProvider = {
 			token,
 			{
 				environment,
-				userRole,
+				userIdentifier,
 				expiresAt: Date.now() + (data.expires_in * 1000 || 3600000),
 				scope: data.scope
 			},
@@ -1080,14 +1114,14 @@ async function globalSetup() {
   // Configure basic settings
   configureAuthSession({
     environment: process.env.TEST_ENV || 'local',
-    userRole: 'default',
+    userIdentifier: 'default',
     debug: true
   })
 
   // Set the auth provider
   setAuthProvider(myCustomProvider)
 
-  // Pre-fetch tokens for all configured environments and roles
+  // Pre-fetch tokens for all configured environments and users
   // This happens once before all tests run
   await authGlobalInit()
 }
@@ -1097,18 +1131,18 @@ export default globalSetup
 
 ### Parallel Testing with Worker-Specific Accounts
 
-Playwright recommends using one account per parallel worker for tests that modify server-side state. Our authentication system naturally supports this pattern through its environment and role isolation:
+Playwright recommends using one account per parallel worker for tests that modify server-side state. Our authentication system naturally supports this pattern through its environment and user identifier isolation:
 
 ```typescript
 // pw/support/custom-auth-provider.ts with worker-specific accounts
 import { test } from '@playwright/test'
 
 const myCustomProvider = {
-  // Use parallelIndex to determine the user role
-  getUserRole(options = {}) {
-    // If a specific role is requested, use it; otherwise, use the worker index
-    if (options.userRole) {
-      return options.userRole
+  // Use parallelIndex to determine the user identifier
+  getUserIdentifier(options = {}) {
+    // If a specific user identifier is requested, use it; otherwise, use the worker index
+    if (options.userIdentifier) {
+      return options.userIdentifier
     }
 
     // Get the worker's parallel index (or default to 0 if not available)
@@ -1116,9 +1150,9 @@ const myCustomProvider = {
     return `worker-${workerIndex}`
   },
 
-  // Get token based on the worker-specific role
+  // Get token based on the worker-specific user
   async getToken(request, options = {}) {
-    const userRole = this.getUserRole(options)
+    const userIdentifier = this.getUserIdentifier(options)
 
     // This will automatically use a separate token file for each worker
     // The rest of the implementation remains the same
@@ -1130,8 +1164,8 @@ const myCustomProvider = {
       // Add more accounts as needed for your parallel workers
     ]
 
-    // Extract the worker number from the role
-    const workerNumber = parseInt(userRole.replace('worker-', '')) || 0
+    // Extract the worker number from the user identifier
+    const workerNumber = parseInt(userIdentifier.replace('worker-', '')) || 0
     const account = accounts[workerNumber % accounts.length]
 
     // Use the worker-specific account for authentication
@@ -1198,11 +1232,11 @@ Our library offers more flexibility and control over authentication states:
 ```typescript
 // Our approach - Option 1: Clear specific token
 test('test with cleared token', async ({ request }) => {
-  // Clear just the token for the current environment/role
+  // Clear just the token for the current environment/user
   clearAuthToken()
 
-  // OR clear for specific environment/role
-  clearAuthToken({ environment: 'staging', userRole: 'admin' })
+  // OR clear for specific environment/user
+  clearAuthToken({ environment: 'staging', userIdentifier: 'admin' })
 
   // Now make unauthenticated requests
   const response = await request.get('/api/public-resource')
@@ -1222,7 +1256,7 @@ test.describe('unauthenticated browser tests', () => {
 **Advantages over Playwright's approach**
 
 1. **Granular control** - Clear specific tokens instead of all storage state
-2. **Environment/role awareness** - Target specific test configurations
+2. **Environment/user awareness** - Target specific test configurations
 3. **API + UI flexibility** - Works for both API and browser tests
 4. **Runtime control** - Clear tokens during test execution, not just at setup
 5. **Multiple modes** - Test both authenticated and unauthenticated states in the same file
@@ -1234,7 +1268,7 @@ This makes it much easier to test complex authentication scenarios like authenti
 export type AuthSessionOptions = AuthIdentifiers & {
 /\*\* Root directory for auth session storage (default: process.cwd()/.auth)
 
-- Note: The environment and user role will be appended to this path by the provider _/
+- Note: The environment and user identifier will be appended to this path by the provider _/
   storageDir?: string
   /\*\* Token filename (default: storage-state.json) _/
   tokenFileName?: string
@@ -1274,7 +1308,7 @@ export type AuthSessionOptions = AuthIdentifiers & {
 
 All tokens are stored in the Playwright-compatible `storage-state.json` format, which can contain cookies and/or localStorage items. This consistent format works seamlessly with both API and UI testing.
 
-When using `userIdentifier` in your authentication options, the library creates a subdirectory with that identifier inside the role directory. This allows for multiple distinct users with the same role type to have their tokens stored and managed independently.
+When using `userIdentifier` in your authentication options, the library creates a subdirectory with that identifier inside the user identifier directory. This allows for multiple distinct users with the same user identifier type to have their tokens stored and managed independently.
 
 ### Session Storage Support (Extension Recipe)
 
@@ -1291,7 +1325,7 @@ You can extend our authentication library to handle session storage by adding th
 // This assumes you're using a page to authenticate rather than an API request
 async captureSessionStorage(page, options = {}) {
 	const environment = this.getEnvironment(options);
-	const userRole = this.getUserRole(options);
+	const userIdentifier = this.getUserIdentifier(options);
 
 	// Extract session storage data
 	const sessionStorage = await page.evaluate(() => {
@@ -1306,7 +1340,7 @@ async captureSessionStorage(page, options = {}) {
 	// Save it alongside the token
 	const sessionStoragePath = getTokenFilePath({
 		environment,
-		userRole,
+		userIdentifier,
 		tokenFileName: 'session-storage.json'
 	});
 

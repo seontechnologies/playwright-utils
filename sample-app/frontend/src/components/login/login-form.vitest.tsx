@@ -26,7 +26,7 @@ describe('LoginForm', () => {
     wrappedRender(<LoginForm />)
     expect(screen.getByPlaceholderText('Username')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument()
-    expect(screen.getByTestId('role-select')).toBeInTheDocument()
+    expect(screen.getByTestId('user-identity-select')).toBeInTheDocument()
     expect(screen.getByText('Log In')).toBeInTheDocument()
 
     // Test 1: Submit with empty fields

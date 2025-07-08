@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { Router } from 'express'
 import { authMiddleware } from './middleware/auth-middleware'
 import { validateId } from './middleware/validate-movie-id'
-import { requireRole } from './middleware/role-middleware'
+import { requireUserIdentifier } from './middleware/user-identifier-middleware'
 import { MovieAdapter } from './movie-adapter'
 import { MovieService } from './movie-service'
 import { formatResponse } from './utils/format-response'
@@ -38,7 +38,7 @@ moviesRoute.get('/', async (req, res) => {
 })
 
 // POST /movies - Create a new movie (admin only)
-moviesRoute.post('/', requireRole('admin'), async (req, res) => {
+moviesRoute.post('/', requireUserIdentifier('admin'), async (req, res) => {
   const result = await movieService.addMovie(req.body)
 
   if ('data' in result) {
@@ -55,22 +55,30 @@ moviesRoute.get('/:id', validateId, async (req, res) => {
 })
 
 // PUT /movies/:id - Update a movie (admin only)
-moviesRoute.put('/:id', validateId, requireRole('admin'), async (req, res) => {
-  const result = await movieService.updateMovie(req.body, Number(req.params.id))
+moviesRoute.put(
+  '/:id',
+  validateId,
+  requireUserIdentifier('admin'),
+  async (req, res) => {
+    const result = await movieService.updateMovie(
+      req.body,
+      Number(req.params.id)
+    )
 
-  if ('data' in result) {
-    const movie = result.data
-    await produceMovieEvent(movie, 'updated')
+    if ('data' in result) {
+      const movie = result.data
+      await produceMovieEvent(movie, 'updated')
+    }
+
+    return formatResponse(res, result)
   }
-
-  return formatResponse(res, result)
-})
+)
 
 // DELETE /movies/:id - Delete a movie (admin only)
 moviesRoute.delete(
   '/:id',
   validateId,
-  requireRole('admin'),
+  requireUserIdentifier('admin'),
   async (req, res) => {
     const movieId = Number(req.params.id)
     // check if the movie exists before attempting to delete it

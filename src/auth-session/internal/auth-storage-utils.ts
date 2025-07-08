@@ -23,8 +23,8 @@ import { log } from '../../log'
 /**  Default environment when none is specified */
 const DEFAULT_ENVIRONMENT = 'local'
 
-/** Default user role when none is specified */
-const DEFAULT_USER_ROLE = 'default'
+/** Default user identifier when none is specified */
+const DEFAULT_USER_IDENTIFIER = 'default'
 
 /**
  * Get environment from the auth provider or fallback to environment variables
@@ -43,27 +43,28 @@ const getCurrentEnvironment = (options?: { environment?: string }): string => {
 }
 
 /**
- * Get current user role from the auth provider or fallback to default
+ * Get current user identifier from the auth provider or fallback to default
  * @param options Optional overrides
  */
-const getCurrentUserRole = (options?: { userRole?: string }): string => {
+const getCurrentUserIdentifier = (options?: {
+  userIdentifier?: string
+}): string => {
   try {
     // try to get from provider first
     const { getAuthProvider } = require('./auth-provider')
     const provider = getAuthProvider()
-    return provider.getUserRole(options)
+    return provider.getUserIdentifier(options)
   } catch (error) {
     // Fallback to default or provided value
-    return options?.userRole || DEFAULT_USER_ROLE
+    return options?.userIdentifier || DEFAULT_USER_IDENTIFIER
   }
 }
 
 /**
- * Get the storage directory path based on environment, role, and optional user identifier
+ * Get the storage directory path based on environment and user identifier
  * @param options Configuration options
  * @param options.environment Test environment (e.g., 'local', 'dev', 'staging')
- * @param options.userRole User role for storage separation
- * @param options.userIdentifier Optional unique identifier for multiple users with same role
+ * @param options.userIdentifier User identifier for storage separation
  * @param options.basePath Base path for storage (defaults to current working directory)
  * @returns Path to the auth storage directory
  */
@@ -71,22 +72,16 @@ export const getStorageDir = (
   options?: AuthIdentifiers & AuthStorageConfig
 ): string => {
   const environment = getCurrentEnvironment(options)
-  const userRole = getCurrentUserRole(options)
+  const userIdentifier = getCurrentUserIdentifier(options)
 
-  // Create a unique directory path when userIdentifier is provided
-  // This allows multiple users with the same role to have separate token storage
-  const rolePath = options?.userIdentifier
-    ? `${userRole}_${options.userIdentifier}`
-    : userRole
-
-  return path.join(process.cwd(), '.auth', environment, rolePath)
+  return path.join(process.cwd(), '.auth', environment, userIdentifier)
 }
 
 /**
- * Get the storage state path for a specific environment and user role
+ * Get the storage state path for a specific environment and user identifier
  * @param options Configuration options
  * @param options.environment Test environment (e.g., 'local', 'dev', 'staging')
- * @param options.userRole User role for storage separation
+ * @param options.userIdentifier User identifier for storage separation
  * @param options.authStoragePath Custom storage path (defaults to process.cwd())
  * @returns Path to the storage state file
  */
@@ -97,8 +92,7 @@ export const getStorageStatePath = (
 /**
  * Get the file path for token storage
  * @param options.environment Environment for storage separation
- * @param options.userRole User role for storage separation
- * @param options.userIdentifier Optional unique identifier for multiple users with same role
+ * @param options.userIdentifier User identifier for storage separation
  * @param options.tokenFileName Custom token filename (ignored - always uses storage-state.json)
  * @param options.authStoragePath Custom storage path (defaults to process.cwd())
  * @param options.useDirectStoragePath Use direct storage path
@@ -233,13 +227,11 @@ export async function safeWriteJsonFile<T>(
  *
  * @param filePath Path to the JSON file
  * @param defaultValue Default value to return if file doesn't exist or is corrupted
- * @param maxRetries Maximum number of retries
  * @returns Parsed JSON data or default value
  */
 export async function safeReadJsonFile<T>(
   filePath: string,
-  defaultValue: T,
-  maxRetries = 3
+  defaultValue: T
 ): Promise<T> {
   if (!fs.existsSync(filePath)) {
     return defaultValue

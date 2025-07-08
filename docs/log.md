@@ -21,6 +21,7 @@ A functional logging utility for Playwright tests with enhanced features for tes
     - [Global Log Toggling](#global-log-toggling)
       - [Environment Variable Control](#environment-variable-control)
     - [Log Levels](#log-levels)
+    - [Log Level Filtering](#log-level-filtering)
     - [Configuration Options](#configuration-options)
     - [Logging examples](#logging-examples)
   - [Worker ID Logging](#worker-id-logging)
@@ -61,7 +62,11 @@ npm install @seontechnologies/playwright-utils
 // todo-with-logs.spec.ts
 import type { Page } from '@playwright/test'
 import { test, expect } from '../support/fixtures'
-import { log, methodTestStep, functionTestStep } from '@seontechnologies/playwright-utils'
+import {
+  log,
+  methodTestStep,
+  functionTestStep
+} from '@seontechnologies/playwright-utils'
 
 // Simple logging with different levels in a test
 test('should allow me to add todo items', async ({ page }) => {
@@ -103,7 +108,7 @@ await log.success('Operation completed', {
 
 // Log a string message with an object (useful for debugging)
 await log.debug('User data:', {
-  user: { id: 123, name: 'John Doe', role: 'admin' }
+  user: { id: 123, name: 'John Doe', userIdentifier: 'admin' }
 })
 
 // Log an object with a configuration object

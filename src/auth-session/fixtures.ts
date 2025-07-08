@@ -17,14 +17,14 @@ import { log } from '../log'
 export function createAuthFixtures() {
   const defaultAuthOptions: AuthIdentifiers = {
     environment: process.env.TEST_ENV || 'local',
-    userRole: 'default'
+    userIdentifier: 'default'
   }
 
   const authProvider = getAuthProvider()
 
   return {
-    /** Auth options to configure environment and user role
-     * @default { environment: process.env.TEST_ENV || 'local', userRole: 'default' }     */
+    /** Auth options to configure environment and user identifier
+     * @default { environment: process.env.TEST_ENV || 'local', userIdentifier: 'default' }     */
     authOptions: [defaultAuthOptions, { option: true }],
 
     /** Toggle to enable/disable authentication session
@@ -128,13 +128,19 @@ export function createAuthFixtures() {
         )
       }
 
+      // Ensure token is acquired and storage state is ready BEFORE creating context
+      if (authSessionEnabled) {
+        // Get token using the auth provider - this saves token to storage
+        await authProvider.manageAuthToken(request, authOptions)
+      }
+
       // Create context with preserved baseURL and other settings from Playwright config
       const context = await browser.newContext({
         // Preserve all browser context options from Playwright config
         ...browserContextOptions,
         // Use the effective baseURL
         baseURL: effectiveBaseURL,
-        // Only use storage state if auth session is enabled
+        // Only use storage state if auth session is enabled and token is ready
         ...(authSessionEnabled
           ? {
               storageState: getStorageStatePath(authOptions)
@@ -142,15 +148,7 @@ export function createAuthFixtures() {
           : {})
       })
 
-      // Only apply auth if session is enabled
-      if (authSessionEnabled) {
-        // Get token using the auth provider - this saves token to storage
-        await authProvider.manageAuthToken(request, authOptions)
-
-        // No need to explicitly apply token to browser context
-        // Playwright's native storage state functionality handles this automatically
-        // through the storageState option when creating the context
-      } else {
+      if (!authSessionEnabled) {
         log.infoSync(
           'Auth session disabled - skipping token application to browser context'
         )
@@ -192,12 +190,17 @@ export function createAuthFixtures() {
 }
 
 /**
- * Creates role-specific test fixtures
+ * Creates user-specific test fixtures
  * @param testBase The base test object to extend
- * @param role The user role to authenticate as
- * @returns A test object configured for the specified role
+ * @param userIdentifier The user identifier to authenticate as
+ * @returns A test object configured for the specified user
  */
-export const createRoleSpecificTest = (testBase: any, role: string) =>
+export const createUserSpecificTest = (testBase: any, userIdentifier: string) =>
   testBase.extend({
-    authOptions: { userRole: role }
+    authOptions: { userIdentifier }
   })
+
+/**
+ * @deprecated Use createUserSpecificTest instead
+ */
+export const createRoleSpecificTest = createUserSpecificTest

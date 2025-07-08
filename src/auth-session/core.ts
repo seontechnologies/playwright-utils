@@ -197,7 +197,7 @@ export const configureAuthSession = (options: AuthSessionOptions) =>
 /**
  * Get an authentication token, fetching a new one if needed
  * @param request The Playwright APIRequestContext
- * @param options Optional environment and user role overrides
+ * @param options Optional environment and user identifier overrides
  * @returns A promise that resolves to a storage state object compatible with Playwright context
  */
 export async function getAuthToken(
@@ -206,7 +206,7 @@ export async function getAuthToken(
 ): Promise<Record<string, unknown>> {
   const provider = getAuthProvider()
   const environment = provider.getEnvironment(options)
-  const userRole = provider.getUserRole(options)
+  const userIdentifier = provider.getUserIdentifier(options)
 
   // Initialize the AuthSessionManager for centralized token management
   // Convert AuthIdentifiers to AuthSessionOptions
@@ -215,10 +215,10 @@ export async function getAuthToken(
   }
   const sessionManager = AuthSessionManager.getInstance(sessionOptions)
 
-  // Get the token file path based on environment and role
+  // Get the token file path based on environment and user
   const tokenPath = getTokenFilePath({
     environment,
-    userRole
+    userIdentifier
   })
 
   // Try to load an existing storage state with all parsing handled for us
@@ -230,7 +230,7 @@ export async function getAuthToken(
   // If no valid token exists, request a new one from the provider
   const storageState = await provider.manageAuthToken(request, {
     environment,
-    userRole,
+    userIdentifier,
     ...options
   })
 
@@ -247,7 +247,7 @@ export async function getAuthToken(
 
 /**
  * Clear the authentication token from storage
- * @param options Optional environment and user role overrides
+ * @param options Optional environment and user identifier overrides
  * @returns Boolean indicating whether a token was successfully cleared
  */
 export function clearAuthToken(options?: AuthIdentifiers): boolean {

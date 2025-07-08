@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/support/merged-fixtures'
 
-const role = 'freeUser'
+const userIdentifier = 'freeUser'
 
 test.use({
   authOptions: {
-    userRole: role
+    userIdentifier: userIdentifier
   }
 })
 
-test(`should login with a different role; ${role}`, async ({
+test(`should login with a different user; ${userIdentifier}`, async ({
   page,
   authToken
 }) => {
@@ -18,5 +18,5 @@ test(`should login with a different role; ${role}`, async ({
 
   await expect(page).toHaveURL('/movies')
 
-  await expect(page.getByText(role)).toBeVisible()
+  await expect(page.getByText(userIdentifier)).toBeVisible()
 })

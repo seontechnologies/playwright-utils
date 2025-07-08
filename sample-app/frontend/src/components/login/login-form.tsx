@@ -7,14 +7,14 @@ import { useAuth } from '@hooks/use-auth'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 /**
- * Login form component that allows users to authenticate with username, password and role.
+ * Login form component that allows users to authenticate with username, password and user identifier.
  *
  * @returns {JSX.Element} The rendered login form
  */
 export default function LoginForm() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('admin')
+  const [userIdentifier, setUserIdentifier] = useState('')
   const [validationError, setValidationError] = useState<z.ZodError | null>(
     null
   )
@@ -39,18 +39,18 @@ export default function LoginForm() {
     const loginSchema = z.object({
       username: z.string().min(1, { message: 'Username is required' }),
       password: z.string().min(1, { message: 'Password is required' }),
-      role: z.string()
+      userIdentifier: z.string()
     })
 
     // Validate the form data
-    const result = loginSchema.safeParse({ username, password, role })
+    const result = loginSchema.safeParse({ username, password, userIdentifier })
     if (!result.success) {
       setValidationError(result.error)
       return
     }
 
     // Use the auth hook to handle login
-    const { success } = await authLogin({ username, password, role })
+    const { success } = await authLogin({ username, password, userIdentifier })
 
     // If login is successful, redirect to the intended destination
     if (success) {
@@ -89,10 +89,10 @@ export default function LoginForm() {
         />
 
         <SSelect
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
+          value={userIdentifier}
+          onChange={(e) => setUserIdentifier(e.target.value)}
           disabled={isLoading}
-          data-testid="role-select"
+          data-testid="user-identity-select"
         >
           <option value="admin">Admin</option>
           <option value="user">User</option>

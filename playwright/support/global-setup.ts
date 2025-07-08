@@ -49,13 +49,13 @@ async function globalSetup() {
   // ========================================================================
   // Ensure storage directories exist (required for both auth approaches)
 
-  // if single role
+  // if single user
   // authStorageInit()
 
-  // if multiple roles
-  for (const role of Object.values(VALID_TEST_USERS)) {
+  // if multiple users
+  for (const user of Object.values(VALID_TEST_USERS)) {
     authStorageInit({
-      userRole: role
+      userIdentifier: user
     })
   }
   // This just sets up where tokens will be stored and debug options

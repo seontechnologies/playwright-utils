@@ -78,7 +78,7 @@ test.describe('token acquisition', () => {
     const userData = {
       username: 'test-admin',
       password: 'password123',
-      role: 'admin'
+      userIdentifier: 'admin'
     }
 
     const {
@@ -96,7 +96,7 @@ test.describe('token acquisition', () => {
     expect(identity).toEqual({
       userId: `user_${userData.username}`,
       username: userData.username,
-      role: userData.role
+      userIdentifier: userData.userIdentifier
     })
 
     // After getting the token but before refreshing
@@ -120,7 +120,7 @@ test.describe('token acquisition', () => {
     expect(user).toEqual({
       userId: `user_${userData.username}`,
       username: userData.username,
-      role: userData.role
+      userIdentifier: userData.userIdentifier
     })
 
     // Then proceed with your refresh test

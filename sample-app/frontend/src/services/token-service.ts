@@ -44,7 +44,7 @@ type LocalStorageItem = {
 export interface UserIdentity {
   userId: string
   username: string
-  role: string
+  userIdentifier: string
 }
 
 export interface TokenService {
@@ -457,7 +457,7 @@ export class StorageStateTokenService implements TokenService {
       // Get the user identity or create a default one
       const userIdentity = this.getCurrentUser() || {
         id: 'user123',
-        role: 'user'
+        userIdentifier: 'user'
       }
 
       // Convert identity to JSON string and append to timestamp
@@ -584,7 +584,7 @@ export class StorageStateTokenService implements TokenService {
           this.setCurrentUser({
             userId: response.data.user.id || response.data.user.userId,
             username: response.data.user.username,
-            role: response.data.user.role
+            userIdentifier: response.data.user.userIdentifier
           })
         }
 
@@ -684,7 +684,7 @@ export class StorageStateTokenService implements TokenService {
           // Get the user identity or create a default one
           const userIdentity = this.getCurrentUser() || {
             id: 'user123',
-            role: 'user'
+            userIdentifier: 'user'
           }
 
           // Convert identity to JSON string and append to timestamp
