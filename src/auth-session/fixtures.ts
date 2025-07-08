@@ -128,13 +128,19 @@ export function createAuthFixtures() {
         )
       }
 
+      // Ensure token is acquired and storage state is ready BEFORE creating context
+      if (authSessionEnabled) {
+        // Get token using the auth provider - this saves token to storage
+        await authProvider.manageAuthToken(request, authOptions)
+      }
+
       // Create context with preserved baseURL and other settings from Playwright config
       const context = await browser.newContext({
         // Preserve all browser context options from Playwright config
         ...browserContextOptions,
         // Use the effective baseURL
         baseURL: effectiveBaseURL,
-        // Only use storage state if auth session is enabled
+        // Only use storage state if auth session is enabled and token is ready
         ...(authSessionEnabled
           ? {
               storageState: getStorageStatePath(authOptions)
@@ -142,15 +148,7 @@ export function createAuthFixtures() {
           : {})
       })
 
-      // Only apply auth if session is enabled
-      if (authSessionEnabled) {
-        // Get token using the auth provider - this saves token to storage
-        await authProvider.manageAuthToken(request, authOptions)
-
-        // No need to explicitly apply token to browser context
-        // Playwright's native storage state functionality handles this automatically
-        // through the storageState option when creating the context
-      } else {
+      if (!authSessionEnabled) {
         log.infoSync(
           'Auth session disabled - skipping token application to browser context'
         )
