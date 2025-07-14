@@ -96,20 +96,18 @@ const handleDownload = async (
     React.SetStateAction<Record<number, string>>
   >
 ) => {
-  // Set status to "processing" for this file
   setDownloadStatus((prev) => ({ ...prev, [fileId]: 'processing' }))
 
-  // time between 1.5s and 4.5s
   const getRandomTime = () => Math.floor(Math.random() * 3000) + 1500
 
   try {
-    // Create a delay to simulate processing time
+    // delay to simulate processing time
     await new Promise((resolve) => setTimeout(resolve, getRandomTime()))
 
-    // This works if the files folder is deployed alongside the component
+    // works if the files folder is deployed alongside the component
     const fileUrl = `./files/${file.filename}`
 
-    // Create an anchor element and trigger the download
+    // create an anchor element and trigger the download
     const link = document.createElement('a')
     link.href = fileUrl
     link.download = file.filename
@@ -118,10 +116,9 @@ const handleDownload = async (
     link.click()
     document.body.removeChild(link)
 
-    // Set status to success
     setDownloadStatus((prev) => ({ ...prev, [fileId]: 'success' }))
 
-    // Reset status after n seconds
+    // reset status
     setTimeout(() => {
       setDownloadStatus((prev) => {
         const newStatus = { ...prev }
@@ -135,10 +132,6 @@ const handleDownload = async (
   }
 }
 
-/**
- * Get status indicator text and class based on current download status
- * @param status - Current download status
- */
 const getStatusIndicator = (status: string | undefined) => {
   if (!status) return null
 
