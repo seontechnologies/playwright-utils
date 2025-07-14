@@ -44,7 +44,6 @@ type FileItem = {
   filename: string
   type: string
   size: string
-  path: string
 }
 
 // List of available files to download
@@ -54,32 +53,28 @@ const availableFiles: FileItem[] = [
     name: 'PDF Document',
     filename: '2024636.pdf',
     type: 'application/pdf',
-    size: '234 KB',
-    path: '/components/file-download/files/2024636.pdf'
+    size: '234 KB'
   },
   {
     id: 2,
     name: 'ZIP Archive',
     filename: 'cases_export.zip',
     type: 'application/zip',
-    size: '598 KB',
-    path: '/components/file-download/files/cases_export.zip'
+    size: '598 KB'
   },
   {
     id: 3,
     name: 'CSV Export',
     filename: 'export_alerts.csv',
     type: 'text/csv',
-    size: '25 KB',
-    path: '/components/file-download/files/export_alerts.csv'
+    size: '25 KB'
   },
   {
     id: 4,
     name: 'Excel Spreadsheet',
     filename: 'seon_transactions_export_1750243320497.xlsx',
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    size: '1.4 MB',
-    path: '/components/file-download/files/seon_transactions_export_1750243320497.xlsx'
+    size: '1.4 MB'
   }
 ]
 
@@ -144,11 +139,6 @@ const getStatusIndicator = (status: string | undefined) => {
   }
 }
 
-/**
- * FileDownload component that lists files available for download
- * and provides functionality to download them with a simulated delay
- */
-// Styled components specific to this file
 const Container = styled.div`
   max-width: 800px;
   margin: 0 auto;
