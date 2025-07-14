@@ -2,6 +2,7 @@ import MovieForm from '@components/movie-form'
 import MovieDetails from '@components/movie-details'
 import MovieList from '@components/movie-list'
 import LoginForm from '@components/login/login-form'
+import FileDownload from '@components/file-download/file-download'
 import {
   BrowserRouter,
   Navigate,
@@ -131,6 +132,16 @@ export default function AppRoutes({ movies, onDelete }: AppRoutesProps) {
           element={
             <ProtectedRoute>
               <MovieDetails />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* File Download route */}
+        <Route
+          path="/downloads"
+          element={
+            <ProtectedRoute>
+              <FileDownload />
             </ProtectedRoute>
           }
         />

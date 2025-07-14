@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { SButton } from '../../styles/styled-components'
 import { useAuth } from '../../hooks/use-auth'
@@ -36,9 +36,17 @@ export const UserHeader = ({ className = '' }: UserHeaderProps) => {
           {currentUser.userIdentifier || 'Unknown User Identifier'}
         </SUserIdentifier>
       </SUserInfo>
-      <SLogoutButton onClick={handleLogout} aria-label="Logout">
-        Logout
-      </SLogoutButton>
+      <SNavigation>
+        <SNavLink to="/movies" data-testid="nav-movies">
+          Movies
+        </SNavLink>
+        <SNavLink to="/downloads" data-testid="nav-downloads">
+          Downloads
+        </SNavLink>
+        <SLogoutButton onClick={handleLogout} aria-label="Logout">
+          Logout
+        </SLogoutButton>
+      </SNavigation>
     </SHeader>
   )
 }
@@ -54,6 +62,26 @@ const SHeader = styled.header`
   background-color: #283747; /* Adjusted to match the screenshot */
   color: #fff;
   font-family: Times, serif;
+`
+
+const SNavigation = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+`
+
+const SNavLink = styled(Link)`
+  color: #fff;
+  text-decoration: none;
+  font-family: Times, serif;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.2s ease;
+
+  &:hover {
+    border-bottom-color: #fff;
+  }
 `
 
 const SUserInfo = styled.div`
