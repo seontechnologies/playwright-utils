@@ -183,16 +183,39 @@ export async function extractZIP(options: {
   extractToDir: string
 }): Promise<string[]> {
   const { filePath, extractToDir } = options
+  const absoluteExtractDir = path.resolve(extractToDir)
 
   try {
-    await fs.mkdir(extractToDir, { recursive: true })
+    await fs.mkdir(absoluteExtractDir, { recursive: true })
 
     const zip = new AdmZip(filePath)
-    zip.extractAllTo(extractToDir, true)
-
     const entries = zip.getEntries()
-    return entries.map((entry) => path.join(extractToDir, entry.entryName))
+    const extractedFilePaths: string[] = []
+
+    for (const entry of entries) {
+      const destinationPath = path.join(absoluteExtractDir, entry.entryName)
+      const resolvedPath = path.resolve(destinationPath)
+
+      if (!resolvedPath.startsWith(absoluteExtractDir + path.sep)) {
+        throw new ZipError(
+          `Directory traversal attempt detected for entry: ${entry.entryName}`
+        )
+      }
+
+      if (entry.isDirectory) {
+        await fs.mkdir(resolvedPath, { recursive: true })
+      } else {
+        await fs.mkdir(path.dirname(resolvedPath), { recursive: true })
+        await fs.writeFile(resolvedPath, entry.getData())
+      }
+      extractedFilePaths.push(resolvedPath)
+    }
+
+    return extractedFilePaths
   } catch (error) {
+    if (error instanceof ZipError) {
+      throw error
+    }
     if (error instanceof Error) {
       throw new ZipError(`Error extracting ZIP: ${error.message}`)
     }
