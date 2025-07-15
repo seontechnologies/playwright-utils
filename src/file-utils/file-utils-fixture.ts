@@ -5,31 +5,41 @@ import * as xlsxReader from './core/xlsx-reader'
 import * as pdfReader from './core/pdf-reader'
 import * as zipReader from './core/zip-reader'
 
-// Combine all file utility functions into a single type for the fixture
-type FileUtils = typeof csvReader &
-  typeof xlsxReader &
-  typeof pdfReader &
-  typeof zipReader & {
-    handleDownload: typeof handleDownload
-  }
+type AutoHandleDownload = (
+  options: Omit<Parameters<typeof handleDownload>[0], 'page'>
+) => ReturnType<typeof handleDownload>
 
-// Define the fixture type that will be added to Playwright's test object
 type FileUtilsFixtures = {
-  fileUtils: FileUtils
+  handleDownload: AutoHandleDownload
+  readCSV: typeof csvReader.readCSV
+  readXLSX: typeof xlsxReader.readXLSX
+  readPDF: typeof pdfReader.readPDF
+  readZIP: typeof zipReader.readZIP
 }
 
 export const test = base.extend<FileUtilsFixtures>({
-  fileUtils: async ({}, use) => {
-    // Assemble the complete fileUtils object
-    const fileUtils: FileUtils = {
-      ...csvReader,
-      ...xlsxReader,
-      ...pdfReader,
-      ...zipReader,
-      handleDownload
+  // File Downloader (with automatic page injection)
+  handleDownload: async ({ page }, use) => {
+    // Create a wrapped version that auto-injects the page parameter
+    const wrappedHandleDownload: AutoHandleDownload = (options) => {
+      return handleDownload({ ...options, page })
     }
+    await use(wrappedHandleDownload)
+  },
 
-    // Provide the assembled object to the test
-    await use(fileUtils)
+  readCSV: async ({}, use) => {
+    await use(csvReader.readCSV)
+  },
+
+  readXLSX: async ({}, use) => {
+    await use(xlsxReader.readXLSX)
+  },
+
+  readPDF: async ({}, use) => {
+    await use(pdfReader.readPDF)
+  },
+
+  readZIP: async ({}, use) => {
+    await use(zipReader.readZIP)
   }
 })
