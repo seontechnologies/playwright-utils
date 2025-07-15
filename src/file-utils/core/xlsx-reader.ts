@@ -32,18 +32,22 @@ const DEFAULT_OPTIONS: XLSXReadOptions = {
  * const result = await readXLSX({ filePath: '/path/to/file.xlsx' });
  * console.log(result.content.activeSheet); // Data from active sheet
  *
- * // Read Excel with custom sheet name
- * const result = await readXLSX({
+ * // Read Excel with custom sheet name and strong types
+ * interface User {
+ *   ID: number;
+ *   Name: string;
+ * }
+ * const result = await readXLSX<User>({
  *   filePath: '/path/to/file.xlsx',
- *   sheetName: 'Data'
+ *   sheetName: 'Users'
  * });
  * ```
  */
-export async function readXLSX(
+export async function readXLSX<T = Record<string, unknown>>(
   options: { filePath: string } & Partial<XLSXReadOptions>
-): Promise<XLSXReadResult> {
-  const opts = { ...DEFAULT_OPTIONS, ...options }
-  const { filePath } = options
+): Promise<XLSXReadResult<T>> {
+  const { filePath, ...userOptions } = options
+  const opts = { ...DEFAULT_OPTIONS, ...userOptions }
 
   try {
     const workbook = new ExcelJS.Workbook()
@@ -63,12 +67,12 @@ export async function readXLSX(
       }
     }
 
-    const sheets: Record<string, Array<Record<string, unknown>>> = {}
+    const sheets: Record<string, Array<T>> = {}
     for (const worksheet of workbook.worksheets) {
       sheets[worksheet.name] = convertWorksheetToArray(worksheet, opts)
     }
 
-    const activeSheet = convertWorksheetToArray(activeWorksheet, opts)
+    const activeSheet = sheets[activeWorksheet.name] ?? []
 
     return {
       filePath,
@@ -88,11 +92,11 @@ export async function readXLSX(
   }
 }
 
-function convertWorksheetToArray(
+function convertWorksheetToArray<T = Record<string, unknown>>(
   worksheet: ExcelJS.Worksheet,
   options: XLSXReadOptions
-): Array<Record<string, unknown>> {
-  const result: Array<Record<string, unknown>> = []
+): Array<T> {
+  const result: Array<T> = []
   let headers: string[] = []
 
   const rowCount = worksheet.rowCount || 0
@@ -141,7 +145,7 @@ function convertWorksheetToArray(
         }
       })
 
-      result.push(rowData)
+      result.push(rowData as T)
     }
   } else {
     for (let rowNumber = 1; rowNumber <= rowCount; rowNumber++) {
@@ -152,7 +156,7 @@ function convertWorksheetToArray(
         rowData[String(colNumber)] = getCellValue(cell, options)
       })
 
-      result.push(rowData)
+      result.push(rowData as T)
     }
   }
 
@@ -182,7 +186,7 @@ function getCellValue(cell: ExcelJS.Cell, options: XLSXReadOptions): unknown {
 }
 
 function getSheetDataForValidation(
-  result: XLSXReadResult,
+  result: XLSXReadResult<any>,
   sheetName?: string
 ): Array<Record<string, unknown>> | null {
   if (result.content.sheetNames.length === 0) {
@@ -262,7 +266,9 @@ function validateCellValues(
 }
 
 /**
- * Validates an Excel file against expected structure and content
+ * Validates an Excel file against expected structure and content.
+ * Throws an error if the file cannot be read, but returns false for
+ * content validation failures.
  *
  * @example
  * // Validate that the Excel file has required headers
@@ -277,38 +283,34 @@ function validateCellValues(
 export async function validateXLSX(
   options: { filePath: string } & XLSXValidateOptions
 ): Promise<boolean> {
-  try {
-    const result = await readXLSX({
-      filePath: options.filePath,
-      ...(options.readOptions || {})
-    })
+  const result = await readXLSX({
+    filePath: options.filePath,
+    ...(options.readOptions || {})
+  })
 
-    const sheetData = getSheetDataForValidation(result, options.sheetName)
+  const sheetData = getSheetDataForValidation(result, options.sheetName)
 
-    if (!sheetData) {
-      return false
-    }
-
-    if (
-      options.expectedHeaders &&
-      !validateHeaders(sheetData, options.expectedHeaders)
-    ) {
-      return false
-    }
-
-    if (!validateRowCount(sheetData, options.expectedRowCount)) {
-      return false
-    }
-
-    if (
-      options.cellValues &&
-      !validateCellValues(sheetData, options.cellValues)
-    ) {
-      return false
-    }
-
-    return true
-  } catch {
+  if (!sheetData) {
     return false
   }
+
+  if (
+    options.expectedHeaders &&
+    !validateHeaders(sheetData, options.expectedHeaders)
+  ) {
+    return false
+  }
+
+  if (!validateRowCount(sheetData, options.expectedRowCount)) {
+    return false
+  }
+
+  if (
+    options.cellValues &&
+    !validateCellValues(sheetData, options.cellValues)
+  ) {
+    return false
+  }
+
+  return true
 }

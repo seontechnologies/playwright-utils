@@ -1,7 +1,12 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import AdmZip from 'adm-zip'
-import type { ZIPReadOptions, ZIPReadResult, ZIPValidateOptions } from './types'
+import {
+  ZipError,
+  type ZIPReadOptions,
+  type ZIPReadResult,
+  type ZIPValidateOptions
+} from './types'
 
 const DEFAULT_OPTIONS: Required<Omit<ZIPReadOptions, 'extractToDir'>> = {
   extractAll: false,
@@ -30,7 +35,7 @@ export async function readZIP(
     await fs.access(filePath)
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`ZIP file not found at ${filePath}: ${error.message}`)
+      throw new ZipError(`ZIP file not found at ${filePath}: ${error.message}`)
     }
     throw error
   }
@@ -49,13 +54,18 @@ export async function readZIP(
       }
     }
 
-    if (
-      opts.extractAll ||
-      (opts.extractFiles && opts.extractFiles.length > 0)
-    ) {
+    if (opts.extractAll || opts.extractFiles?.length) {
       const filesToExtract = opts.extractFiles?.length
         ? opts.extractFiles
         : entryNames
+
+      const missingFiles = filesToExtract.filter((f) => !entryNames.includes(f))
+
+      if (missingFiles.length > 0) {
+        throw new ZipError(
+          `File(s) not found in ZIP archive: ${missingFiles.join(', ')}`
+        )
+      }
 
       const extractedFiles: Record<string, Buffer> = {}
       for (const fileName of filesToExtract) {
@@ -70,7 +80,7 @@ export async function readZIP(
     return result
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Error reading ZIP file: ${error.message}`)
+      throw new ZipError(`Error reading ZIP file: ${error.message}`)
     }
     throw error
   }
@@ -95,22 +105,22 @@ export async function readZIP(
 export async function validateZIP(
   options: { filePath: string } & ZIPValidateOptions
 ): Promise<boolean> {
-  const { filePath, expectedEntries = [], readOptions = {} } = options
+  const { filePath, expectedEntries, readOptions } = options
 
   const zipContents = await readZIP({
     filePath,
-    ...readOptions
+    ...readOptions,
+    extractAll: false,
+    extractFiles: []
   })
 
-  if (expectedEntries.length > 0) {
+  if (expectedEntries && expectedEntries.length > 0) {
     const missingEntries = expectedEntries.filter(
       (expected) => !zipContents.content.entries.includes(expected)
     )
 
     if (missingEntries.length > 0) {
-      throw new Error(
-        `ZIP file missing expected entries: ${missingEntries.join(', ')}`
-      )
+      return false
     }
   }
 
@@ -142,13 +152,13 @@ export async function extractFileFromZIP(options: {
     const entry = zip.getEntry(fileToExtract)
 
     if (!entry) {
-      throw new Error(`File not found in ZIP: ${fileToExtract}`)
+      throw new ZipError(`File not found in ZIP: ${fileToExtract}`)
     }
 
     return entry.getData()
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Error extracting file from ZIP: ${error.message}`)
+      throw new ZipError(`Error extracting file from ZIP: ${error.message}`)
     }
     throw error
   }
@@ -184,7 +194,7 @@ export async function extractZIP(options: {
     return entries.map((entry) => path.join(extractToDir, entry.entryName))
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Error extracting ZIP: ${error.message}`)
+      throw new ZipError(`Error extracting ZIP: ${error.message}`)
     }
     throw error
   }

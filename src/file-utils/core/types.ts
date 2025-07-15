@@ -30,15 +30,17 @@ export type FileReadResult<T> = {
 /**
  * Result type for CSV files
  */
-export type CSVReadResult = FileReadResult<Array<Record<string, unknown>>>
+export type CSVReadResult<T = Record<string, unknown>> = FileReadResult<
+  Array<T>
+>
 
 /**
  * Result type for XLSX files
  */
-export type XLSXReadResult = FileReadResult<{
+export type XLSXReadResult<T = Record<string, unknown>> = FileReadResult<{
   sheetNames: string[]
-  sheets: Record<string, Array<Record<string, unknown>>>
-  activeSheet: Array<Record<string, unknown>>
+  sheets: Record<string, Array<T>>
+  activeSheet: Array<T>
 }>
 
 /**
@@ -46,12 +48,7 @@ export type XLSXReadResult = FileReadResult<{
  */
 export type PDFReadResult = FileReadResult<string> & {
   pagesCount: number
-  info: {
-    creator: string
-    producer: string
-    creationDate: string
-    version: string
-  }
+  info: Record<string, unknown>
 }
 
 /**
@@ -169,5 +166,21 @@ export type PDFValidateOptions = {
  */
 export type ZIPValidateOptions = {
   expectedEntries?: string[]
-  readOptions?: Omit<ZIPReadOptions, 'extractToDir'>
+  /**
+   * Reading options for validation. Note: Extraction options are ignored.
+   */
+  readOptions?: Omit<
+    ZIPReadOptions,
+    'extractToDir' | 'extractAll' | 'extractFiles'
+  >
+}
+
+/**
+ * Custom error for ZIP-related operations to allow for specific try/catch blocks.
+ */
+export class ZipError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ZipError'
+  }
 }

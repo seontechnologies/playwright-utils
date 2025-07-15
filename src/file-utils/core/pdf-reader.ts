@@ -41,12 +41,7 @@ export async function readPDF(
       extension: 'pdf',
       content: opts.extractText ? pdfData.text : '',
       pagesCount: pdfData.numpages,
-      info: {
-        creator: pdfData.info?.Creator || '',
-        producer: pdfData.info?.Producer || '',
-        creationDate: pdfData.info?.CreationDate || '',
-        version: pdfData.info?.PDFFormatVersion || ''
-      }
+      info: pdfData.info ?? {}
     }
   } catch (error) {
     if (error instanceof Error) {
@@ -73,26 +68,24 @@ export async function readPDF(
 export async function validatePDF(
   options: { filePath: string } & PDFValidateOptions
 ): Promise<boolean> {
-  try {
-    const result = await readPDF({
-      filePath: options.filePath,
-      ...(options.readOptions || {})
-    })
+  const result = await readPDF({
+    filePath: options.filePath,
+    ...(options.readOptions || {})
+  })
 
-    if (!options.expectedText) {
-      return result.content !== ''
-    }
-
-    if (typeof options.expectedText === 'string') {
-      return result.content.includes(options.expectedText)
-    }
-
-    if (options.expectedText instanceof RegExp) {
-      return options.expectedText.test(result.content)
-    }
-
-    return true
-  } catch {
-    return false
+  if (!options.expectedText) {
+    // If no text is expected, validation passes if there is any content at all.
+    return result.content !== ''
   }
+
+  if (typeof options.expectedText === 'string') {
+    return result.content.includes(options.expectedText)
+  }
+
+  if (options.expectedText instanceof RegExp) {
+    return options.expectedText.test(result.content)
+  }
+
+  // If expectedText is provided but is not a string or RegExp, default to true.
+  return true
 }
