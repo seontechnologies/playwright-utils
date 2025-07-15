@@ -41,6 +41,7 @@ export type CSVReadResult<T = Record<string, unknown>> = FileReadResult<{
  */
 export type XLSXReadResult<T = Record<string, unknown>> = FileReadResult<{
   worksheets: Array<{ name: string; data: T[] }>
+  activeSheet: { name: string; data: T[] }
 }>
 
 /**
@@ -95,6 +96,10 @@ export type PDFReadOptions = {
   maxPages?: number
   extractText?: boolean
   /**
+   * Enable debug logging for PDF extraction
+   */
+  debug?: boolean
+  /**
    * Options for text extraction
    */
   textExtractionOptions?: {
@@ -115,6 +120,11 @@ export type PDFReadOptions = {
 export type ZIPReadOptions = {
   extractAll?: boolean
   extractFiles?: string[]
+  /**
+   * Directory where files will be extracted to
+   * If the directory doesn't exist, it will be created automatically
+   * Default: A system-determined temporary directory
+   */
   extractToDir?: string
 }
 

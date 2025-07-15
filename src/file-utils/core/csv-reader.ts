@@ -37,8 +37,10 @@ const detectDelimiter = (fileContent: string): string => {
   const sorted = delimiterCounts.sort((a, b) => b.count - a.count)
 
   // Return the most frequent delimiter or comma as fallback
-  return sorted.length > 0 && sorted[0] && sorted[0].count > 0
-    ? sorted[0].delimiter
+  return sorted.length > 0 && sorted[0]
+    ? sorted[0].count > 0
+      ? sorted[0].delimiter
+      : ','
     : ','
 }
 
@@ -90,13 +92,6 @@ export async function readCSV<T = Record<string, unknown>>(
   // Auto-detect delimiter if set to 'auto'
   const effectiveDelimiter =
     delimiter === 'auto' ? detectDelimiter(fileContent) : delimiter
-
-  if (delimiter === 'auto') {
-    console.log(`Auto-detected CSV delimiter: '${effectiveDelimiter}'`)
-    console.log(
-      `First line of CSV: ${fileContent.split('\n')[0]?.substring(0, 200)}`
-    )
-  }
 
   const parseResult = parse<T>(fileContent, {
     header: parseHeaders,

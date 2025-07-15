@@ -101,11 +101,14 @@ test.describe('file-utils', () => {
     expect(Array.isArray(sheetData)).toBe(true)
     expect(sheetData?.length).toBeGreaterThan(0)
 
-    // use type assertion to handle the first row safely
-    const firstRow = sheetData![0] as Record<string, unknown>
+    // Use type guard to handle the data safely
+    if (!sheetData || sheetData.length === 0) {
+      throw new Error('Sheet data is empty or undefined')
+    }
+    const firstRow = sheetData[0] as Record<string, unknown>
     // check first row is an object with expected properties
     expect(typeof firstRow).toBe('object')
-    expect(firstRow).toHaveProperty('id')
+    expect(firstRow).toHaveProperty('transaction_id')
 
     // check for basic transaction data structure
     expect(typeof firstRow.transaction_id).toBe('string')

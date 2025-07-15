@@ -53,12 +53,35 @@ export async function readXLSX<T = Record<string, unknown>>(
       data: convertWorksheetToArray<T>(sheet, opts)
     }))
 
+    // Find the active sheet based on sheetName option or default to first sheet
+    const activeSheetIndex = opts.sheetName
+      ? worksheets.findIndex((sheet) => sheet.name === opts.sheetName)
+      : 0
+
+    // Ensure we have at least one worksheet to use as active sheet
+    let activeSheet = { name: '', data: [] as T[] }
+
+    if (worksheets.length > 0) {
+      // Use found sheet or fallback to first sheet if named sheet wasn't found
+      const sheetIndex =
+        activeSheetIndex >= 0 && activeSheetIndex < worksheets.length
+          ? activeSheetIndex
+          : 0
+
+      // This ensures we're safely accessing an existing element
+      activeSheet =
+        worksheets[sheetIndex] !== undefined
+          ? worksheets[sheetIndex]
+          : { name: '', data: [] as T[] }
+    }
+
     return {
       filePath,
       fileName: path.basename(filePath),
       extension: 'xlsx',
       content: {
-        worksheets
+        worksheets,
+        activeSheet
       }
     }
   } catch (error) {
@@ -82,8 +105,23 @@ function convertWorksheetToArray<T = Record<string, unknown>>(
 
   if (options.parseHeaders) {
     const headerRow = worksheet.getRow(1)
-    headers = []
+    // First, collect all column numbers to determine the proper array size
+    const columnNumbers: number[] = []
 
+    headerRow.eachCell(
+      { includeEmpty: true },
+      (cell: ExcelJS.Cell, colNumber: number) => {
+        columnNumbers.push(colNumber)
+      }
+    )
+
+    // Initialize the array with proper size to avoid sparse array
+    const maxCol = Math.max(...columnNumbers, 0)
+    headers = Array(maxCol)
+      .fill('')
+      .map((_, idx) => `Column${idx + 1}`)
+
+    // Now populate with actual header values
     headerRow.eachCell(
       { includeEmpty: true },
       (cell: ExcelJS.Cell, colNumber: number) => {
@@ -96,7 +134,7 @@ function convertWorksheetToArray<T = Record<string, unknown>>(
         let headerName: string = headerStr
         const baseHeader: string = headerName
         let suffix = 1
-        while (headers.includes(headerName)) {
+        while (headers.slice(0, colNumber - 1).includes(headerName)) {
           headerName = `${baseHeader}_${suffix}`
           suffix++
         }
