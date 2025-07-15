@@ -29,7 +29,7 @@ log.configure({
     enabled: !DISABLE_CONSOLE_LOGS
   }, // This should disable console logs completely
   format: {
-    maxLineLength: 2000 // Set your desired maximum line length
+    maxLineLength: 4000 // Set your desired maximum line length
   },
   // debug < info < step < success < warning < error
   // level: 'step', // show all logs, or limit them

@@ -74,7 +74,7 @@ export function formatMessage(
   options: FormatOptions = {
     timestamps: true,
     colorize: true,
-    maxLineLength: 3000
+    maxLineLength: 4000
   },
   workerIdConfig?: { enabled: boolean; format: string },
   metaObjects: unknown[] = []

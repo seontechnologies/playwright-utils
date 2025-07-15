@@ -15,6 +15,7 @@
 /**
  * Supported file types for reading
  */
+
 export type SupportedFileType = 'csv' | 'xlsx' | 'pdf' | 'zip'
 
 /**
@@ -30,17 +31,16 @@ export type FileReadResult<T> = {
 /**
  * Result type for CSV files
  */
-export type CSVReadResult<T = Record<string, unknown>> = FileReadResult<
-  Array<T>
->
+export type CSVReadResult<T = Record<string, unknown>> = FileReadResult<{
+  data: Array<T>
+  headers: string[]
+}>
 
 /**
  * Result type for XLSX files
  */
 export type XLSXReadResult<T = Record<string, unknown>> = FileReadResult<{
-  sheetNames: string[]
-  sheets: Record<string, Array<T>>
-  activeSheet: Array<T>
+  worksheets: Array<{ name: string; data: T[] }>
 }>
 
 /**
@@ -49,6 +49,7 @@ export type XLSXReadResult<T = Record<string, unknown>> = FileReadResult<{
 export type PDFReadResult = FileReadResult<string> & {
   pagesCount: number
   info: Record<string, unknown>
+  metadata: Record<string, unknown>
 }
 
 /**
@@ -69,7 +70,12 @@ export type ZIPReadResult = FileReadResult<{
 export type CSVReadOptions = {
   encoding?: BufferEncoding
   parseHeaders?: boolean
-  delimiter?: string
+  /**
+   * Character used to separate values
+   * - Specific character like ',', ';', '\t', '|'
+   * - 'auto' to auto-detect the delimiter (default)
+   */
+  delimiter?: string | 'auto'
   trim?: boolean
 }
 
@@ -88,6 +94,19 @@ export type XLSXReadOptions = {
 export type PDFReadOptions = {
   maxPages?: number
   extractText?: boolean
+  /**
+   * Options for text extraction
+   */
+  textExtractionOptions?: {
+    /**
+     * Whether to merge text from all pages
+     */
+    mergePages?: boolean
+    /**
+     * Range of pages to extract text from
+     */
+    pages?: [number, number]
+  }
 }
 
 /**
@@ -107,7 +126,12 @@ export type WaitFileOptions = {
   timeout?: number
   /** Interval between checks in milliseconds */
   interval?: number
-  /** Custom message for logging */
+  /**
+   * Controls logging behavior.
+   * - If `true`, logs a default message to the console.
+   * - If a `string`, logs that custom message.
+   * - If `false` or `undefined`, logging is disabled.
+   */
   log?: boolean | string
 }
 
@@ -125,40 +149,12 @@ export type CSVCellValidation = {
 }
 
 /**
- * Options for validating CSV files.
- */
-export type CSVValidateOptions = CSVReadOptions & {
-  expectedHeaders?: string[]
-  expectedRowCount?: number
-  cellValues?: CSVCellValidation[]
-}
-
-/**
  * Defines a coordinate-based validation for a single cell in an XLSX file.
  */
 export type XLSXCellValidation = {
   row: number
   column: number | string
   value: unknown
-}
-
-/**
- * Options for validating XLSX files.
- */
-export type XLSXValidateOptions = {
-  sheetName?: string
-  expectedHeaders?: string[]
-  expectedRowCount?: number
-  cellValues?: XLSXCellValidation[]
-  readOptions?: XLSXReadOptions
-}
-
-/**
- * Options for validating PDF files.
- */
-export type PDFValidateOptions = {
-  expectedText?: string | RegExp
-  readOptions?: PDFReadOptions
 }
 
 /**

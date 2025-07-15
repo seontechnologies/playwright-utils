@@ -1,5 +1,6 @@
 export type * from './core/types'
-export * from './core/file-waiter'
+export { handleDownload } from './core/file-downloader'
+export type { DownloadOptions } from './core/file-downloader'
 export * from './core/csv-reader'
 export * from './core/xlsx-reader'
 export * from './core/pdf-reader'

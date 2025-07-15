@@ -1,10 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type {
-  XLSXReadOptions,
-  XLSXReadResult,
-  XLSXValidateOptions,
-  XLSXCellValidation
-} from './types'
+import type { XLSXReadOptions, XLSXReadResult } from './types'
 import path from 'path'
 import * as ExcelJS from 'exceljs'
 
@@ -53,35 +48,17 @@ export async function readXLSX<T = Record<string, unknown>>(
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.readFile(filePath)
 
-    const sheetNames = workbook.worksheets.map((sheet) => sheet.name)
-
-    const activeWorksheet = opts.sheetName
-      ? workbook.getWorksheet(opts.sheetName)
-      : workbook.worksheets[0]
-
-    if (!activeWorksheet) {
-      if (opts.sheetName) {
-        throw new Error(`Sheet "${opts.sheetName}" not found in workbook`)
-      } else {
-        throw new Error('No worksheets found in workbook')
-      }
-    }
-
-    const sheets: Record<string, Array<T>> = {}
-    for (const worksheet of workbook.worksheets) {
-      sheets[worksheet.name] = convertWorksheetToArray(worksheet, opts)
-    }
-
-    const activeSheet = sheets[activeWorksheet.name] ?? []
+    const worksheets = workbook.worksheets.map((sheet) => ({
+      name: sheet.name,
+      data: convertWorksheetToArray<T>(sheet, opts)
+    }))
 
     return {
       filePath,
       fileName: path.basename(filePath),
       extension: 'xlsx',
       content: {
-        sheetNames,
-        sheets,
-        activeSheet
+        worksheets
       }
     }
   } catch (error) {
@@ -97,8 +74,7 @@ function convertWorksheetToArray<T = Record<string, unknown>>(
   options: XLSXReadOptions
 ): Array<T> {
   const result: Array<T> = []
-  let headers: string[] = []
-
+  let headers: string[]
   const rowCount = worksheet.rowCount || 0
   if (rowCount === 0) {
     return []
@@ -183,134 +159,4 @@ function getCellValue(cell: ExcelJS.Cell, options: XLSXReadOptions): unknown {
     default:
       return null
   }
-}
-
-function getSheetDataForValidation(
-  result: XLSXReadResult<any>,
-  sheetName?: string
-): Array<Record<string, unknown>> | null {
-  if (result.content.sheetNames.length === 0) {
-    return null
-  }
-
-  const targetSheetName = sheetName || result.content.sheetNames[0]
-  if (!targetSheetName) {
-    return null
-  }
-
-  return result.content.sheets[targetSheetName] || null
-}
-
-function validateHeaders(
-  sheetData: Array<Record<string, unknown>> | null,
-  expectedHeaders: string[]
-): boolean {
-  if (!sheetData || expectedHeaders.length === 0) {
-    return true
-  }
-
-  let actualHeaders: string[] = []
-  if (sheetData.length > 0 && sheetData[0]) {
-    actualHeaders = Object.keys(sheetData[0])
-  }
-
-  return expectedHeaders.every((header) => actualHeaders.includes(header))
-}
-
-function validateRowCount(
-  sheetData: Array<Record<string, unknown>> | null,
-  expectedRowCount?: number
-): boolean {
-  if (!sheetData || expectedRowCount === undefined) {
-    return true
-  }
-
-  return sheetData.length === expectedRowCount
-}
-
-function validateCellValues(
-  sheetData: Array<Record<string, unknown>> | null,
-  cellValidations?: XLSXCellValidation[]
-): boolean {
-  if (!sheetData || !cellValidations || cellValidations.length === 0) {
-    return true
-  }
-
-  for (const validation of cellValidations) {
-    if (validation.row < 0 || validation.row >= sheetData.length) {
-      return false
-    }
-
-    const row = sheetData[validation.row] as Record<string, unknown>
-    let cellValue: unknown
-
-    if (typeof validation.column === 'string') {
-      if (!(validation.column in row)) {
-        return false
-      }
-      cellValue = row[validation.column]
-    } else {
-      const columnKey = Object.keys(row)[validation.column]
-      if (!columnKey) {
-        return false
-      }
-      cellValue = row[columnKey]
-    }
-
-    if (cellValue !== validation.value) {
-      return false
-    }
-  }
-
-  return true
-}
-
-/**
- * Validates an Excel file against expected structure and content.
- * Throws an error if the file cannot be read, but returns false for
- * content validation failures.
- *
- * @example
- * // Validate that the Excel file has required headers
- * const isValid = await validateXLSX({
- *   filePath: 'path/to/file.xlsx',
- *   expectedHeaders: ['Name', 'Email', 'Phone']
- * });
- *
- * @param options - Configuration options for validation
- * @returns true if the file passes all validations, false otherwise
- */
-export async function validateXLSX(
-  options: { filePath: string } & XLSXValidateOptions
-): Promise<boolean> {
-  const result = await readXLSX({
-    filePath: options.filePath,
-    ...(options.readOptions || {})
-  })
-
-  const sheetData = getSheetDataForValidation(result, options.sheetName)
-
-  if (!sheetData) {
-    return false
-  }
-
-  if (
-    options.expectedHeaders &&
-    !validateHeaders(sheetData, options.expectedHeaders)
-  ) {
-    return false
-  }
-
-  if (!validateRowCount(sheetData, options.expectedRowCount)) {
-    return false
-  }
-
-  if (
-    options.cellValues &&
-    !validateCellValues(sheetData, options.cellValues)
-  ) {
-    return false
-  }
-
-  return true
 }

@@ -85,29 +85,6 @@ const result = await fileUtils.readCSV({ filePath: '/path/to/file.csv' })
 console.log(result.content) // Array of objects, one per row
 ```
 
-#### `validateCSV(options)`
-
-Validates a CSV file against expected headers, row count, and cell values.
-
-**Arguments:**
-
-- `options` (object):
-  - `filePath` (string): Path to the CSV file.
-  - `expectedHeaders` (string[], optional): Array of column headers that must exist.
-  - `expectedRowCount` (number, optional): The exact number of data rows expected.
-  - `cellValues` (object[], optional): Array of cell validations, e.g., `{ row: 0, column: 0, value: 'John' }`.
-  - Other CSV read options (`delimiter`, etc.).
-
-**Example:**
-
-```typescript
-const isValid = await fileUtils.validateCSV({
-  filePath: '/path/to/users.csv',
-  expectedHeaders: ['id', 'name', 'email'],
-  expectedRowCount: 50
-})
-```
-
 ### XLSX Reader
 
 #### `readXLSX(options)`
@@ -170,25 +147,6 @@ Reads a PDF file and extracts its text content and metadata.
 ```typescript
 const result = await fileUtils.readPDF({ filePath: '/path/to/file.pdf' })
 console.log(result.content) // Text content from the PDF
-```
-
-#### `validatePDF(options)`
-
-Validates a PDF file by checking if it contains the expected text.
-
-**Arguments:**
-
-- `options` (object):
-  - `filePath` (string): Path to the PDF file.
-  - `expectedText` (string | RegExp): Text or regular expression that should be present.
-
-**Example:**
-
-```typescript
-const isValid = await fileUtils.validatePDF({
-  filePath: '/path/to/invoice.pdf',
-  expectedText: 'Invoice #12345'
-})
 ```
 
 ### ZIP Reader

@@ -1,5 +1,5 @@
 import { test as base } from '@playwright/test'
-import { waitForFile } from './core/file-waiter'
+import { handleDownload } from './core/file-downloader'
 import * as csvReader from './core/csv-reader'
 import * as xlsxReader from './core/xlsx-reader'
 import * as pdfReader from './core/pdf-reader'
@@ -10,7 +10,7 @@ type FileUtils = typeof csvReader &
   typeof xlsxReader &
   typeof pdfReader &
   typeof zipReader & {
-    waitForFile: typeof waitForFile
+    handleDownload: typeof handleDownload
   }
 
 // Define the fixture type that will be added to Playwright's test object
@@ -26,7 +26,7 @@ export const test = base.extend<FileUtilsFixtures>({
       ...xlsxReader,
       ...pdfReader,
       ...zipReader,
-      waitForFile
+      handleDownload
     }
 
     // Provide the assembled object to the test

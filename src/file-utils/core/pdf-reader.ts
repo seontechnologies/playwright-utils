@@ -1,15 +1,18 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import pdfParse from 'pdf-parse'
-import type { PDFReadOptions, PDFReadResult, PDFValidateOptions } from './types'
+import { extractText, getDocumentProxy, getMeta } from 'unpdf'
+import type { PDFReadOptions, PDFReadResult } from './types'
 
 const DEFAULT_OPTIONS: PDFReadOptions = {
   extractText: true,
-  maxPages: undefined
+  maxPages: undefined,
+  textExtractionOptions: {
+    mergePages: true
+  }
 }
 
 /**
- * Reads a PDF file and extracts its text content
+ * Reads a PDF file and extracts its text content using unpdf (modern PDF.js wrapper)
  *
  * @param options - Options for PDF parsing
  * @returns Promise resolving to a PDFReadResult
@@ -20,72 +23,114 @@ const DEFAULT_OPTIONS: PDFReadOptions = {
  * ```
  */
 export async function readPDF(
-  options: { filePath: string } & Partial<PDFReadOptions>
+  opts: { filePath: string } & Partial<PDFReadOptions>
 ): Promise<PDFReadResult> {
-  const opts = { ...DEFAULT_OPTIONS, ...options }
-  const { filePath } = options
+  const options = { ...DEFAULT_OPTIONS, ...opts }
+  const { filePath } = opts
 
   try {
+    // Read the PDF file into a buffer
     const dataBuffer = await fs.readFile(filePath)
 
-    const parseOptions: pdfParse.Options = {}
-    if (opts.maxPages !== undefined) {
-      parseOptions.max = opts.maxPages
-    }
+    // Load the PDF document
+    const pdf = await getDocumentProxy(new Uint8Array(dataBuffer))
 
-    const pdfData = await pdfParse(dataBuffer, parseOptions)
+    // Get metadata and page count
+    const meta = await getMeta(pdf)
+
+    // Extract text based on options
+    let content = ''
+    // Get the page count (from pdf object as meta doesn't have numPages property)
+    const pagesCount = pdf.numPages
+
+    if (options.extractText) {
+      // Try multiple extraction strategies for problematic PDFs
+      const strategies = [
+        // Strategy 1: mergePages: true (default)
+        async () => {
+          console.log('Trying extraction strategy 1: mergePages=true')
+          const result = await extractText(pdf, { mergePages: true })
+          return result.text
+        },
+        // Strategy 2: mergePages: false
+        async () => {
+          console.log('Trying extraction strategy 2: mergePages=false')
+          const result = await extractText(pdf, { mergePages: false })
+          return result.text.join('\n')
+        },
+        // Strategy 3: Page-by-page extraction
+        async () => {
+          console.log('Trying extraction strategy 3: page-by-page')
+          let allText = ''
+          for (
+            let i = 1;
+            i <= Math.min(pagesCount, options.maxPages || pagesCount);
+            i++
+          ) {
+            try {
+              // @ts-expect-error okay here
+              const pageResult = await extractText(pdf, {
+                mergePages: true,
+                pages: [i, i] as [number, number]
+              })
+              allText += pageResult.text + '\n'
+            } catch (pageError) {
+              console.log(`Failed to extract page ${i}:`, pageError)
+            }
+          }
+          return allText.trim()
+        }
+      ]
+
+      // Try each strategy until one works or all fail
+      for (const [index, strategy] of strategies.entries()) {
+        try {
+          content = await strategy()
+          if (content && content.length > 0) {
+            console.log(
+              `Success with strategy ${index + 1}. Text length: ${content.length}`
+            )
+            break
+          } else {
+            console.log(`Strategy ${index + 1} returned empty text`)
+          }
+        } catch (error) {
+          console.log(`Strategy ${index + 1} failed:`, error)
+          if (index === strategies.length - 1) {
+            console.warn('All extraction strategies failed')
+          }
+        }
+      }
+
+      // Log final results
+      console.log(`PDF parsing complete. Total pages: ${pagesCount}`)
+      console.log(`PDF text content length: ${content.length}`)
+      if (content.length === 0) {
+        console.warn(
+          'WARNING: No text content extracted from PDF. This may be expected for image-based or complex PDFs.'
+        )
+      }
+    }
 
     return {
       filePath,
       fileName: path.basename(filePath),
       extension: 'pdf',
-      content: opts.extractText ? pdfData.text : '',
-      pagesCount: pdfData.numpages,
-      info: pdfData.info ?? {}
+      content,
+      pagesCount,
+      info: {
+        ...meta.info,
+        // Add our own debugging info
+        textExtractionSuccess: content.length > 0,
+        extractionMethod: content.length > 0 ? 'unpdf' : 'failed'
+      },
+      metadata: meta.metadata || {}
     }
   } catch (error) {
+    console.error('Error during PDF parsing:', error)
     if (error instanceof Error) {
       throw new Error(`Failed to read PDF file: ${error.message}`)
     }
     throw error
   }
-}
-
-/**
- * Validates a PDF file by checking if it contains expected text
- *
- * @param options - Options for validating the PDF
- * @returns Whether the validation passed
- *
- * @example
- * ```ts
- * const isValid = await validatePDF({
- *   filePath: '/path/to/invoice.pdf',
- *   expectedText: 'Invoice #12345'
- * });
- * ```
- */
-export async function validatePDF(
-  options: { filePath: string } & PDFValidateOptions
-): Promise<boolean> {
-  const result = await readPDF({
-    filePath: options.filePath,
-    ...(options.readOptions || {})
-  })
-
-  if (!options.expectedText) {
-    // If no text is expected, validation passes if there is any content at all.
-    return result.content !== ''
-  }
-
-  if (typeof options.expectedText === 'string') {
-    return result.content.includes(options.expectedText)
-  }
-
-  if (options.expectedText instanceof RegExp) {
-    return options.expectedText.test(result.content)
-  }
-
-  // If expectedText is provided but is not a string or RegExp, default to true.
-  return true
 }

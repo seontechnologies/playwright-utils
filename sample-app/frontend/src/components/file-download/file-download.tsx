@@ -25,7 +25,7 @@ export default function FileDownload() {
             <DownloadButton
               onClick={() => handleDownload(file.id, file, setDownloadStatus)}
               disabled={downloadStatus[file.id] === 'processing'}
-              data-testid={`download-button-${file.id}`}
+              data-testid={`download-button-${file.type}`}
             >
               {downloadStatus[file.id] === 'processing'
                 ? 'Preparing...'
