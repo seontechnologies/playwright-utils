@@ -129,7 +129,7 @@ test.describe('file-utils', () => {
       'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
     )
 
-    await log.step('Extract specific file from the zip')
+    await log.step('Read specific file from the zip')
     const targetFile =
       'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
 

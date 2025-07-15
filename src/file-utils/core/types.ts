@@ -135,42 +135,6 @@ export type WaitFileOptions = {
   log?: boolean | string
 }
 
-// =========================================================================
-// File Validation Options
-// =========================================================================
-
-/**
- * Defines a coordinate-based validation for a single cell in a CSV file.
- */
-export type CSVCellValidation = {
-  row: number
-  column: number | string
-  value: unknown
-}
-
-/**
- * Defines a coordinate-based validation for a single cell in an XLSX file.
- */
-export type XLSXCellValidation = {
-  row: number
-  column: number | string
-  value: unknown
-}
-
-/**
- * Options for validating ZIP files.
- */
-export type ZIPValidateOptions = {
-  expectedEntries?: string[]
-  /**
-   * Reading options for validation. Note: Extraction options are ignored.
-   */
-  readOptions?: Omit<
-    ZIPReadOptions,
-    'extractToDir' | 'extractAll' | 'extractFiles'
-  >
-}
-
 /**
  * Custom error for ZIP-related operations to allow for specific try/catch blocks.
  */

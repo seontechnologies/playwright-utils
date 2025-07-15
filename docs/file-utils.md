@@ -1,34 +1,56 @@
 # File Utilities
 
-The `file-utils` module provides a comprehensive set of utilities for reading, validating, and waiting for files in your Playwright tests. It supports common file formats like CSV, XLSX, PDF, and ZIP.
+- [File Utilities](#file-utilities)
+  - [Usage Examples](#usage-examples)
+  - [Core Functions](#core-functions)
+    - [File Waiter](#file-waiter)
+      - [`waitForFile(filePath, options)`](#waitforfilefilepath-options)
+    - [CSV Reader](#csv-reader)
+      - [`readCSV(options)`](#readcsvoptions)
+    - [XLSX Reader](#xlsx-reader)
+      - [`readXLSX(options)`](#readxlsxoptions)
+    - [PDF Reader](#pdf-reader)
+      - [`readPDF(options)`](#readpdfoptions)
+    - [ZIP Reader](#zip-reader)
+      - [`readZIP(options)`](#readzipoptions)
 
-These utilities can be used directly or through the convenient `fileUtils` fixture, which bundles all functions into a single object.
+The `file-utils` module provides a comprehensive set of utilities for reading and processing files in your Playwright tests. It supports common file formats like CSV, XLSX, PDF, and ZIP.
 
-## Fixture Usage
+These utilities can be imported directly from the package and used in your tests.
 
-// TODO: update when we have actual code samples from the tests in this repo
+## Usage Examples
 
-The easiest way to use the file utilities is through the `fileUtils` fixture. It provides access to all functions without needing to manage imports.
+Here are examples of how to use the file utilities in your tests, based on real test implementations:
 
 ```typescript
-import { test } from '@seon/playwright-utils/file-utils/fixtures'
+import {
+  handleDownload,
+  readPDF,
+  readCSV,
+  readXLSX,
+  readZIP
+} from '@seontechnologies/playwright-utils/file-utils'
+import path from 'node:path'
 
-test('should download and validate a CSV file', async ({ page, fileUtils }) => {
-  // Trigger a file download in your application
-  await page.getByRole('button', { name: 'Download CSV' }).click()
+const DOWNLOAD_DIR = path.join(__dirname, '../downloads')
 
-  // The download event provides the path to the temporary file
-  const download = await page.waitForEvent('download')
-  const filePath = await download.path()
-
-  // Validate the downloaded file
-  const isValid = await fileUtils.validateCSV({
-    filePath,
-    expectedHeaders: ['ID', 'Name', 'Email'],
-    expectedRowCount: 10
+test('should download and read a CSV file', async ({ page }) => {
+  const downloadPath = await handleDownload({
+    page,
+    downloadDir: DOWNLOAD_DIR,
+    trigger: () => page.getByTestId('download-button-text/csv').click()
   })
 
-  expect(isValid).toBe(true)
+  const csvResult = await readCSV({ filePath: downloadPath })
+
+  // Access parsed data and headers
+  const { data, headers } = csvResult.content
+  expect(headers).toEqual(['ID', 'Name', 'Email'])
+  expect(data[0]).toMatchObject({
+    ID: expect.any(String),
+    Name: expect.any(String),
+    Email: expect.any(String)
+  })
 })
 ```
 
@@ -81,8 +103,26 @@ Reads a CSV file and parses it into an array of objects, where each object repre
 **Example:**
 
 ```typescript
-const result = await fileUtils.readCSV({ filePath: '/path/to/file.csv' })
-console.log(result.content) // Array of objects, one per row
+const csvResult = await readCSV({ filePath: downloadPath })
+const { data, headers } = csvResult.content
+
+// Check headers
+expect(headers).toEqual([
+  'alert_id',
+  'alert_trigger_name'
+  // ... more headers
+])
+
+// Check data structure
+expect(Array.isArray(data)).toBe(true)
+expect(data.length).toBeGreaterThan(0)
+
+// Flexible pattern-based assertions
+expect(data[0]).toMatchObject({
+  alert_id: expect.stringMatching(/^[A-Za-z0-9]+$/),
+  alert_status: 'open',
+  transaction_amount: expect.stringContaining('USD')
+})
 ```
 
 ### XLSX Reader
@@ -100,34 +140,28 @@ Reads an XLSX (Excel) file and parses its content. It can handle multiple sheets
 **Example:**
 
 ```typescript
-const result = await fileUtils.readXLSX({
-  filePath: '/path/to/file.xlsx',
-  sheetName: 'Data'
-})
-console.log(result.content.activeSheet) // Data from the 'Data' sheet
-```
+const xlsxResult = await readXLSX({ filePath: downloadPath })
 
-#### `validateXLSX(options)`
+// Verify worksheet structure
+expect(xlsxResult.content.worksheets.length).toBeGreaterThan(0)
+const worksheet = xlsxResult.content.worksheets[0]
+expect(worksheet).toBeDefined()
+expect(worksheet).toHaveProperty('name')
 
-Validates an XLSX file against expected sheet name, headers, row count, and cell values.
+// Make sure we have sheet data
+const sheetData = worksheet?.data
+expect(sheetData).toBeDefined()
+expect(Array.isArray(sheetData)).toBe(true)
 
-**Arguments:**
+// Use type assertion for type safety
+const firstRow = sheetData![0] as Record<string, unknown>
+expect(typeof firstRow).toBe('object')
+expect(firstRow).toHaveProperty('id')
 
-- `options` (object):
-  - `filePath` (string): Path to the XLSX file.
-  - `sheetName` (string, optional): Which sheet to validate (defaults to the first).
-  - `expectedHeaders` (string[], optional): Array of column headers that must exist.
-  - `expectedRowCount` (number, optional): The exact number of data rows expected.
-  - `cellValues` (object[], optional): Array of cell validations by coordinates.
-
-**Example:**
-
-```typescript
-const isValid = await fileUtils.validateXLSX({
-  filePath: 'path/to/file.xlsx',
-  sheetName: 'Users',
-  expectedHeaders: ['ID', 'Username']
-})
+// Check specific data points
+expect(typeof firstRow.transaction_id).toBe('string')
+expect(typeof firstRow.fraud_score).toBe('number')
+expect(worksheet?.data[3]?.fraud_score).toBe(0.9)
 ```
 
 ### PDF Reader
@@ -145,8 +179,20 @@ Reads a PDF file and extracts its text content and metadata.
 **Example:**
 
 ```typescript
-const result = await fileUtils.readPDF({ filePath: '/path/to/file.pdf' })
-console.log(result.content) // Text content from the PDF
+const downloadPath = await handleDownload({
+  page,
+  downloadDir: DOWNLOAD_DIR,
+  trigger: () => page.getByTestId('download-button-application/pdf').click()
+})
+
+const pdfResult = await readPDF({ filePath: downloadPath })
+
+// Basic validations
+expect(pdfResult.pagesCount).toBe(1)
+expect(pdfResult.fileName).toContain('.pdf')
+
+// You can also log the full result for inspection
+await log.info(pdfResult)
 ```
 
 ### ZIP Reader
@@ -165,67 +211,33 @@ Reads the contents of a ZIP file, listing its entries and optionally extracting 
 **Example:**
 
 ```typescript
-const zipContents = await fileUtils.readZIP({
-  filePath: 'path/to/archive.zip',
-  extractFiles: ['data.csv', 'config.json']
+const downloadPath = await handleDownload({
+  page,
+  downloadDir: DOWNLOAD_DIR,
+  trigger: () => page.getByTestId('download-button-application/zip').click()
 })
-const csvBuffer = zipContents.content.extractedFiles?.['data.csv']
-```
 
-#### `validateZIP(options)`
+// First, check basic ZIP structure without extraction
+const zipResult = await readZIP({ filePath: downloadPath })
+expect(Array.isArray(zipResult.content.entries)).toBe(true)
+expect(zipResult.content.entries).toContain(
+  'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
+)
 
-Validates a ZIP file by ensuring it contains a list of expected file entries.
-
-**Arguments:**
-
-- `options` (object):
-  - `filePath` (string): Path to the ZIP file.
-  - `expectedEntries` (string[], optional): An array of file names that must exist in the ZIP archive.
-
-**Example:**
-
-```typescript
-const isValid = await fileUtils.validateZIP({
-  filePath: 'path/to/archive.zip',
-  expectedEntries: ['data.csv', 'README.md']
+// Extract specific file by providing extractFiles option
+const targetFile = 'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
+const zipWithExtraction = await readZIP({
+  filePath: downloadPath,
+  extractFiles: [targetFile]
 })
-```
 
-#### `extractFileFromZIP(options)`
+// Verify the file was extracted
+expect(zipWithExtraction.content.extractedFiles).toBeDefined()
+const extractedFiles = zipWithExtraction.content.extractedFiles || {}
+expect(Object.keys(extractedFiles)).toContain(targetFile)
 
-Extracts a single file from a ZIP archive and returns its content as a buffer.
-
-**Arguments:**
-
-- `options` (object):
-  - `filePath` (string): Path to the ZIP file.
-  - `fileToExtract` (string): The name of the file to extract from the archive.
-
-**Example:**
-
-```typescript
-const csvBuffer = await fileUtils.extractFileFromZIP({
-  filePath: 'path/to/archive.zip',
-  fileToExtract: 'data.csv'
-})
-```
-
-#### `extractZIP(options)`
-
-Extracts all files from a ZIP archive to a specified directory on the filesystem.
-
-**Arguments:**
-
-- `options` (object):
-  - `filePath` (string): Path to the ZIP file.
-  - `extractToDir` (string): The output directory where files will be extracted.
-
-**Example:**
-
-```typescript
-const extractedFiles = await fileUtils.extractZIP({
-  filePath: 'path/to/archive.zip',
-  extractToDir: 'path/to/output'
-})
-console.log(extractedFiles) // Array of paths to the extracted files
+// Type-safe buffer access with proper checks
+const fileBuffer = extractedFiles[targetFile]
+expect(fileBuffer).toBeInstanceOf(Buffer)
+expect(fileBuffer?.length).toBeGreaterThan(0)
 ```

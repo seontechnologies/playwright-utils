@@ -6,19 +6,14 @@ import { existsSync } from 'node:fs'
 
 export type DownloadOptions = {
   page: Page
-  /** 
-   * The directory where the file will be saved.
-   * If not provided, defaults to a 'downloads' directory in the same directory as the calling test.
-   */
-  downloadDir?: string
+  /** The directory where the file will be saved. */
+  downloadDir: string
   /** A function that triggers the download action. */
   trigger: () => Promise<void>
   /** Optional: A specific filename to save the file as. If not provided, a unique name is generated. */
   fileName?: string
   /** Optional: Timeout for waiting for the download event. Defaults to 30 seconds. */
   timeout?: number
-  /** Optional: Clean up the downloaded file after test completion. Defaults to false. */
-  cleanupAfterTest?: boolean
 }
 
 /**
