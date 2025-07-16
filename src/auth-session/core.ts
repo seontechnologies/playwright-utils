@@ -209,8 +209,10 @@ export async function getAuthToken(
   const userIdentifier = provider.getUserIdentifier(options)
 
   // Initialize the AuthSessionManager for centralized token management
-  // Convert AuthIdentifiers to AuthSessionOptions
+  // Convert AuthIdentifiers to AuthSessionOptions with proper user context
   const sessionOptions: AuthSessionOptions = {
+    environment,
+    userIdentifier,
     debug: true // Enable debug by default for auth operations
   }
   const sessionManager = AuthSessionManager.getInstance(sessionOptions)
