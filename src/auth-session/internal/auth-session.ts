@@ -160,7 +160,8 @@ function extractDomain(): string {
 }
 
 export class AuthSessionManager {
-  private static instance: AuthSessionManager
+  // Changed from singleton to per-storageDir instance cache for proper user isolation
+  private static instances: Map<string, AuthSessionManager> = new Map()
   private readonly storageDir: string
   private readonly storageFile: string
   private readonly options: AuthSessionOptions
@@ -242,7 +243,7 @@ export class AuthSessionManager {
     this.cacheToken(tokenStr)
   }
 
-  /* Get singleton instance with options */
+  /* Get instance for specific storageDir to ensure proper user isolation */
   public static getInstance(options?: AuthSessionOptions): AuthSessionManager {
     // Use provided options, fallback to global options, or throw if neither exists
     const resolvedOptions = options || getGlobalAuthOptions()
@@ -252,16 +253,29 @@ export class AuthSessionManager {
       )
     }
 
-    if (!AuthSessionManager.instance) {
-      AuthSessionManager.instance = new AuthSessionManager(resolvedOptions)
-    } else if (options) {
-      // If new options are provided, warn that they won't be used as instance already exists
-      log.warningSync(
-        'Auth session manager already initialized - new options ignored'
+    // Determine the storage directory for this instance
+    const provider = getAuthProvider()
+    const environment = provider.getEnvironment(resolvedOptions)
+    const userIdentifier = provider.getUserIdentifier(resolvedOptions)
+
+    const storageDir =
+      resolvedOptions.storageDir ??
+      getStorageDir({
+        environment,
+        userIdentifier
+      })
+
+    // Use storageDir as the key for instance caching to ensure user isolation
+    const instanceKey = storageDir
+
+    if (!AuthSessionManager.instances.has(instanceKey)) {
+      AuthSessionManager.instances.set(
+        instanceKey,
+        new AuthSessionManager(resolvedOptions)
       )
     }
 
-    return AuthSessionManager.instance
+    return AuthSessionManager.instances.get(instanceKey)!
   }
 
   /** Load token from storage if it exists */

@@ -1,53 +1,55 @@
+import { log } from '@seontechnologies/playwright-utils/log'
+
+/**
+ * Extracts the expiration timestamp from a JWT token payload
+ *
+ * Handles base64url encoding (replacing '-' with '+' and '_' with '/').
+ * Adds padding as needed before decoding.
+ * Returns the 'exp' claim from the JWT payload which represents the expiration timestamp in seconds since Unix epoch.
+ *
+ * @param token - Raw JWT token string in format header.payload.signature
+ * @returns The expiration timestamp in seconds since epoch, or null if unable to extract
+ */
+const extractJwtExpiration = (token: string): number | null => {
+  if (typeof token !== 'string' || token.split('.').length !== 3) {
+    return null
+  }
+
+  try {
+    const [, payload] = token.split('.')
+    if (!payload) {
+      log.debugSync('Invalid JWT token format; no payload')
+      return null
+    }
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      '='
+    )
+    const decoded = JSON.parse(Buffer.from(padded, 'base64').toString('utf-8'))
+    return decoded.exp || null
+  } catch (err) {
+    log.debugSync(`Error parsing JWT token: ${err}`)
+    return null
+  }
+}
+
 /**
  * Check if a token is expired
  * @param rawToken JWT token or stringified storage state
  * @returns true if token is expired or invalid, false if valid
  */
 export const isTokenExpired = (rawToken: string): boolean => {
-  // Handle storage state objects (which are serialized as JSON)
-  if (rawToken.trim().startsWith('{')) {
-    try {
-      const storageState = JSON.parse(rawToken)
-
-      // check if there are cookies
-      if (
-        storageState?.cookies &&
-        Array.isArray(storageState.cookies) &&
-        storageState.cookies.length > 0
-      ) {
-        type Cookie = { name: string; value: string; expires: number }
-        const authCookie = storageState.cookies.find(
-          (cookie: Cookie) => cookie.name === 'seon-jwt'
-        )
-
-        // If cookie exists, check its expiration
-        if (authCookie) {
-          const currentTime = Math.floor(Date.now() / 1000)
-          return authCookie.expires < currentTime
-        }
-      }
-
-      // No valid cookies found
-      return true
-    } catch (e) {
-      console.error('Cannot parse the storage state JSON', e)
-      return true
+  const expiration = extractJwtExpiration(rawToken)
+  if (expiration !== null) {
+    const currentTime = Math.floor(Date.now() / 1000)
+    const isExpired = expiration < currentTime
+    if (isExpired) {
+      log.infoSync('JWT token is expired based on payload expiration claim')
     }
+    return isExpired
   }
 
-  // For non-JSON tokens (simple string tokens)
-  // Sample implementation - replace with your actual token expiration logic
-  try {
-    // If token is in format Bearer <timestamp>
-    if (rawToken.startsWith('Bearer ')) {
-      const tokenTimestamp = new Date(rawToken.replace('Bearer ', '')).getTime()
-      const currentTime = Date.now()
-      // Check if token is more than 1 hour old
-      return currentTime - tokenTimestamp > 3600 * 1000
-    }
-    return true // Unrecognized format, consider expired
-  } catch (e) {
-    console.error('Cannot check token expiration', e)
-    return true
-  }
+  log.debugSync('Could not determine token expiration - assuming expired')
+  return true
 }

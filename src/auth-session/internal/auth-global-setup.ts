@@ -23,8 +23,9 @@ export const authStorageInit = (options?: AuthIdentifiers): AuthSessionConfig =>
 
 /**  Pre-fetch authentication tokens during global setup
  *
- * This function creates a Playwright request context and fetches tokens
- * for specified user identifiers, storing them for future test runs.
+ * This function creates per-user Playwright request contexts and fetches tokens
+ * for specified user identifiers, storing them in isolated per-user storage locations.
+ * This ensures proper user isolation during global setup, matching the test execution phase.
  *
  * Use this in your global setup to improve test performance by
  * avoiding repeated token fetches.
@@ -42,30 +43,27 @@ export async function authGlobalInit(options?: {
   userIdentifiers?: string[]
   environment?: string
 }): Promise<boolean> {
-  log.infoSync('Initializing auth token')
+  log.infoSync('Initializing auth tokens with per-user isolation')
 
   // Determine the effective base URLs with proper fallback chain
   const appBaseURL = options?.baseURL || process.env.BASE_URL
   const authBaseURL =
     options?.authBaseURL || process.env.AUTH_BASE_URL || appBaseURL
 
-  // Create a request context with storageState option for auth persistence
-  // Ensure we have a valid storage state object for Playwright
-  const storageStatePath = getStorageStatePath()
-
-  // Create or load the storage state
+  // Helper function to create empty storage state
   const createEmptyStorageState = (): { cookies: any[]; origins: any[] } => ({
     cookies: [],
     origins: []
   })
 
-  // Load storage state safely, with fallback to empty state
-  const loadStorageState = (): { cookies: any[]; origins: any[] } => {
+  // Helper function to load or create storage state for a specific user
+  const loadOrCreateStorageState = (
+    userStorageStatePath: string
+  ): { cookies: any[]; origins: any[] } => {
     try {
-      // Try to load it as an object
       const fs = require('fs')
-      if (fs.existsSync(storageStatePath)) {
-        const content = fs.readFileSync(storageStatePath, 'utf8')
+      if (fs.existsSync(userStorageStatePath)) {
+        const content = fs.readFileSync(userStorageStatePath, 'utf8')
         try {
           return JSON.parse(content)
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -77,62 +75,107 @@ export async function authGlobalInit(options?: {
 
       // Create empty storage state file if it doesn't exist
       const path = require('path')
-      const dir = path.dirname(storageStatePath)
+      const dir = path.dirname(userStorageStatePath)
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true })
       }
       // Create empty storage state with minimal valid structure
       const emptyState = createEmptyStorageState()
-      fs.writeFileSync(storageStatePath, JSON.stringify(emptyState))
+      fs.writeFileSync(userStorageStatePath, JSON.stringify(emptyState))
       return emptyState
     } catch (fsError) {
       log.errorSync(
-        `Error handling storage state: ${fsError instanceof Error ? fsError.message : String(fsError)}`
+        `Error handling storage state for ${userStorageStatePath}: ${fsError instanceof Error ? fsError.message : String(fsError)}`
       )
       return createEmptyStorageState()
     }
   }
 
-  // Get the storage state (with proper typing)
-  const storageState = loadStorageState()
-
-  // Create the request context with the proper object
-  const requestContext = await request.newContext({
-    baseURL: authBaseURL, // Use auth URL for the request context since we're fetching a token
-    storageState
-  })
-
   try {
-    // If userIdentifiers is provided, initialize tokens for each user
+    // If userIdentifiers is provided, initialize tokens for each user with isolated storage
     if (options?.userIdentifiers && options.userIdentifiers.length > 0) {
       log.infoSync(
-        `Initializing tokens for users: ${options.userIdentifiers.join(', ')}`
+        `Initializing isolated tokens for users: ${options.userIdentifiers.join(', ')}`
       )
 
-      // Initialize tokens for each specified user
+      // Initialize tokens for each specified user with per-user request contexts
       for (const identifier of options.userIdentifiers) {
+        let userRequestContext
         try {
-          log.infoSync(`Initializing token for user: ${identifier}`)
-          await getAuthToken(requestContext, {
+          log.infoSync(`Initializing isolated token for user: ${identifier}`)
+
+          // Get per-user storage state path
+          const userStorageStatePath = getStorageStatePath({
             userIdentifier: identifier,
             environment: options.environment
           })
+
+          // Load or create per-user storage state
+          const userStorageState =
+            loadOrCreateStorageState(userStorageStatePath)
+
+          // Create per-user request context with isolated storage
+          userRequestContext = await request.newContext({
+            baseURL: authBaseURL,
+            storageState: userStorageState
+          })
+
+          // Fetch token for this specific user
+          await getAuthToken(userRequestContext, {
+            userIdentifier: identifier,
+            environment: options.environment
+          })
+
           log.successSync(
-            `Token for user '${identifier}' initialized successfully`
+            `Isolated token for user '${identifier}' initialized successfully at: ${userStorageStatePath}`
           )
         } catch (userError) {
           log.errorSync(
-            `Failed to initialize token for user '${identifier}': ${userError instanceof Error ? userError.message : String(userError)}`
+            `Failed to initialize isolated token for user '${identifier}': ${
+              userError instanceof Error ? userError.message : String(userError)
+            }`
           )
           // Continue with other users even if one fails
+        } finally {
+          // Clean up per-user request context
+          if (userRequestContext) {
+            await userRequestContext.dispose()
+          }
         }
       }
     } else {
-      // Get the default auth token if no user identifiers specified
-      await getAuthToken(requestContext, {
-        environment: options?.environment
-      })
-      log.successSync('Default auth token initialized successfully')
+      // Handle default user case with isolated storage
+      let defaultRequestContext
+      try {
+        // Get default storage state path (no user identifier)
+        const defaultStorageStatePath = getStorageStatePath({
+          environment: options?.environment
+        })
+
+        // Load or create default storage state
+        const defaultStorageState = loadOrCreateStorageState(
+          defaultStorageStatePath
+        )
+
+        // Create request context with default storage
+        defaultRequestContext = await request.newContext({
+          baseURL: authBaseURL,
+          storageState: defaultStorageState
+        })
+
+        // Get the default auth token
+        await getAuthToken(defaultRequestContext, {
+          environment: options?.environment
+        })
+
+        log.successSync(
+          `Default auth token initialized successfully at: ${defaultStorageStatePath}`
+        )
+      } finally {
+        if (defaultRequestContext) {
+          await defaultRequestContext.dispose()
+        }
+      }
     }
     return true
   } catch (error) {
@@ -140,7 +183,5 @@ export async function authGlobalInit(options?: {
       `Failed to initialize auth tokens: ${error instanceof Error ? error.message : String(error)}`
     )
     throw error
-  } finally {
-    await requestContext.dispose()
   }
 }
