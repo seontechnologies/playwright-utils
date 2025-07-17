@@ -80,10 +80,30 @@ test.describe('file-utils', () => {
     const extractedFiles = zipWithExtraction.content.extractedFiles || {}
     expect(Object.keys(extractedFiles)).toContain(targetFile)
 
+    await log.step('scrutinize the file content in the zip')
     // Type-safe buffer access with proper checks
     const fileBuffer = extractedFiles[targetFile]
     expect(fileBuffer).toBeInstanceOf(Buffer)
     expect(fileBuffer?.length).toBeGreaterThan(0)
+
+    await log.step('read the csv file within the zip')
+    const csvResult = await readCSV({ content: fileBuffer })
+    const { data, headers } = csvResult.content
+
+    expect(headers).toEqual([
+      'case_id',
+      'case_title',
+      'alert_trigger_name',
+      'transaction_ids',
+      'user_fullname',
+      'case_updated_at',
+      'case_priority',
+      'case_progress',
+      'transaction_amount',
+      'case_status',
+      'case_created_at'
+    ])
+    expect(data[0]?.case_priority).toBe('high')
   })
 
   test('should download and read a CSV file', async ({ page }) => {

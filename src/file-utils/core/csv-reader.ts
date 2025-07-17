@@ -11,10 +11,11 @@ const DEFAULT_OPTIONS: CSVReadOptions = {
 }
 
 /**
- * Reads a CSV file and parses it into an array of objects.
+ * Reads CSV data and parses it into an array of objects.
  *
  * @param options - Options for CSV reading
- *   - filePath: Path to the CSV file
+ *   - filePath: Path to the CSV file (mutually exclusive with content)
+ *   - content: Direct CSV content as string or Buffer (mutually exclusive with filePath)
  *   - delimiter: Character used to separate values (default: ',')
  *   - encoding: File encoding (default: 'utf8')
  *   - parseHeaders: Whether to use the first row as headers (default: true)
@@ -23,8 +24,15 @@ const DEFAULT_OPTIONS: CSVReadOptions = {
  *
  * @example
  * ```ts
- * // Read with default options
+ * // Read from file
  * const result = await readCSV({ filePath: 'path/to/data.csv' });
+ *
+ * // Read from buffer (e.g., extracted from ZIP)
+ * const result = await readCSV({ content: buffer });
+ *
+ * // Read from string content
+ * const csvString = 'name,age\nJohn,25\nJane,30';
+ * const result = await readCSV({ content: csvString });
  *
  * // Read with strong types
  * interface User {
@@ -35,13 +43,27 @@ const DEFAULT_OPTIONS: CSVReadOptions = {
  * ```
  */
 export async function readCSV<T = Record<string, unknown>>(
-  options: { filePath: string } & Partial<CSVReadOptions>
+  options: CSVReadOptions
 ): Promise<CSVReadResult<T>> {
-  const { filePath, ...userOptions } = options
+  const { filePath, content, ...userOptions } = options
+
+  // Validate that either filePath or content is provided, but not both
+  if (!filePath && !content) {
+    throw new Error('Either filePath or content must be provided')
+  }
+  if (filePath && content) {
+    throw new Error('Cannot provide both filePath and content - choose one')
+  }
+
   const opts = { ...DEFAULT_OPTIONS, ...userOptions }
   const { encoding, delimiter, parseHeaders, trim } = opts
 
-  const fileContent = await readFileSafely(filePath, encoding)
+  // Get CSV content from either file or direct content
+  const fileContent: string = filePath
+    ? await readFileSafely(filePath, encoding)
+    : content instanceof Buffer
+      ? content.toString(encoding || 'utf8')
+      : (content as string)
 
   // auto-detect delimiter if set to 'auto'
   const effectiveDelimiter =
@@ -69,9 +91,17 @@ export async function readCSV<T = Record<string, unknown>>(
     throw new Error('Failed to parse CSV due to an unknown error.')
   }
 
+  // Handle metadata when reading from content vs file
+  const resultFilePath = filePath || '<content>'
+  const resultFileName = filePath
+    ? path.basename(filePath)
+    : content instanceof Buffer
+      ? '<buffer-content>'
+      : '<string-content>'
+
   return {
-    filePath,
-    fileName: path.basename(filePath),
+    filePath: resultFilePath,
+    fileName: resultFileName,
     extension: 'csv',
     content: {
       data: parseResult.data,

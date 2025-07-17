@@ -69,6 +69,8 @@ export type ZIPReadResult = FileReadResult<{
  * Options for reading CSV files
  */
 export type CSVReadOptions = {
+  filePath?: string
+  content?: string | Buffer
   encoding?: BufferEncoding
   parseHeaders?: boolean
   /**

@@ -107,41 +107,58 @@ test('should download file via API', async ({ page, request }) => {
 
 #### `readCSV(options)`
 
-Reads a CSV file and parses it into an array of objects, where each object represents a row.
+Reads and parses CSV data from either a file or direct content into an array of objects.
 
 **Arguments:**
 
 - `options` (object):
-  - `filePath` (string): Path to the CSV file.
-  - `delimiter` (string, optional): Character used to separate values (default: ',').
-  - `encoding` (string, optional): File encoding (default: 'utf8').
-  - `parseHeaders` (boolean, optional): Whether to use the first row as headers (default: true).
-  - `trim` (boolean, optional): Whether to trim whitespace from values (default: true).
+  - `filePath` (string, optional): Path to the CSV file (mutually exclusive with `content`).
+  - `content` (string | Buffer, optional): Direct CSV content as a string or Buffer (mutually exclusive with `filePath`).
+  - `delimiter` (string | 'auto', optional): Character used to separate values. Set to `'auto'` to auto-detect. Default: `','`.
+  - `encoding` (string, optional): File encoding when reading from file. Default: `'utf8'`.
+  - `parseHeaders` (boolean, optional): Whether to use the first row as headers. Default: `true`.
+  - `trim` (boolean, optional): Whether to trim whitespace from values. Default: `true`.
 
 **Example:**
 
 ```typescript
-const csvResult = await readCSV({ filePath: downloadPath })
-const { data, headers } = csvResult.content
-
-// Check headers
-expect(headers).toEqual([
-  'alert_id',
-  'alert_trigger_name'
-  // ... more headers
-])
-
-// Check data structure
-expect(Array.isArray(data)).toBe(true)
-expect(data.length).toBeGreaterThan(0)
-
-// Flexible pattern-based assertions
-expect(data[0]).toMatchObject({
-  alert_id: expect.stringMatching(/^[A-Za-z0-9]+$/),
-  alert_status: 'open',
-  transaction_amount: expect.stringContaining('USD')
+// Read from a file
+const result = await readCSV({
+  filePath: 'path/to/data.csv',
+  delimiter: ';',
+  parseHeaders: true
 })
+
+// Read from a Buffer (e.g., extracted from a ZIP)
+const zipResult = await readZIP({
+  filePath: 'archive.zip',
+  fileToExtract: 'data.csv'
+})
+const fileBuffer = zipResult.content.extractedFiles?.['data.csv']
+const csvFromBuffer = await readCSV({ content: fileBuffer })
+
+// Read from a string
+const csvString = 'name,age\nJohn,30\nJane,25'
+const csvFromString = await readCSV({ content: csvString })
+
+// Access the parsed data and headers
+const { data, headers } = result.content
+
+// Example assertions
+if (result.content.headers.length > 0) {
+  expect(headers).toContain('name')
+  expect(headers).toContain('age')
+}
+
+expect(data).toContainEqual(
+  expect.objectContaining({
+    name: 'John',
+    age: '30'
+  })
+)
 ```
+
+**Note:** When using `content` instead of `filePath`, the `filePath` in the result will be set to `'<content>'` for string content or `'<buffer-content>'` for Buffer content.
 
 ### XLSX Reader
 
@@ -235,20 +252,24 @@ For reliable text extraction, ensure your PDFs are generated with embedded text.
 const downloadPath = await handleDownload({
   page,
   downloadDir: DOWNLOAD_DIR,
-  trigger: () => page.getByTestId('download-button-Text-based PDF Document').click()
+  trigger: () =>
+    page.getByTestId('download-button-Text-based PDF Document').click()
 })
 
 const pdfResult = await readPDF({ filePath: downloadPath })
 
 expect(pdfResult.pagesCount).toBe(1)
 expect(pdfResult.fileName).toContain('.pdf')
-expect(pdfResult.content).toContain('All you need is the free Adobe Acrobat Reader')
+expect(pdfResult.content).toContain(
+  'All you need is the free Adobe Acrobat Reader'
+)
 
 // Vector-based PDF example (extraction fails gracefully)
 const downloadPath = await handleDownload({
   page,
   downloadDir: DOWNLOAD_DIR,
-  trigger: () => page.getByTestId('download-button-Vector-based PDF Document').click()
+  trigger: () =>
+    page.getByTestId('download-button-Vector-based PDF Document').click()
 })
 
 const pdfResult = await readPDF({ filePath: downloadPath })
@@ -263,8 +284,8 @@ expect(pdfResult.info.extractionNotes).toContain(
 const result = await readPDF({
   filePath: '/path/to/document.pdf',
   mergePages: false, // Keep pages separate
-  debug: true,      // Enable debug logging
-  maxPages: 10      // Limit processing to first 10 pages
+  debug: true, // Enable debug logging
+  maxPages: 10 // Limit processing to first 10 pages
 })
 ```
 
