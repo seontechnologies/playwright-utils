@@ -30,4 +30,3 @@ if (!existsSync(eventsDir)) {
 
 // Export the full path to the log file
 export const logFilePath = join(eventsDir, 'movie-events.log')
-console.log(`Events will be logged to: ${logFilePath}`)

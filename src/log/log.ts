@@ -12,7 +12,7 @@ import type { TestContextInfo } from './config'
 import type { LogLevel, LoggingConfig } from './types'
 
 // Configuration constants
-const DEFAULT_MAX_LINE_LENGTH = 500
+const DEFAULT_MAX_LINE_LENGTH = 4000
 
 /** Get formatting options by merging defaults with provided options */
 const getFormattingOptions = (options?: Partial<LoggingConfig>) => ({

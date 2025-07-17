@@ -889,11 +889,9 @@ const sourcePath = extractSourceFilePath(['test-step.ts', 'my-utility.ts'])
 Our custom logging implementation was chosen over Winston for several key reasons:
 
 - **Zero Dependencies**: No additional packages to maintain or deploy
-
   - Avoids Winston's ~15 dependencies and ~1.5MB node_modules footprint
 
 - **Performance**: Minimal overhead in CI environments
-
   - Eliminates Winston's ~50-100ms initialization time
   - Avoids ~3-5MB additional memory usage
   - No per-log transport and format processing overhead

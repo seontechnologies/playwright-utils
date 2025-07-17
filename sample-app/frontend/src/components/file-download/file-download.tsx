@@ -25,7 +25,7 @@ export default function FileDownload() {
             <DownloadButton
               onClick={() => handleDownload(file.id, file, setDownloadStatus)}
               disabled={downloadStatus[file.id] === 'processing'}
-              data-testid={`download-button-${file.id}`}
+              data-testid={`download-button-${file.name}`}
             >
               {downloadStatus[file.id] === 'processing'
                 ? 'Preparing...'
@@ -50,27 +50,34 @@ type FileItem = {
 const availableFiles: FileItem[] = [
   {
     id: 1,
-    name: 'PDF Document',
+    name: 'Vector-based PDF Document',
     filename: '2024636.pdf',
     type: 'application/pdf',
     size: '234 KB'
   },
   {
     id: 2,
+    name: 'Text-based PDF Document',
+    filename: 'simple.pdf',
+    type: 'application/pdf',
+    size: '8 KB'
+  },
+  {
+    id: 3,
     name: 'ZIP Archive',
     filename: 'cases_export.zip',
     type: 'application/zip',
     size: '598 KB'
   },
   {
-    id: 3,
+    id: 4,
     name: 'CSV Export',
     filename: 'export_alerts.csv',
     type: 'text/csv',
     size: '25 KB'
   },
   {
-    id: 4,
+    id: 5,
     name: 'Excel Spreadsheet',
     filename: 'seon_transactions_export_1750243320497.xlsx',
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

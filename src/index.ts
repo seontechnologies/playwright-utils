@@ -10,6 +10,7 @@ export * from './api-request'
 export * from './recurse'
 export * from './log/index'
 export * from './intercept-network-call'
+export * from './file-utils'
 
 ///////////////////////
 // Internal logger to use our log implementation instead of console.log

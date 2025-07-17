@@ -6,7 +6,17 @@
  */
 
 // Import using ES modules syntax
-import { apiRequest, recurse, log, interceptNetworkCall } from './index'
+import {
+  apiRequest,
+  recurse,
+  log,
+  interceptNetworkCall,
+  readCSV,
+  readPDF,
+  readXLSX,
+  readZIP
+  // eslint-disable-next-line import/named
+} from './index'
 // Auth session is imported separately as it's not part of the main exports
 import { configureAuthSession, getAuthToken } from './auth-session'
 
@@ -21,6 +31,8 @@ import * as interceptUtils from './intercept-network-call'
 import * as interceptFixtures from './intercept-network-call/fixtures'
 import * as authSessionUtils from './auth-session'
 import * as authSessionFixtures from './auth-session/fixtures'
+import * as fileUtils from './file-utils'
+import * as fileUtilsFixtures from './file-utils/fixtures'
 
 describe('sanity tests', () => {
   describe('API exports', () => {
@@ -102,6 +114,26 @@ describe('sanity tests', () => {
       expect(authSessionFixtures).toBeDefined()
       expect(authSessionFixtures.createAuthFixtures).toBeDefined()
       expect(authSessionFixtures.createRoleSpecificTest).toBeDefined()
+    })
+
+    it('should properly export file-utils', () => {
+      // Test main export functions exist
+      expect(typeof readCSV).toBe('function')
+      expect(typeof readXLSX).toBe('function')
+      expect(typeof readPDF).toBe('function')
+      expect(typeof readZIP).toBe('function')
+
+      // Verify same instance as direct import
+      expect(readCSV).toBe(fileUtils.readCSV)
+      expect(readXLSX).toBe(fileUtils.readXLSX)
+      expect(readPDF).toBe(fileUtils.readPDF)
+      expect(readZIP).toBe(fileUtils.readZIP)
+    })
+
+    it('should properly export file-utils fixtures', () => {
+      // Verify fixtures are exported
+      expect(fileUtilsFixtures).toBeDefined()
+      expect(fileUtilsFixtures.test).toBeDefined()
     })
   })
 

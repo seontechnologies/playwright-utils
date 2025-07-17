@@ -85,7 +85,7 @@ import { recurse } from '@seontechnologies/playwright-utils/recurse'
 
 Quick start (this repo):
 
-```
+```bash
 git clone https://github.com/seontechnologies/playwright-utils.git
 
 cd playwright-utils
@@ -504,6 +504,31 @@ test('ephemeral user auth', async ({ context, page }) => {
 ```
 
 [→ Auth Session Documentation](./docs/auth-session.md)
+
+### [File Utilities](./docs/file-utils.md)
+
+A comprehensive set of utilities for reading, validating, and waiting for files (CSV, XLSX, PDF, ZIP).
+
+```typescript
+// Direct import
+import { readCSV } from '@seontechnologies/playwright-utils/file-utils'
+
+test('example', async () => {
+  const result = await readCSV({ filePath: '/path/to/data.csv' });
+});
+
+// As a fixture
+import { test } from '@seontechnologies/playwright-utils/file-utils/fixtures'
+
+test('example', async ({ fileUtils }) => {
+  const isValid = await fileUtils.validateCSV({
+    filePath: '/path/to/data.csv',
+    expectedRowCount: 10,
+  });
+});
+```
+
+[→ File Utilities Documentation](./docs/file-utils.md)
 
 ## Testing the Package Locally
 
