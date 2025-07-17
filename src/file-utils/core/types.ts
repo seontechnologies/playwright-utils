@@ -111,15 +111,6 @@ export type PDFReadOptions = {
 }
 
 /**
- * Options for reading ZIP files
- */
-export type ZIPReadOptions = {
-  extractAll?: boolean
-  extractFiles?: string[]
-  extractToDir?: string
-}
-
-/**
  * Custom error for ZIP-related operations to allow for specific try/catch blocks.
  */
 export class ZipError extends Error {
