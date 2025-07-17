@@ -16,48 +16,24 @@ const validateFileExists = async (filePath: string): Promise<void> => {
   }
 }
 
-/** Validates that all requested files exist in the ZIP entries */
-const validateFilesExist = (
-  filesToExtract: string[],
+/** Validates that a requested file exists in the ZIP entries */
+const validateZipEntryExists = (
+  fileToExtract: string,
   entryNames: string[]
 ): void => {
-  const missingFiles = filesToExtract.filter((f) => !entryNames.includes(f))
-  if (missingFiles.length > 0) {
-    throw new ZipError(
-      `File(s) not found in ZIP archive: ${missingFiles.join(', ')}`
-    )
+  if (!entryNames.includes(fileToExtract)) {
+    throw new ZipError(`File not found in ZIP archive: ${fileToExtract}`)
   }
 }
 
-/** Determines which files to extract based on options */
-const getFilesToExtract = ({
-  extractAll,
-  extractFiles,
-  entryNames
-}: {
-  extractAll: boolean
-  extractFiles: string[]
-  entryNames: string[]
-}): string[] | undefined => {
-  if (!extractAll && !extractFiles?.length) {
-    return undefined
-  }
-
-  const filesToExtract = extractFiles?.length ? extractFiles : entryNames
-
-  validateFilesExist(filesToExtract, entryNames)
-  return filesToExtract
-}
-
-/** Extracts specified files from ZIP entries  */
-const extractFilesFromEntries = (
+/** Extracts a single file from ZIP entries */
+const extractFileFromEntries = (
   entries: AdmZip.IZipEntry[],
-  filesToExtract: string[]
-): Record<string, Buffer> =>
-  filesToExtract.reduce<Record<string, Buffer>>((acc, fileName) => {
-    const entry = entries.find((e) => e.entryName === fileName)
-    return entry ? { ...acc, [fileName]: entry.getData() } : acc
-  }, {})
+  fileToExtract: string
+): Record<string, Buffer> => {
+  const entry = entries.find((e) => e.entryName === fileToExtract)
+  return entry ? { [fileToExtract]: entry.getData() } : {}
+}
 
 /** Creates the base result object for ZIP operations */
 const createZipResult = (filePath: string, entryNames: string[]) => ({
@@ -74,28 +50,27 @@ const createZipResult = (filePath: string, entryNames: string[]) => ({
  *
  * @example
  * ```typescript
- * // Basic usage - list files
+ * // List files only
  * const zipContents = await readZIP({ filePath: 'path/to/archive.zip' })
  * console.log(zipContents.content.entries)
  *
- * // Extract specific files
+ * // Extract a specific file
  * const withExtraction = await readZIP({
  *   filePath: 'path/to/archive.zip',
- *   extractFiles: ['file1.txt', 'folder/file2.txt']
+ *   fileToExtract: 'path/to/file.txt'
  * })
+ * const fileBuffer = withExtraction.content.extractedFiles?.['path/to/file.txt']
  * ```
  *
  * @param options Options for reading the ZIP file
- * @returns Information about the ZIP contents and optionally extracted files
+ * @returns Information about the ZIP contents and optionally an extracted file
  */
 export async function readZIP({
   filePath,
-  extractAll = false,
-  extractFiles = []
+  fileToExtract
 }: {
   filePath: string
-  extractAll?: boolean
-  extractFiles?: string[]
+  fileToExtract?: string
 }): Promise<ZIPReadResult> {
   await validateFileExists(filePath)
 
@@ -103,13 +78,15 @@ export async function readZIP({
     const zip = new AdmZip(filePath)
     const entries = zip.getEntries()
     const entryNames = entries.map((entry) => entry.entryName)
-    const filesToExtract = getFilesToExtract({
-      extractAll,
-      extractFiles,
-      entryNames
-    })
-    const extractedFiles = filesToExtract
-      ? { extractedFiles: extractFilesFromEntries(entries, filesToExtract) }
+
+    // Extract file if requested
+    const extractedFiles = fileToExtract
+      ? (() => {
+          validateZipEntryExists(fileToExtract, entryNames)
+          return {
+            extractedFiles: extractFileFromEntries(entries, fileToExtract)
+          }
+        })()
       : {}
 
     return {

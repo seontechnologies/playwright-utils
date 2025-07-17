@@ -5,8 +5,6 @@
     - [UI-Triggered Download Example](#ui-triggered-download-example)
     - [API-Triggered Download Example](#api-triggered-download-example)
   - [Core Functions](#core-functions)
-    - [File Waiter](#file-waiter)
-      - [`waitForFile(filePath, options)`](#waitforfilefilepath-options)
     - [CSV Reader](#csv-reader)
       - [`readCSV(options)`](#readcsvoptions)
     - [XLSX Reader](#xlsx-reader)
@@ -14,7 +12,6 @@
     - [PDF Reader](#pdf-reader)
       - [`readPDF(options)`](#readpdfoptions)
       - [Important Limitations](#important-limitations)
-      - [Basic Usage](#basic-usage)
       - [Examples](#examples)
     - [ZIP Reader](#zip-reader)
       - [`readZIP(options)`](#readzipoptions)
@@ -106,35 +103,6 @@ test('should download file via API', async ({ page, request }) => {
 
 ## Core Functions
 
-### File Waiter
-
-#### `waitForFile(filePath, options)`
-
-Waits for a file to exist at the given path. This is useful for ensuring a downloaded file is fully written to disk before attempting to read it.
-
-**Arguments:**
-
-- `filePath` (string): Path to the file to wait for.
-- `options` (object, optional):
-  - `timeout` (number): Maximum time to wait in milliseconds (default: 30000).
-  - `interval` (number): Interval between checks in milliseconds (default: 250).
-  - `log` (boolean | string): Custom message for logging (default: 'Waiting for file to be available').
-
-**Example:**
-
-```typescript
-import { waitForFile } from '@seon/playwright-utils/file-utils'
-
-// Wait for a file with default options
-await waitForFile('/path/to/download.csv')
-
-// Wait with custom options
-await waitForFile('/path/to/large-file.xlsx', {
-  timeout: 60000,
-  log: 'Waiting for large Excel file to download'
-})
-```
-
 ### CSV Reader
 
 #### `readCSV(options)`
@@ -224,10 +192,9 @@ Reads a PDF file and extracts its text content and metadata using the `unpdf` li
 
 - `options` (object):
   - `filePath` (string): Path to the PDF file (required).
-  - `extractText` (boolean, optional): Whether to extract text content (default: `true`).
-  - `textExtractionOptions` (object, optional):
-    - `mergePages` (boolean, optional): Whether to merge text from all pages (default: `true`).
-  - `maxPages` (number, optional): Maximum number of pages to extract (deprecated, will be removed in future versions).
+  - `mergePages` (boolean, optional): Whether to merge text from all pages (default: `true`).
+  - `maxPages` (number, optional): Maximum number of pages to extract.
+  - `debug` (boolean, optional): Enable debug logging.
 
 **Returns:**
 
@@ -261,122 +228,77 @@ An object with the following structure:
 
 For reliable text extraction, ensure your PDFs are generated with embedded text.
 
-#### Basic Usage
-
-```typescript
-import { readPDF } from '@seontechnologies/playwright-utils'
-
-const result = await readPDF({
-  filePath: '/path/to/document.pdf'
-})
-
-// Handle extraction results
-if (result.info.textExtractionSuccess) {
-  console.log(result.content) // Extracted text
-  console.log(result.pagesCount) // Number of pages
-} else {
-  console.warn('Text extraction failed:', result.info.extractionNotes)
-  if (result.info.isVectorBased) {
-    console.warn(
-      'This is a vector-based PDF. Consider using a different PDF generation method.'
-    )
-  }
-}
-```
-
 #### Examples
 
 ```typescript
-// Simple usage - extract all text as single string
-const pdfResult = await readPDF({
-  filePath: '/path/to/document.pdf'
-})
-
-if (pdfResult.info.textExtractionSuccess) {
-  expect(pdfResult.pagesCount).toBeGreaterThan(0)
-  expect(pdfResult.content).toContain('expected text')
-} else {
-  console.warn('Extraction failed:', pdfResult.info.extractionNotes)
-}
-
-// Advanced usage with all options
-const result = await readPDF({
-  filePath: '/path/to/document.pdf',
-  mergePages: false, // Keep pages separate (joined with \n)
-  debug: true, // Enable debug logging
-  maxPages: 10 // Limit processing to first 10 pages
-})
-
-// Handle extraction failures
-if (!result.info.textExtractionSuccess) {
-  if (result.info.isVectorBased) {
-    console.warn(
-      'Vector-based PDF detected. Consider different PDF generation method.'
-    )
-  } else {
-    console.warn('Extraction failed:', result.info.extractionNotes)
-  }
-}
-```
-
-**Usage with File Download:**
-
-```typescript
+// Text-based PDF example
 const downloadPath = await handleDownload({
   page,
   downloadDir: DOWNLOAD_DIR,
-  trigger: () => page.getByTestId('download-pdf-button').click()
+  trigger: () => page.getByTestId('download-button-Text-based PDF Document').click()
 })
 
 const pdfResult = await readPDF({ filePath: downloadPath })
 
-// Verify content and metadata
-expect(pdfResult.pagesCount).toBeGreaterThan(0)
-expect(pdfResult.content).toContain('expected content')
+expect(pdfResult.pagesCount).toBe(1)
+expect(pdfResult.fileName).toContain('.pdf')
+expect(pdfResult.content).toContain('All you need is the free Adobe Acrobat Reader')
+
+// Vector-based PDF example (extraction fails gracefully)
+const downloadPath = await handleDownload({
+  page,
+  downloadDir: DOWNLOAD_DIR,
+  trigger: () => page.getByTestId('download-button-Vector-based PDF Document').click()
+})
+
+const pdfResult = await readPDF({ filePath: downloadPath })
+
+expect(pdfResult.pagesCount).toBe(1)
+expect(pdfResult.fileName).toContain('.pdf')
+expect(pdfResult.info.extractionNotes).toContain(
+  'Text extraction from vector-based PDFs is not supported.'
+)
+
+// Advanced usage with options
+const result = await readPDF({
+  filePath: '/path/to/document.pdf',
+  mergePages: false, // Keep pages separate
+  debug: true,      // Enable debug logging
+  maxPages: 10      // Limit processing to first 10 pages
+})
 ```
 
 ### ZIP Reader
 
 #### `readZIP(options)`
 
-Reads the contents of a ZIP file, listing its entries and optionally extracting files into memory.
+Reads the contents of a ZIP file, listing its entries and optionally extracting a specific file into memory as Buffer.
 
 **Arguments:**
 
 - `options` (object):
   - `filePath` (string): Path to the ZIP file.
-  - `extractFiles` (string[], optional): A list of specific files to extract into memory buffers.
-  - `extractAll` (boolean, optional): If true, extracts all files into memory.
+  - `fileToExtract` (string, optional): A specific file to extract into a memory buffer.
 
 **Example:**
 
 ```typescript
-const downloadPath = await handleDownload({
-  page,
-  downloadDir: DOWNLOAD_DIR,
-  trigger: () => page.getByTestId('download-button-application/zip').click()
-})
-
-// First, check basic ZIP structure without extraction
+// Basic usage - just list ZIP contents
 const zipResult = await readZIP({ filePath: downloadPath })
 expect(Array.isArray(zipResult.content.entries)).toBe(true)
 expect(zipResult.content.entries).toContain(
   'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
 )
 
-// Extract specific file by providing extractFiles option
+// Extract specific file
 const targetFile = 'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
 const zipWithExtraction = await readZIP({
   filePath: downloadPath,
-  extractFiles: [targetFile]
+  fileToExtract: targetFile
 })
 
-// Verify the file was extracted
-expect(zipWithExtraction.content.extractedFiles).toBeDefined()
+// Access extracted file buffer
 const extractedFiles = zipWithExtraction.content.extractedFiles || {}
-expect(Object.keys(extractedFiles)).toContain(targetFile)
-
-// Type-safe buffer access with proper checks
 const fileBuffer = extractedFiles[targetFile]
 expect(fileBuffer).toBeInstanceOf(Buffer)
 expect(fileBuffer?.length).toBeGreaterThan(0)

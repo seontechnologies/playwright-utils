@@ -74,7 +74,7 @@ test.describe('file-utils', () => {
     // Extract specific file by providing extractFiles option
     const zipWithExtraction = await readZIP({
       filePath: downloadPath,
-      extractFiles: [targetFile]
+      fileToExtract: targetFile
     })
 
     // Verify the file was extracted
