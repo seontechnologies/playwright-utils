@@ -63,13 +63,11 @@ test.describe('file-utils', () => {
     // First, check basic ZIP structure without extraction
     const zipResult = await readZIP({ filePath: downloadPath })
     expect(Array.isArray(zipResult.content.entries)).toBe(true)
-    expect(zipResult.content.entries).toContain(
-      'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
-    )
-
-    await log.step('Read specific file from the zip')
     const targetFile =
       'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
+    expect(zipResult.content.entries).toContain(targetFile)
+
+    await log.step('Read specific file from the zip')
 
     // Extract specific file by providing extractFiles option
     const zipWithExtraction = await readZIP({
