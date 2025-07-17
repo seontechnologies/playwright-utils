@@ -100,18 +100,14 @@ export type PDFReadOptions = {
    */
   debug?: boolean
   /**
-   * Options for text extraction
+   * Whether to merge text from all pages into a single string
+   * @default true
    */
-  textExtractionOptions?: {
-    /**
-     * Whether to merge text from all pages
-     */
-    mergePages?: boolean
-    /**
-     * Range of pages to extract text from
-     */
-    pages?: [number, number]
-  }
+  mergePages?: boolean
+  /**
+   * Range of pages to extract text from (future feature)
+   */
+  pages?: [number, number]
 }
 
 /**
@@ -120,29 +116,7 @@ export type PDFReadOptions = {
 export type ZIPReadOptions = {
   extractAll?: boolean
   extractFiles?: string[]
-  /**
-   * Directory where files will be extracted to
-   * If the directory doesn't exist, it will be created automatically
-   * Default: A system-determined temporary directory
-   */
   extractToDir?: string
-}
-
-/**
- * Options for waiting for a file to exist.
- */
-export type WaitFileOptions = {
-  /** Maximum time to wait in milliseconds */
-  timeout?: number
-  /** Interval between checks in milliseconds */
-  interval?: number
-  /**
-   * Controls logging behavior.
-   * - If `true`, logs a default message to the console.
-   * - If a `string`, logs that custom message.
-   * - If `false` or `undefined`, logging is disabled.
-   */
-  log?: boolean | string
 }
 
 /**

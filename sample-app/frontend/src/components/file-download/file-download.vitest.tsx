@@ -12,14 +12,10 @@ describe('<FileDownload />', () => {
     wrappedRender(<FileDownload />)
     expect(screen.getByTestId('files-list')).toBeVisible()
 
-    // expect each to be visible
-    expect(screen.getByTestId('file-type-application/pdf')).toBeVisible()
-    expect(screen.getByTestId('file-type-application/zip')).toBeVisible()
-    expect(screen.getByTestId('file-type-text/csv')).toBeVisible()
-    expect(
-      screen.getByTestId(
-        'file-type-application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      )
-    ).toBeVisible()
+    // there should be multiple download-buttons and file-types
+    const downloadButtons = screen.getAllByTestId(/download-button/)
+    expect(downloadButtons).toHaveLength(5)
+    const fileTypes = screen.getAllByTestId(/file-type/)
+    expect(fileTypes).toHaveLength(5)
   })
 })

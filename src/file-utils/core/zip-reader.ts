@@ -1,6 +1,6 @@
-import { promises as fs } from 'fs'
-import path from 'path'
 import AdmZip from 'adm-zip'
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
 import { ZipError, type ZIPReadOptions, type ZIPReadResult } from './types'
 
 const DEFAULT_OPTIONS: Required<Omit<ZIPReadOptions, 'extractToDir'>> = {

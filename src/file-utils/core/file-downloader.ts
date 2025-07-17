@@ -1,12 +1,10 @@
 import type { Page } from '@playwright/test'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { recurse } from '../../recurse'
-import type { WaitFileOptions } from './types'
-import { existsSync } from 'node:fs'
 
 export type DownloadOptions = {
   page: Page
-  /** The directory where the file will be saved. */
   downloadDir: string
   /** A function that triggers the download action. */
   trigger: () => Promise<void>
@@ -28,11 +26,8 @@ export async function handleDownload(
   const { page, downloadDir, trigger, fileName, timeout = 30000 } = options
 
   const downloadPromise = page.waitForEvent('download', { timeout })
-
   await trigger()
-
   const download = await downloadPromise
-
   const finalFileName = fileName || download.suggestedFilename()
 
   if (!finalFileName) {
@@ -54,26 +49,32 @@ export async function handleDownload(
   return downloadPath
 }
 
-const DEFAULT_OPTIONS: Required<WaitFileOptions> = {
-  timeout: 30000, // 30 seconds
-  interval: 250, // 250ms
-  log: 'Waiting for file to be available'
+type WaitFileOptions = {
+  timeout?: number
+  interval?: number
+  /**
+   * Controls logging behavior.
+   * - If `true`, logs a default message to the console.
+   * - If a `string`, logs that custom message.
+   * - If `false` or `undefined`, logging is disabled.
+   */
+  log?: boolean | string
 }
 
 async function waitForFile(
   options: { filePath: string } & WaitFileOptions
 ): Promise<void> {
   const { filePath, ...waitOptions } = options
-  const mergedOptions: Required<WaitFileOptions> = {
-    ...DEFAULT_OPTIONS,
+  const mergedOptions = {
+    timeout: 30000,
+    interval: 250,
+    log: 'Waiting for file to be available',
     ...waitOptions
   }
 
   await recurse(
-    async () => {
-      return { exists: existsSync(filePath), path: filePath }
-    },
-    (result) => result.exists,
+    async () => existsSync(filePath),
+    (exists) => exists,
     {
       timeout: mergedOptions.timeout,
       interval: mergedOptions.interval,

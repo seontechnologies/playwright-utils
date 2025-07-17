@@ -1,11 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { XLSXReadOptions, XLSXReadResult } from './types'
-import path from 'path'
 import * as ExcelJS from 'exceljs'
+import path from 'path'
+import type { XLSXReadOptions, XLSXReadResult } from './types'
 
-/**
- * Default options for XLSX reading
- */
 const DEFAULT_OPTIONS: XLSXReadOptions = {
   parseHeaders: true,
   sheetName: undefined,
@@ -45,50 +41,67 @@ export async function readXLSX<T = Record<string, unknown>>(
   const opts = { ...DEFAULT_OPTIONS, ...userOptions }
 
   try {
-    const workbook = new ExcelJS.Workbook()
-    await workbook.xlsx.readFile(filePath)
+    const workbook = await loadWorkbook(filePath)
+    const worksheets = processWorksheets<T>(workbook, opts)
+    const activeSheet = determineActiveSheet(worksheets, opts.sheetName)
 
-    const worksheets = workbook.worksheets.map((sheet) => ({
-      name: sheet.name,
-      data: convertWorksheetToArray<T>(sheet, opts)
-    }))
-
-    // Find the active sheet based on sheetName option or default to first sheet
-    const activeSheetIndex = opts.sheetName
-      ? worksheets.findIndex((sheet) => sheet.name === opts.sheetName)
-      : 0
-
-    // Ensure we have at least one worksheet to use as active sheet
-    let activeSheet = { name: '', data: [] as T[] }
-
-    if (worksheets.length > 0) {
-      // Use found sheet or fallback to first sheet if named sheet wasn't found
-      const sheetIndex =
-        activeSheetIndex >= 0 && activeSheetIndex < worksheets.length
-          ? activeSheetIndex
-          : 0
-
-      // This ensures we're safely accessing an existing element
-      activeSheet =
-        worksheets[sheetIndex] !== undefined
-          ? worksheets[sheetIndex]
-          : { name: '', data: [] as T[] }
-    }
-
-    return {
-      filePath,
-      fileName: path.basename(filePath),
-      extension: 'xlsx',
-      content: {
-        worksheets,
-        activeSheet
-      }
-    }
+    return buildXLSXResult(filePath, worksheets, activeSheet)
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Failed to read Excel file: ${error.message}`)
     }
     throw error
+  }
+}
+
+async function loadWorkbook(filePath: string): Promise<ExcelJS.Workbook> {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.readFile(filePath)
+  return workbook
+}
+
+function processWorksheets<T>(
+  workbook: ExcelJS.Workbook,
+  options: XLSXReadOptions
+) {
+  return workbook.worksheets.map((sheet) => ({
+    name: sheet.name,
+    data: convertWorksheetToArray<T>(sheet, options)
+  }))
+}
+
+function determineActiveSheet<T>(
+  worksheets: Array<{ name: string; data: T[] }>,
+  sheetName?: string
+): { name: string; data: T[] } {
+  if (worksheets.length === 0) {
+    return { name: '', data: [] as T[] }
+  }
+
+  const activeSheetIndex = sheetName
+    ? worksheets.findIndex((sheet) => sheet.name === sheetName)
+    : 0
+
+  const sheetIndex =
+    activeSheetIndex >= 0 && activeSheetIndex < worksheets.length
+      ? activeSheetIndex
+      : 0
+
+  // Add a null check to ensure we never return undefined
+  const selectedSheet = worksheets[sheetIndex]
+  return selectedSheet || { name: '', data: [] as T[] }
+}
+
+function buildXLSXResult<T>(
+  filePath: string,
+  worksheets: Array<{ name: string; data: T[] }>,
+  activeSheet: { name: string; data: T[] }
+): XLSXReadResult<T> {
+  return {
+    filePath,
+    fileName: path.basename(filePath),
+    extension: 'xlsx',
+    content: { worksheets, activeSheet }
   }
 }
 
@@ -110,7 +123,7 @@ function convertWorksheetToArray<T = Record<string, unknown>>(
 
     headerRow.eachCell(
       { includeEmpty: true },
-      (cell: ExcelJS.Cell, colNumber: number) => {
+      (_cell: ExcelJS.Cell, colNumber: number) => {
         columnNumbers.push(colNumber)
       }
     )
@@ -177,24 +190,28 @@ function convertWorksheetToArray<T = Record<string, unknown>>(
   return result
 }
 
-function getCellValue(cell: ExcelJS.Cell, options: XLSXReadOptions): unknown {
-  if (!cell) {
-    return null
-  }
-
-  switch (cell.type) {
-    case ExcelJS.ValueType.Number:
-    case ExcelJS.ValueType.String:
-    case ExcelJS.ValueType.Boolean:
-    case ExcelJS.ValueType.Date:
-    case ExcelJS.ValueType.Hyperlink:
-      return cell.value
-    case ExcelJS.ValueType.Formula:
-      return options.includeFormulas
+const cellValueHandlers = new Map<
+  ExcelJS.ValueType | 'default',
+  (cell: ExcelJS.Cell, options: XLSXReadOptions) => unknown
+>([
+  [ExcelJS.ValueType.Number, (cell) => cell.value],
+  [ExcelJS.ValueType.String, (cell) => cell.value],
+  [ExcelJS.ValueType.Boolean, (cell) => cell.value],
+  [ExcelJS.ValueType.Date, (cell) => cell.value],
+  [ExcelJS.ValueType.Hyperlink, (cell) => cell.value],
+  [
+    ExcelJS.ValueType.Formula,
+    (cell, options) =>
+      options.includeFormulas
         ? { formula: cell.formula, result: cell.result }
         : cell.result
-    case ExcelJS.ValueType.Error:
-    default:
-      return null
-  }
+  ],
+  ['default', () => null]
+])
+
+function getCellValue(cell: ExcelJS.Cell, options: XLSXReadOptions): unknown {
+  if (!cell) return null
+  const handler =
+    cellValueHandlers.get(cell.type) || cellValueHandlers.get('default')!
+  return handler(cell, options)
 }

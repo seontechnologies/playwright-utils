@@ -2,6 +2,8 @@
 
 - [File Utilities](#file-utilities)
   - [Usage Examples](#usage-examples)
+    - [UI-Triggered Download Example](#ui-triggered-download-example)
+    - [API-Triggered Download Example](#api-triggered-download-example)
   - [Core Functions](#core-functions)
     - [File Waiter](#file-waiter)
       - [`waitForFile(filePath, options)`](#waitforfilefilepath-options)
@@ -11,8 +13,12 @@
       - [`readXLSX(options)`](#readxlsxoptions)
     - [PDF Reader](#pdf-reader)
       - [`readPDF(options)`](#readpdfoptions)
+      - [Important Limitations](#important-limitations)
+      - [Basic Usage](#basic-usage)
+      - [Examples](#examples)
     - [ZIP Reader](#zip-reader)
       - [`readZIP(options)`](#readzipoptions)
+    - [Example of Expected CSV Structure](#example-of-expected-csv-structure)
 
 The `file-utils` module provides a comprehensive set of utilities for reading and processing files in your Playwright tests. It supports common file formats like CSV, XLSX, PDF, and ZIP.
 
@@ -21,6 +27,8 @@ These utilities can be imported directly from the package and used in your tests
 ## Usage Examples
 
 Here are examples of how to use the file utilities in your tests, based on real test implementations:
+
+### UI-Triggered Download Example
 
 ```typescript
 import {
@@ -34,7 +42,7 @@ import path from 'node:path'
 
 const DOWNLOAD_DIR = path.join(__dirname, '../downloads')
 
-test('should download and read a CSV file', async ({ page }) => {
+test('should download and read a CSV file via UI', async ({ page }) => {
   const downloadPath = await handleDownload({
     page,
     downloadDir: DOWNLOAD_DIR,
@@ -53,6 +61,48 @@ test('should download and read a CSV file', async ({ page }) => {
   })
 })
 ```
+
+### API-Triggered Download Example
+
+You can also use `handleDownload` with API calls to trigger downloads. This is particularly useful for testing file generation endpoints:
+
+```typescript
+import { handleDownload } from '@seontechnologies/playwright-utils/file-utils'
+import { test, expect } from '@playwright/test'
+import path from 'node:path'
+
+const DOWNLOAD_DIR = path.join(__dirname, '../downloads')
+
+// Example using a direct API call to trigger the download
+test('should download file via API', async ({ page, request }) => {
+  const downloadPath = await handleDownload({
+    page, // Still need the page for download events
+    downloadDir: DOWNLOAD_DIR,
+    trigger: async () => {
+      // Make an API request that returns a file download
+      const response = await request.get('/api/export/csv', {
+        headers: { Authorization: 'Bearer your-token' }
+        // Important: The API should respond with Content-Disposition header
+        // Example: 'attachment; filename="report.csv"'
+      })
+
+      if (!response.ok()) {
+        throw new Error(`API request failed: ${response.status()}`)
+      }
+    }
+  })
+
+  // Now you can verify the downloaded file
+  expect(downloadPath).toMatch(/\.csv$/)
+})
+```
+
+> **Note:** When using API-triggered downloads, ensure that:
+>
+> 1. The API endpoint sets the correct `Content-Disposition` header
+> 2. The response includes the appropriate `Content-Type` for the file
+> 3. Any required authentication/authorization headers are included
+> 4. The response status code is 200 (OK)
 
 ## Core Functions
 
@@ -168,31 +218,121 @@ expect(worksheet?.data[3]?.fraud_score).toBe(0.9)
 
 #### `readPDF(options)`
 
-Reads a PDF file and extracts its text content and metadata.
+Reads a PDF file and extracts its text content and metadata using the `unpdf` library (PDF.js wrapper).
 
 **Arguments:**
 
 - `options` (object):
-  - `filePath` (string): Path to the PDF file.
-  - `maxPages` (number, optional): Maximum number of pages to extract.
+  - `filePath` (string): Path to the PDF file (required).
+  - `extractText` (boolean, optional): Whether to extract text content (default: `true`).
+  - `textExtractionOptions` (object, optional):
+    - `mergePages` (boolean, optional): Whether to merge text from all pages (default: `true`).
+  - `maxPages` (number, optional): Maximum number of pages to extract (deprecated, will be removed in future versions).
 
-**Example:**
+**Returns:**
+
+An object with the following structure:
+
+```typescript
+{
+  filePath: string;      // Original file path
+  fileName: string;      // Base filename
+  extension: 'pdf';      // File extension
+  content: string;       // Extracted text content
+  pagesCount: number;    // Total number of pages
+  info: {                // PDF metadata and extraction info
+    ...pdfMetadata,      // Standard PDF metadata (Title, Author, etc.)
+    textExtractionSuccess: boolean;
+    extractionMethod: string;
+    isVectorBased?: boolean; // Only present when extraction fails and PDF is vector-based
+    extractionNotes?: string; // Only present when extraction fails
+  };
+  metadata: Record<string, unknown>; // Additional PDF metadata
+}
+```
+
+#### Important Limitations
+
+⚠️ **Vector-based PDFs**: Text extraction may fail for PDFs that store text as vector graphics (e.g., those generated by jsPDF). Such PDFs will have:
+
+- `textExtractionSuccess: false`
+- `isVectorBased: true`
+- Explanatory message in `extractionNotes`
+
+For reliable text extraction, ensure your PDFs are generated with embedded text.
+
+#### Basic Usage
+
+```typescript
+import { readPDF } from '@seontechnologies/playwright-utils'
+
+const result = await readPDF({
+  filePath: '/path/to/document.pdf'
+})
+
+// Handle extraction results
+if (result.info.textExtractionSuccess) {
+  console.log(result.content) // Extracted text
+  console.log(result.pagesCount) // Number of pages
+} else {
+  console.warn('Text extraction failed:', result.info.extractionNotes)
+  if (result.info.isVectorBased) {
+    console.warn(
+      'This is a vector-based PDF. Consider using a different PDF generation method.'
+    )
+  }
+}
+```
+
+#### Examples
+
+```typescript
+// Simple usage - extract all text as single string
+const pdfResult = await readPDF({
+  filePath: '/path/to/document.pdf'
+})
+
+if (pdfResult.info.textExtractionSuccess) {
+  expect(pdfResult.pagesCount).toBeGreaterThan(0)
+  expect(pdfResult.content).toContain('expected text')
+} else {
+  console.warn('Extraction failed:', pdfResult.info.extractionNotes)
+}
+
+// Advanced usage with all options
+const result = await readPDF({
+  filePath: '/path/to/document.pdf',
+  mergePages: false, // Keep pages separate (joined with \n)
+  debug: true, // Enable debug logging
+  maxPages: 10 // Limit processing to first 10 pages
+})
+
+// Handle extraction failures
+if (!result.info.textExtractionSuccess) {
+  if (result.info.isVectorBased) {
+    console.warn(
+      'Vector-based PDF detected. Consider different PDF generation method.'
+    )
+  } else {
+    console.warn('Extraction failed:', result.info.extractionNotes)
+  }
+}
+```
+
+**Usage with File Download:**
 
 ```typescript
 const downloadPath = await handleDownload({
   page,
   downloadDir: DOWNLOAD_DIR,
-  trigger: () => page.getByTestId('download-button-application/pdf').click()
+  trigger: () => page.getByTestId('download-pdf-button').click()
 })
 
 const pdfResult = await readPDF({ filePath: downloadPath })
 
-// Basic validations
-expect(pdfResult.pagesCount).toBe(1)
-expect(pdfResult.fileName).toContain('.pdf')
-
-// You can also log the full result for inspection
-await log.info(pdfResult)
+// Verify content and metadata
+expect(pdfResult.pagesCount).toBeGreaterThan(0)
+expect(pdfResult.content).toContain('expected content')
 ```
 
 ### ZIP Reader
@@ -240,4 +380,14 @@ expect(Object.keys(extractedFiles)).toContain(targetFile)
 const fileBuffer = extractedFiles[targetFile]
 expect(fileBuffer).toBeInstanceOf(Buffer)
 expect(fileBuffer?.length).toBeGreaterThan(0)
+```
+
+### Example of Expected CSV Structure
+
+```typescript
+interface CSVRow {
+  id: string
+  name: string
+  email: string
+}
 ```

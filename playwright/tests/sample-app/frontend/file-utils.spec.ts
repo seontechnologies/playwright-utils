@@ -17,25 +17,82 @@ test.describe('file-utils', () => {
     await expect(page.getByTestId('files-list')).toBeVisible()
   })
 
-  test('should download and read a PDF file', async ({ page }) => {
+  test('should download and read a PDF file (vector-based)', async ({
+    page
+  }) => {
     const downloadPath = await handleDownload({
       page,
       downloadDir: DOWNLOAD_DIR,
-      trigger: () => page.getByTestId('download-button-application/pdf').click()
+      trigger: () =>
+        page.getByTestId('download-button-Vector-based PDF Document').click()
     })
 
     const pdfResult = await readPDF({ filePath: downloadPath })
 
     expect(pdfResult.pagesCount).toBe(1)
     expect(pdfResult.fileName).toContain('.pdf')
-    await log.info(pdfResult)
+    expect(pdfResult.info.extractionNotes).toContain(
+      'Text extraction from vector-based PDFs is not supported.'
+    )
+  })
+
+  test('should download and read a PDF file (text-based)', async ({ page }) => {
+    const downloadPath = await handleDownload({
+      page,
+      downloadDir: DOWNLOAD_DIR,
+      trigger: () =>
+        page.getByTestId('download-button-Text-based PDF Document').click()
+    })
+
+    const pdfResult = await readPDF({ filePath: downloadPath })
+
+    expect(pdfResult.pagesCount).toBe(1)
+    expect(pdfResult.fileName).toContain('.pdf')
+    expect(pdfResult.content).toContain(
+      'All you need is the free Adobe Acrobat Reader'
+    )
+  })
+
+  test('should download and read a ZIP file', async ({ page }) => {
+    const downloadPath = await handleDownload({
+      page,
+      downloadDir: DOWNLOAD_DIR,
+      trigger: () => page.getByTestId('download-button-ZIP Archive').click()
+    })
+
+    // First, check basic ZIP structure without extraction
+    const zipResult = await readZIP({ filePath: downloadPath })
+    expect(Array.isArray(zipResult.content.entries)).toBe(true)
+    expect(zipResult.content.entries).toContain(
+      'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
+    )
+
+    await log.step('Read specific file from the zip')
+    const targetFile =
+      'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
+
+    // Extract specific file by providing extractFiles option
+    const zipWithExtraction = await readZIP({
+      filePath: downloadPath,
+      extractFiles: [targetFile]
+    })
+
+    // Verify the file was extracted
+    expect(zipWithExtraction.content.extractedFiles).toBeDefined()
+    const extractedFiles = zipWithExtraction.content.extractedFiles || {}
+    expect(Object.keys(extractedFiles)).toContain(targetFile)
+
+    // Type-safe buffer access with proper checks
+    const fileBuffer = extractedFiles[targetFile]
+    expect(fileBuffer).toBeInstanceOf(Buffer)
+    expect(fileBuffer?.length).toBeGreaterThan(0)
   })
 
   test('should download and read a CSV file', async ({ page }) => {
     const downloadPath = await handleDownload({
       page,
       downloadDir: DOWNLOAD_DIR,
-      trigger: () => page.getByTestId('download-button-text/csv').click()
+      trigger: () => page.getByTestId('download-button-CSV Export').click()
     })
 
     const csvResult = await readCSV({ filePath: downloadPath })
@@ -80,11 +137,7 @@ test.describe('file-utils', () => {
       page,
       downloadDir: DOWNLOAD_DIR,
       trigger: () =>
-        page
-          .getByTestId(
-            'download-button-application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-          )
-          .click()
+        page.getByTestId('download-button-Excel Spreadsheet').click()
     })
 
     const xlsxResult = await readXLSX({ filePath: downloadPath })
@@ -118,38 +171,20 @@ test.describe('file-utils', () => {
     expect(worksheet?.data[3]?.fraud_score).toBe(0.9)
   })
 
-  test('should download and read a ZIP file', async ({ page }) => {
+  test('should download and read a PDF file with fixture', async ({
+    page,
+    handleDownload, // the fixture is prioritized over the import at the top of the file
+    readPDF
+  }) => {
+    // Using fixture version of handleDownload - notice page is not needed
     const downloadPath = await handleDownload({
-      page,
       downloadDir: DOWNLOAD_DIR,
-      trigger: () => page.getByTestId('download-button-application/zip').click()
+      trigger: () =>
+        page.getByTestId('download-button-Vector-based PDF Document').click()
     })
 
-    // First, check basic ZIP structure without extraction
-    const zipResult = await readZIP({ filePath: downloadPath })
-    expect(Array.isArray(zipResult.content.entries)).toBe(true)
-    expect(zipResult.content.entries).toContain(
-      'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
-    )
-
-    await log.step('Read specific file from the zip')
-    const targetFile =
-      'Case_53125_10-19-22_AM/Case_53125_10-19-22_AM_case_data.csv'
-
-    // Extract specific file by providing extractFiles option
-    const zipWithExtraction = await readZIP({
-      filePath: downloadPath,
-      extractFiles: [targetFile]
-    })
-
-    // Verify the file was extracted
-    expect(zipWithExtraction.content.extractedFiles).toBeDefined()
-    const extractedFiles = zipWithExtraction.content.extractedFiles || {}
-    expect(Object.keys(extractedFiles)).toContain(targetFile)
-
-    // Type-safe buffer access with proper checks
-    const fileBuffer = extractedFiles[targetFile]
-    expect(fileBuffer).toBeInstanceOf(Buffer)
-    expect(fileBuffer?.length).toBeGreaterThan(0)
+    // doesn't add much value, but shows how to use the fixture
+    const pdfResult = await readPDF({ filePath: downloadPath })
+    expect(pdfResult.fileName).toContain('.pdf')
   })
 })

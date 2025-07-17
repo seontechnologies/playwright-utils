@@ -1,12 +1,9 @@
-import { promises as fs } from 'fs'
-import path from 'path'
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
 import { extractText, getDocumentProxy, getMeta } from 'unpdf'
 import type { PDFReadOptions, PDFReadResult } from './types'
 
-/**
- * Note: unpdf uses PDF.js internally but doesn't expose proper TypeScript types
- * We use a minimal interface that includes only the properties we need
- */
+// Note: unpdf uses PDF.js internally but doesn't expose proper TypeScript types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PDFDocumentType = any
 
@@ -14,263 +11,139 @@ const DEFAULT_OPTIONS: PDFReadOptions = {
   extractText: true,
   maxPages: undefined,
   debug: false,
-  textExtractionOptions: {
-    mergePages: true
-  }
+  mergePages: true
 }
 
 /**
- * Reads a PDF file and extracts its text content using unpdf (modern PDF.js wrapper)
+ * Reads and extracts text from a PDF file, with optional page merging and debug control.
  *
- * @param options - Options for PDF parsing
- * @returns Promise resolving to a PDFReadResult
+ * @remarks
+ * - Fallbacks between merged and unmerged extraction.
+ * - Vector-based PDFs (e.g., jsPDF) may fail check `info.isVectorBased` and `info.extractionNotes`.
+ *
+ * @param options.filePath                   Path to the PDF file.
+ * @param options.maxPages                   Max pages to read (default: all).
+ * @param options.debug                      Enable debug logging (default: false).
+ * @param options.maxPages                   Max pages to read (default: all).
+ *
+ * @returns A `PDFReadResult` containing:
+ *   - `content`: extracted text
+ *   - `pagesCount`: total number of pages
+ *   - `info`: metadata & extraction details
+ *   - `metadata`: raw PDF metadata
  *
  * @example
- * ```ts
- * const result = await readPDF({ filePath: '/path/to/file.pdf' });
+ * ```typescript
+ * // Simple usage - extract all text as single string
+ * const result = await readPDF({
+ *   filePath: '/path/to/document.pdf'
+ * })
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Advanced usage with all options
+ * const result = await readPDF({
+ *   filePath: '/path/to/document.pdf',
+ *   mergePages: false,  // Keep pages separate (joined with \n)
+ *   debug: true,        // Enable debug logging
+ *   maxPages: 10        // Limit processing to first 10 pages
+ * })
  * ```
  */
-/**
- * Extract text from a PDF document using the preferred mergePages setting
- */
-async function extractWithMergePagesSetting(
-  pdf: PDFDocumentType,
-  mergePages: boolean,
-  debug = false
-): Promise<string> {
-  if (debug) {
-    console.log(`Extracting with mergePages=${mergePages}`)
-  }
-
-  if (mergePages) {
-    // Use specific overload for mergePages: true
-    const result = await extractText(pdf, { mergePages: true })
-    return result.text
-  } else {
-    // Use specific overload for mergePages: false
-    const result = await extractText(pdf, { mergePages: false })
-    return result.text.join('\n')
-  }
-}
-
-/**
- * Extract text from a PDF document page by page
- */
-async function extractPageByPage(
-  pdf: PDFDocumentType,
-  pagesCount: number,
-  maxPages: number | undefined,
-  userMergePages: boolean,
-  debug = false
-): Promise<string> {
-  if (debug) {
-    console.log('Trying extraction strategy 3: page-by-page')
-  }
-
-  let allText = ''
-  for (let i = 1; i <= Math.min(pagesCount, maxPages || pagesCount); i++) {
-    try {
-      // The unpdf library types don't include the pages option, but it works at runtime
-      // Use a type guard to ensure correct handling based on mergePages
-      if (userMergePages) {
-        // For mergePages: true
-        const pageResult = await extractText(pdf, {
-          mergePages: true,
-          // The library accepts this at runtime despite types
-          pages: [i, i]
-        } as unknown as { mergePages: true })
-        allText += pageResult.text + '\n'
-      } else {
-        // For mergePages: false
-        const pageResult = await extractText(pdf, {
-          mergePages: false,
-          // The library accepts this at runtime despite types
-          pages: [i, i]
-        } as unknown as { mergePages?: false })
-        allText += pageResult.text.join('\n') + '\n'
-      }
-    } catch (pageError) {
-      if (debug) {
-        console.log(`Failed to extract page ${i}:`, pageError)
-      }
-    }
-  }
-  return allText.trim()
-}
-
-/**
- * Try multiple extraction strategies to get text from a PDF
- */
-async function tryExtractionStrategies(
-  pdf: PDFDocumentType,
-  pagesCount: number,
-  options: PDFReadOptions
-): Promise<string> {
-  const userMergePages = options.textExtractionOptions?.mergePages ?? true
-
-  if (options.debug) {
-    console.log(`Using text extraction options: mergePages=${userMergePages}`)
-  }
-
-  // Define extraction strategies
-  const strategies = [
-    // Strategy 1: Use options.textExtractionOptions (from user or defaults)
-    async () => {
-      if (options.debug) {
-        console.log(
-          `Trying extraction strategy 1: mergePages=${userMergePages}`
-        )
-      }
-      let content = ''
-
-      try {
-        // Attempt extraction with user-specified settings
-        content = await extractWithMergePagesSetting(
-          pdf,
-          userMergePages,
-          options.debug
-        )
-      } catch (error) {
-        if (options.debug) {
-          console.log('Strategy 1 failed:', error)
-        }
-      }
-
-      // If first attempt failed, try opposite mergePages setting
-      if (content.trim().length === 0) {
-        if (options.debug) {
-          console.log(
-            'First extraction attempt returned empty string, trying opposite mergePages setting'
-          )
-        }
-        try {
-          content = await extractWithMergePagesSetting(
-            pdf,
-            !userMergePages,
-            options.debug
-          )
-        } catch (error) {
-          if (options.debug) {
-            console.log('Opposite mergePages setting failed:', error)
-          }
-        }
-      }
-
-      return content
-    },
-    // Strategy 2: Opposite of user's mergePages setting
-    async () => {
-      const useOppositeMerge = !userMergePages
-      if (options.debug) {
-        console.log(
-          `Trying extraction strategy 2: mergePages=${useOppositeMerge}`
-        )
-      }
-      return extractWithMergePagesSetting(pdf, useOppositeMerge, options.debug)
-    },
-    // Strategy 3: Page-by-page extraction
-    async () => {
-      return extractPageByPage(
-        pdf,
-        pagesCount,
-        options.maxPages,
-        userMergePages,
-        options.debug
-      )
-    }
-  ]
-
-  // Try each strategy until one works or all fail
-  let content = ''
-  for (const [index, strategy] of strategies.entries()) {
-    try {
-      content = await strategy()
-      if (content && content.length > 0) {
-        if (options.debug) {
-          console.log(
-            `Success with strategy ${index + 1}. Text length: ${content.length}`
-          )
-        }
-        break
-      } else {
-        if (options.debug) {
-          console.log(`Strategy ${index + 1} returned empty text`)
-        }
-      }
-    } catch (error) {
-      if (options.debug) {
-        console.log(`Strategy ${index + 1} failed:`, error)
-      }
-      if (index === strategies.length - 1) {
-        console.warn('All extraction strategies failed')
-      }
-    }
-  }
-
-  // Log final results
-  if (options.debug) {
-    console.log(`PDF parsing complete. Total pages: ${pagesCount}`)
-    console.log(`PDF text content length: ${content.length}`)
-  }
-
-  if (content.length === 0) {
-    console.warn(
-      'WARNING: No text content extracted from PDF. This may be expected for image-based or complex PDFs.'
-    )
-  }
-
-  return content
-}
-
 export async function readPDF(
   options: PDFReadOptions & { filePath: string }
 ): Promise<PDFReadResult> {
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options }
 
-  if (!mergedOptions.extractText) {
-    throw new Error(
-      'extractText must be true for PDF reading to work properly.'
-    )
-  }
-
-  const { filePath } = options
-
   try {
-    // Read the PDF file into a buffer
-    const dataBuffer = await fs.readFile(filePath)
-
-    // Load the PDF document
+    const dataBuffer = await fs.readFile(options.filePath)
     const pdf = await getDocumentProxy(new Uint8Array(dataBuffer))
-
-    // Get metadata and page count
     const meta = await getMeta(pdf)
-    const pagesCount = pdf.numPages
+    const content = await tryExtractionStrategies(pdf, mergedOptions)
+    const pdfInfo = meta.info
+    const extractionSuccess = content.length > 0
 
-    // Extract text based on options
-    let content = ''
-    if (options.extractText) {
-      content = await tryExtractionStrategies(pdf, pagesCount, options)
+    // Only calculate vector-based detection and notes if extraction failed
+    let isVectorBased: boolean | undefined
+    let extractionNotes: string | undefined
+
+    if (!extractionSuccess) {
+      isVectorBased =
+        pdfInfo?.Producer?.includes('jsPDF') ||
+        (pdfInfo?.Creator?.includes('jsPDF') && !content?.trim())
+
+      extractionNotes = isVectorBased
+        ? 'This PDF appears to be vector-based (generated by jsPDF or similar). ' +
+          'Text extraction from vector-based PDFs is not supported. ' +
+          'Consider using a different PDF generation method that embeds text.'
+        : 'Text extraction failed. The PDF may be encrypted, corrupted, or use an unsupported format.'
     }
 
     return {
-      filePath,
-      fileName: path.basename(filePath),
+      filePath: options.filePath,
+      fileName: path.basename(options.filePath),
       extension: 'pdf',
       content,
-      pagesCount,
+      pagesCount: pdf.numPages,
       info: {
         ...meta.info,
-        // Add our own debugging info
-        textExtractionSuccess: content.length > 0,
-        extractionMethod: content.length > 0 ? 'unpdf' : 'failed'
+        textExtractionSuccess: extractionSuccess,
+        extractionMethod: extractionSuccess ? 'unpdf' : 'failed',
+        ...(isVectorBased !== undefined && { isVectorBased }), // Only include if calculated
+        ...(extractionNotes && { extractionNotes }) // Only include if we have notes
       },
       metadata: meta.metadata || {}
     }
   } catch (error) {
-    console.error('Error during PDF parsing:', error)
     if (error instanceof Error) {
       throw new Error(`Failed to read PDF file: ${error.message}`)
     }
     throw error
+  }
+}
+
+/** Try multiple extraction strategies to get text from a PDF */
+async function tryExtractionStrategies(
+  pdf: PDFDocumentType,
+  options: PDFReadOptions
+): Promise<string> {
+  const userMergePages = options.mergePages ?? true
+
+  // Strategy 1: User's preferred mergePages setting
+  try {
+    const content = await extractWithMergePagesSetting(pdf, userMergePages)
+    if (content && content.trim().length > 0) {
+      return content
+    }
+  } catch {
+    // Continue to next strategy
+  }
+
+  // Strategy 2: Opposite mergePages setting
+  try {
+    const content = await extractWithMergePagesSetting(pdf, !userMergePages)
+    if (content && content.trim().length > 0) {
+      return content
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  return ''
+}
+
+/** Extract text using the unpdf extractText function */
+async function extractWithMergePagesSetting(
+  pdf: PDFDocumentType,
+  mergePages: boolean
+): Promise<string> {
+  if (mergePages) {
+    const result = await extractText(pdf, { mergePages: true })
+    return result.text || ''
+  } else {
+    const result = await extractText(pdf, { mergePages: false })
+    const textArray = result.text || []
+    return Array.isArray(textArray) ? textArray.join('\n') : String(textArray)
   }
 }
