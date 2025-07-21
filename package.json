@@ -135,7 +135,7 @@
     "test:pw:burn-in-changed": "PW_BURN_IN=true npx playwright test --only-changed=main --repeat-each=3 --retries=0"
   },
   "peerDependencies": {
-    "@playwright/test": "1.52.0"
+    "@playwright/test": ">=1.54.1"
   },
   "devDependencies": {
     "@faker-js/faker": "9.9.0",
