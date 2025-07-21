@@ -134,7 +134,7 @@ jobs:
         run: |
           # Commit the version change
           git add package.json package-lock.json
-          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }} [ci skip]"
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
           git tag -a "v${{ steps.version.outputs.new_version }}" -m "Release ${{ steps.version.outputs.new_version }}"
 
           # Create a branch for this release
