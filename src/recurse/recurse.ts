@@ -110,9 +110,8 @@ const logAttempt = async <T>(
   }
 
   if (typeof state.options.log === 'string') {
-    if (successful) {
-      await getLogger().success(state.options.log)
-    }
+    // For string logs, we don't log individual attempts
+    // The final success will be logged in logSuccess()
     return
   }
 
@@ -150,13 +149,15 @@ const logInitialStep = async <T>(state: RecurseState<T>) => {
 const logSuccess = async <T>(state: RecurseState<T>) => {
   const { options, iteration, wasSuccessful } = state
 
-  if (!wasSuccessful) return
+  if (!wasSuccessful || !options.log) return
 
-  if (options.log && typeof options.log === 'string') {
-    await getLogger().success(options.log)
+  if (typeof options.log === 'string') {
+    await getLogger().step(
+      `✅ ${options.log} - completed successfully after ${iteration} iterations`
+    )
   } else {
-    await getLogger().success(
-      `Polling completed successfully after ${iteration} iterations`
+    await getLogger().step(
+      `✅ Polling completed successfully after ${iteration} iterations`
     )
   }
 }
