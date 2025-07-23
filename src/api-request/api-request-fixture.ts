@@ -49,7 +49,7 @@ export const test = base.extend<{
     params: ApiRequestFixtureParams
   ) => Promise<ApiRequestResponse<T>>
 }>({
-  apiRequest: async ({ request, baseURL }, use) => {
+  apiRequest: async ({ request, baseURL, page }, use) => {
     const apiRequest = async <T = unknown>({
       method,
       path,
@@ -57,7 +57,9 @@ export const test = base.extend<{
       configBaseUrl = baseURL,
       body = null,
       headers,
-      params
+      params,
+      uiMode = false,
+      testStep
     }: ApiRequestFixtureParams): Promise<ApiRequestResponse<T>> => {
       const response = await apiRequestFunction({
         request,
@@ -67,7 +69,10 @@ export const test = base.extend<{
         configBaseUrl,
         body,
         headers,
-        params
+        params,
+        uiMode,
+        testStep,
+        page // Pass page context for UI mode
       })
 
       return {

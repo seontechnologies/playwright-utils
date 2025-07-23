@@ -9,6 +9,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
 - Proper handling of URL path normalization and slashes
 - Content-type based response parsing
 - Support for all common HTTP methods
+- **Rich UI Mode**: Visual display of API requests/responses in Playwright UI (perfect for API E2E testing)
 
 ## Usage
 
@@ -82,6 +83,7 @@ async function apiRequest<T = unknown>({
 | headers       | Record<string, string> (optional)                         | HTTP headers                                                                         |
 | params        | Record<string, string \| boolean \| number> (optional)    | Query parameters                                                                     |
 | testStep      | boolean (optional)                                        | Whether to wrap the call in test.step() (defaults to true)                           |
+| uiMode        | boolean (optional)                                        | Enable rich UI display in Playwright UI (defaults to false)                          |
 
 ### Return Type
 
@@ -185,7 +187,7 @@ import { request } from '@playwright/test'
 // For use in global setup or outside of test.step() contexts
 async function fetchToken() {
   const requestContext = await request.newContext()
-  
+
   const { body } = await apiRequest({
     request: requestContext,
     method: 'GET',
@@ -193,7 +195,7 @@ async function fetchToken() {
     baseUrl: 'https://api.example.com',
     testStep: false // Disable test.step wrapping for non-test contexts
   })
-  
+
   await requestContext.dispose()
   return body.token
 }
@@ -225,6 +227,180 @@ test('demonstrates URL resolution', async ({ apiRequest }) => {
   await apiRequest({})
 })
 ```
+
+## UI Mode for API E2E Testing
+
+The API Request utility includes a powerful UI Mode feature that provides rich visual feedback for API requests and responses. This is especially useful for API E2E testing where you want to see detailed request/response information in the Playwright UI.
+
+### Features
+
+- **Rich Visual Display**: Shows formatted request and response details with syntax highlighting
+- **Tabbed Interface**: Organizes information into tabs (Body, Headers, Params, etc.)
+- **Duration Tracking**: Shows how long each request took
+- **Status Color Coding**: Visual indicators for different HTTP status codes (2xx = green, 4xx = red, etc.)
+- **HTML Report Attachments**: Automatically includes API details in test reports
+- **Safe for UI Tests**: Defaults to `false` so it won't interfere with existing UI tests
+
+### Enabling UI Mode
+
+There are three ways to enable UI Mode:
+
+#### Method 1: Per-Request Basis
+
+```typescript
+const { status, body } = await apiRequest({
+  request,
+  method: 'GET',
+  path: '/api/movies',
+  uiMode: true // Enable UI display for this specific request
+})
+```
+
+#### Method 2: Environment Variable (Recommended for API E2E)
+
+Set the environment variable globally in your config file:
+
+```typescript
+// playwright/config/base.config.ts
+process.env.API_E2E_UI_MODE = 'true'
+
+// ... rest of your config
+```
+
+Or at the top of your test file:
+
+```typescript
+// At the top of your test file
+process.env.API_E2E_UI_MODE = 'true'
+
+import { test, expect } from '@playwright/test'
+// ... rest of your imports and tests
+```
+
+#### Method 3: In Test Hooks
+
+```typescript
+test.describe('My API tests', () => {
+  test.beforeAll(() => {
+    process.env.API_E2E_UI_MODE = 'true'
+  })
+
+  test.afterAll(() => {
+    delete process.env.API_E2E_UI_MODE // Clean up
+  })
+
+  // ... your tests
+})
+```
+
+### UI Mode Examples
+
+#### Basic Usage with Environment Variable
+
+```typescript
+// Set at top of file or in config
+process.env.API_E2E_UI_MODE = 'true'
+
+test('API test with UI display', async ({ apiRequest }) => {
+  // This will show rich UI display automatically
+  const { status, body } = await apiRequest({
+    method: 'POST',
+    path: '/api/movies',
+    body: {
+      name: 'Test Movie',
+      year: 2023,
+      rating: 8.5
+    },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer token123'
+    }
+  })
+
+  expect(status).toBe(201)
+  expect(body.id).toBeDefined()
+})
+```
+
+#### Per-Request UI Mode
+
+```typescript
+test('API test with selective UI display', async ({ apiRequest }) => {
+  // This request will show UI display
+  const createResponse = await apiRequest({
+    method: 'POST',
+    path: '/api/movies',
+    body: { name: 'Test Movie' },
+    uiMode: true // Enable UI for this specific call
+  })
+
+  // This request will not show UI display (default behavior)
+  const getResponse = await apiRequest({
+    method: 'GET',
+    path: `/api/movies/${createResponse.body.id}`
+    // uiMode defaults to false
+  })
+})
+```
+
+#### Combining with Other Utilities
+
+```typescript
+process.env.API_E2E_UI_MODE = 'true'
+
+test('API polling with UI display', async ({ apiRequest, recurse }) => {
+  // Create resource - shows in UI
+  const createResponse = await apiRequest({
+    method: 'POST',
+    path: '/api/async-resource',
+    body: { name: 'Test Resource' }
+  })
+
+  const resourceId = createResponse.body.id
+
+  // Poll for completion - all requests show in UI
+  await recurse(
+    async () => {
+      const statusResponse = await apiRequest({
+        method: 'GET',
+        path: `/api/async-resource/${resourceId}/status`
+      })
+      return statusResponse.body
+    },
+    (status) => status.completed === true,
+    {
+      timeout: 30000,
+      interval: 1000,
+      log: 'Waiting for resource to complete'
+    }
+  )
+})
+```
+
+### Best Practices
+
+1. **Use Environment Variable for API E2E Tests**: Set `API_E2E_UI_MODE='true'` in your config file for backend API test suites
+2. **Keep Disabled for UI Tests**: The default `false` value ensures UI tests aren't affected
+3. **Use in Development**: Great for debugging and understanding API flows during development
+4. **CI/CD Considerations**: You may want to disable in CI for performance, or enable for debugging failing tests
+
+### What You'll See
+
+When UI Mode is enabled, each API request will display:
+
+- **Request Section**:
+  - HTTP method and URL
+  - Request headers (formatted JSON)
+  - Request body (formatted JSON)
+  - Query parameters (formatted JSON)
+
+- **Response Section**:
+  - HTTP status code with color coding
+  - Response duration
+  - Response headers (formatted JSON)
+  - Response body (formatted JSON)
+
+- **HTML Report**: All API call details are also automatically attached to the HTML report for offline viewing
 
 ## Real-World Examples
 

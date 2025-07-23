@@ -1,6 +1,11 @@
-import { type APIRequestContext } from '@playwright/test'
+import { type APIRequestContext, type Page } from '@playwright/test'
 import { test } from '@playwright/test'
 import { getLogger } from '../internal'
+import {
+  addApiCardToUI,
+  type RequestDataInterface,
+  type ResponseDataInterface
+} from './ui-display'
 
 export type ApiRequestParams = {
   request: APIRequestContext
@@ -12,6 +17,8 @@ export type ApiRequestParams = {
   headers?: Record<string, string>
   params?: Record<string, string | boolean | number>
   testStep?: boolean // Whether to wrap the call in test.step (defaults to true)
+  uiMode?: boolean // Whether to show rich UI display (defaults to false, unless API_E2E_UI_MODE env var is set)
+  page?: Page // Page context for UI display (automatically provided by fixtures)
 }
 
 export type ApiRequestResponse<T = unknown> = {
@@ -45,7 +52,9 @@ const apiRequestBase = async <T = unknown>({
   configBaseUrl = '', // configBaseUrl from Playwright config
   body = null,
   headers,
-  params
+  params,
+  uiMode = false,
+  page
 }: ApiRequestParams): Promise<ApiRequestResponse<T>> => {
   // common options; if there's a prop, add it to the options object
   // Note: Playwright expects 'data' for the request body, not 'body'
@@ -79,8 +88,10 @@ const apiRequestBase = async <T = unknown>({
   const requestFn = methodMap[method]
   if (!requestFn) throw new Error(`Unsupported HTTP method: ${method}`)
 
-  // execute the request
+  // execute the request with timing
+  const startTime = Date.now()
   const response = await requestFn()
+  const duration = Date.now() - startTime
   const status = response.status()
 
   // parse response body based on content type
@@ -103,7 +114,76 @@ const apiRequestBase = async <T = unknown>({
 
   const responseBody = await parseResponseBody()
 
+  // Display UI if uiMode is enabled or environment variable is set
+  if (uiMode || shouldDisplayApiUI()) {
+    await displayApiUI({
+      url: fullUrl,
+      method,
+      headers,
+      data: body,
+      params,
+      response,
+      responseBody,
+      duration,
+      status,
+      page
+    })
+  }
+
   return { status, body: responseBody as T }
+}
+
+/**
+ * Determines if API UI should be displayed based on environment variables
+ */
+const shouldDisplayApiUI = (): boolean => {
+  const envUiMode = process.env.API_E2E_UI_MODE
+  if (envUiMode === 'true') return true
+  if (envUiMode === 'false') return false
+
+  // Default is false unless explicitly enabled
+  return false
+}
+
+/**
+ * Display API call information in UI format
+ */
+const displayApiUI = async (params: {
+  url: string
+  method: string
+  headers?: Record<string, string>
+  data?: unknown
+  params?: Record<string, string | boolean | number>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  response: any
+  responseBody: unknown
+  duration: number
+  status: number
+  page?: Page
+}): Promise<void> => {
+  try {
+    const requestData: RequestDataInterface = {
+      url: params.url,
+      method: params.method.toUpperCase(),
+      headers: params.headers,
+      data: params.data,
+      params: params.params
+    }
+
+    const responseData: ResponseDataInterface = {
+      status: params.status,
+      statusClass: Math.floor(params.status / 100) + 'xx',
+      statusText: params.response.statusText(),
+      headers: params.response.headers(),
+      body: params.responseBody,
+      duration: params.duration
+    }
+
+    await addApiCardToUI(requestData, responseData, params.page)
+  } catch (error) {
+    // Silently fail if UI display doesn't work (e.g., no page context)
+    await getLogger().debug(`UI display failed: ${error}`)
+  }
 }
 
 /**

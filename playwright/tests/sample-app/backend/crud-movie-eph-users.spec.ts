@@ -8,6 +8,8 @@ import {
 import { expect, test } from '../../../support/merged-fixtures'
 import { generateMovieWithoutId } from '../../../support/utils/movie-factories'
 
+process.env.API_E2E_UI_MODE = 'true'
+
 test.describe('CRUD movie with ephemeral users', () => {
   let AdminUser: UserData
   let ReadUser: UserData
