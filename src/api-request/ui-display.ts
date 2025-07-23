@@ -34,10 +34,11 @@ export interface ResponseDataInterface {
 export const addApiCardToUI = async (
   requestData: RequestDataInterface,
   responseData: ResponseDataInterface,
-  page?: Page
+  page?: Page,
+  uiMode?: boolean
 ): Promise<void> => {
-  // Only show UI if we have a page and UI mode is enabled
-  const shouldShowUI = page && shouldDisplayApiUI()
+  // Only show UI if we have a page and UI mode is enabled (either via parameter or environment variable)
+  const shouldShowUI = page && (uiMode || shouldDisplayApiUI())
 
   if (!shouldShowUI) return
 

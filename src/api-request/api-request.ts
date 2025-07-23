@@ -126,7 +126,8 @@ const apiRequestBase = async <T = unknown>({
       responseBody,
       duration,
       status,
-      page
+      page,
+      uiMode
     })
   }
 
@@ -160,6 +161,7 @@ const displayApiUI = async (params: {
   duration: number
   status: number
   page?: Page
+  uiMode?: boolean
 }): Promise<void> => {
   try {
     const requestData: RequestDataInterface = {
@@ -179,7 +181,7 @@ const displayApiUI = async (params: {
       duration: params.duration
     }
 
-    await addApiCardToUI(requestData, responseData, params.page)
+    await addApiCardToUI(requestData, responseData, params.page, params.uiMode)
   } catch (error) {
     // Silently fail if UI display doesn't work (e.g., no page context)
     await getLogger().debug(`UI display failed: ${error}`)
