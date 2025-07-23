@@ -153,7 +153,7 @@ const createApiCallHtmlResponse = async (
   const responseHeaders = headers ? formatJson(headers) : undefined
   const responseBody = body ? formatJson(body) : undefined
   const durationMsg = duration
-    ? 'Duration aprox. ' +
+    ? 'Duration approx. ' +
       (duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(2)}s`)
     : ''
 
@@ -238,17 +238,22 @@ const formatJson = (jsonObject: object): string => {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;')
-    
+
     // Then apply syntax highlighting
     return escapedString
       .replace(/&quot;([^&]+)&quot;:/g, '<span class="json-key">"$1":</span>')
-      .replace(/: &quot;([^&]+)&quot;/g, ': <span class="json-string">"$1"</span>')
+      .replace(
+        /: &quot;([^&]+)&quot;/g,
+        ': <span class="json-string">"$1"</span>'
+      )
       .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
       .replace(/: (true|false|null)/g, ': <span class="json-literal">$1</span>')
   } catch {
-    return String(jsonObject).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    return String(jsonObject)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
   }
-}
 }
 
 /**
