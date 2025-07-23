@@ -231,15 +231,24 @@ const createApiCallReportAttachment = async (
 const formatJson = (jsonObject: object): string => {
   try {
     const jsonString = JSON.stringify(jsonObject, null, 4)
-    // Simple syntax highlighting - could be enhanced with a highlighting library
-    return jsonString
-      .replace(/"([^"]+)":/g, '<span class="json-key">"$1":</span>')
-      .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+    // First escape HTML entities to prevent XSS
+    const escapedString = jsonString
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+    
+    // Then apply syntax highlighting
+    return escapedString
+      .replace(/&quot;([^&]+)&quot;:/g, '<span class="json-key">"$1":</span>')
+      .replace(/: &quot;([^&]+)&quot;/g, ': <span class="json-string">"$1"</span>')
       .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
       .replace(/: (true|false|null)/g, ': <span class="json-literal">$1</span>')
   } catch {
-    return String(jsonObject)
+    return String(jsonObject).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
+}
 }
 
 /**
