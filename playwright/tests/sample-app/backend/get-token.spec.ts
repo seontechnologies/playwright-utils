@@ -16,7 +16,8 @@ test.describe('token acquisition', () => {
     } = await apiRequest<{ message: string }>({
       baseUrl: API_URL,
       method: 'GET',
-      path: '/'
+      path: '/',
+      uiMode: true // we can set it here, or use an env var for the whole file process.env.API_E2E_UI_MODE = 'true'
     })
 
     expect(status).toBe(200)
@@ -50,7 +51,8 @@ test.describe('token acquisition', () => {
     } = await apiRequest<{ token: string }>({
       baseUrl: API_URL,
       method: 'POST',
-      path: '/auth/fake-token'
+      path: '/auth/fake-token',
+      uiMode: true
     })
 
     expect(status).toBe(200)
@@ -64,7 +66,8 @@ test.describe('token acquisition', () => {
     } = await apiRequest<{ token: string }>({
       baseUrl: API_URL,
       method: 'POST',
-      path: '/auth/renew'
+      path: '/auth/renew',
+      uiMode: true
     })
 
     expect(refreshTokenStatus).toBe(200)
@@ -88,7 +91,8 @@ test.describe('token acquisition', () => {
       baseUrl: API_URL,
       method: 'POST',
       path: '/auth/identity-token',
-      body: userData
+      body: userData,
+      uiMode: true
     })
 
     expect(status).toBe(200)
@@ -112,7 +116,8 @@ test.describe('token acquisition', () => {
     }>({
       baseUrl: API_URL,
       method: 'GET',
-      path: '/auth/validate'
+      path: '/auth/validate',
+      uiMode: true
     })
 
     expect(validateStatus).toBe(200)
@@ -132,7 +137,8 @@ test.describe('token acquisition', () => {
     } = await apiRequest<{ token: string }>({
       baseUrl: API_URL,
       method: 'POST',
-      path: '/auth/renew'
+      path: '/auth/renew',
+      uiMode: true
     })
 
     expect(refreshTokenStatus).toBe(200)

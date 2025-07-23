@@ -6,6 +6,8 @@ import type { Movie } from '@shared/types/movie-types'
 import { runCommand } from '../../../support/utils/run-command'
 import { log } from 'src/log'
 
+process.env.API_E2E_UI_MODE = 'true'
+
 test.describe('CRUD movie', () => {
   const movie = generateMovieWithoutId()
   const updatedMovie = generateMovieWithoutId()
