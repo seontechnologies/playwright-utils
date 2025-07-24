@@ -151,16 +151,18 @@ export function saveTokenToStorage(tokenPath: string, token: string): boolean {
  * Load a storage state file and parse it into an object in one step
  * This simplifies token management by handling both loading and parsing
  *
+ * Note: This function no longer performs automatic token validation.
+ * Applications should implement their own validation logic based on their
+ * specific token formats and requirements.
+ *
  * @param tokenPath Path to the storage state file
- * @param skipIfExpired Whether to check if the token is expired
- * @returns The parsed storage state object or null if invalid/expired
+ * @returns The parsed storage state object or null if file doesn't exist or is invalid
  */
 export function loadStorageState(
-  tokenPath: string,
-  skipIfExpired = true
+  tokenPath: string
 ): Record<string, unknown> | null {
   try {
-    // First check if we have a valid token string using existing function
+    // Check if file exists
     if (!fs.existsSync(tokenPath)) {
       return null
     }
@@ -172,12 +174,6 @@ export function loadStorageState(
     }
 
     const storageState = JSON.parse(rawData)
-
-    // Validate the token if needed
-    if (skipIfExpired && checkTokenExpiration(storageState)) {
-      return null // Token is expired
-    }
-
     return storageState
   } catch (error) {
     log.errorSync(
@@ -224,8 +220,8 @@ export async function getAuthToken(
   })
 
   // Try to load an existing storage state with all parsing handled for us
-  const existingStorageState = loadStorageState(tokenPath, true)
-  if (existingStorageState) {
+  const existingStorageState = loadStorageState(tokenPath)
+  if (existingStorageState && !checkTokenExpiration(existingStorageState)) {
     return existingStorageState
   }
 

@@ -17,8 +17,14 @@ export async function checkTokenValidity(
   tokenPath: string
 ): Promise<Record<string, unknown> | null> {
   // Check if we already have a valid token
-  const existingStorageState = loadStorageState(tokenPath, true)
+  const existingStorageState = loadStorageState(tokenPath)
   if (!existingStorageState) {
+    return null
+  }
+
+  // Check if the token is expired using explicit validation
+  const token = extractToken(existingStorageState)
+  if (!token || isTokenExpired(token)) {
     return null
   }
 
@@ -32,7 +38,7 @@ export async function checkTokenValidity(
       await renewToken({ storageState: tokenPath })
 
       // Load the updated storage state after successful renewal
-      const renewedStorageState = loadStorageState(tokenPath, false)
+      const renewedStorageState = loadStorageState(tokenPath)
       if (!renewedStorageState) {
         throw new Error('Failed to load renewed storage state')
       }
