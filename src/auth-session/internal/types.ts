@@ -15,7 +15,7 @@ export type AuthStorageConfig = {
 }
 
 /** Function type for customizing how token data is formatted before storage
- * This allows for complete customization of the token storage format
+ * This allows for complete customization of the token storage format with type safety
  *
  * Token data can be any format that the auth provider supports:
  * - Simple Bearer tokens (string)
@@ -26,14 +26,60 @@ export type AuthStorageConfig = {
  * unnecessary and can be omitted entirely. The default implementation simply passes
  * the token through without modification.
  *
- * @param token The raw token data (could be string, object, etc.)
+ * @template TInput The type of the input token data
+ * @template TOutput The type of the formatted output data
+ * @param token The raw token data
  * @param options Optional auth session options to customize formatting
  * @returns Formatted token data ready for storage
  */
-export type TokenDataFormatter = (
-  token: unknown,
+export type TokenDataFormatter<TInput = unknown, TOutput = unknown> = (
+  token: TInput,
   options?: Partial<AuthSessionOptions>
-) => unknown
+) => TOutput
+
+/**
+ * Standard Playwright storage state format for type safety
+ * This represents the expected structure for browser context storage state
+ */
+export type PlaywrightStorageState = {
+  cookies: Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    expires?: number
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: 'Strict' | 'Lax' | 'None'
+  }>
+  origins: Array<{
+    origin: string
+    localStorage: Array<{
+      name: string
+      value: string
+    }>
+  }>
+}
+
+/** Default token data formatter type that converts unknown input to Playwright storage state */
+export type DefaultTokenDataFormatter = TokenDataFormatter<
+  unknown,
+  PlaywrightStorageState
+>
+
+/** Retry configuration for error recovery */
+export type RetryConfig = {
+  /** Maximum number of retry attempts (default: 3) */
+  maxRetries?: number
+  /** Initial delay between retries in milliseconds (default: 100ms) */
+  initialDelayMs?: number
+  /** Exponential backoff multiplier (default: 2) */
+  backoffMultiplier?: number
+  /** Maximum delay between retries in milliseconds (default: 5000ms) */
+  maxDelayMs?: number
+  /** Whether to add random jitter to delays (default: true) */
+  enableJitter?: boolean
+}
 
 /** Options for the auth session */
 export type AuthSessionOptions = AuthIdentifiers & {
@@ -45,9 +91,11 @@ export type AuthSessionOptions = AuthIdentifiers & {
   /** Cookie name to use for authentication (default: auth-token) */
   cookieName?: string
   /** Custom token data formatter to control how tokens are saved */
-  tokenDataFormatter?: TokenDataFormatter
+  tokenDataFormatter?: TokenDataFormatter<unknown, PlaywrightStorageState>
   /** Debug mode (default: false) */
   debug?: boolean
+  /** Retry configuration for error recovery (default: { maxRetries: 3, initialDelayMs: 100 }) */
+  retryConfig?: RetryConfig
 }
 
 /**

@@ -96,8 +96,30 @@ let globalAuthProvider: AuthProvider | null = null
  * Users MUST implement their own provider and set it here
  *
  * @param provider The auth provider to use
+ * @param skipValidation Whether to skip validation (default: false)
  */
-export function setAuthProvider(provider: AuthProvider): void {
+export function setAuthProvider(
+  provider: AuthProvider,
+  skipValidation: boolean = false
+): void {
+  if (!skipValidation) {
+    // Import validation utility only when needed
+    const { validateAuthProvider } = require('./auth-provider-validator')
+
+    try {
+      validateAuthProvider(provider, {
+        throwOnError: true,
+        enableBenchmarks: false
+      })
+    } catch (error) {
+      throw new Error(
+        `Invalid AuthProvider: ${error instanceof Error ? error.message : String(error)}\n` +
+          'Please ensure your AuthProvider implements all required methods correctly. ' +
+          'Use skipValidation=true to bypass validation if needed.'
+      )
+    }
+  }
+
   globalAuthProvider = provider
 }
 
@@ -116,6 +138,12 @@ export function getAuthProvider(): AuthProvider {
 }
 
 // Import this dynamically to avoid circular dependency
-export function getGlobalAuthOptions(): AuthSessionOptions {
-  return require('./auth-configure').getGlobalAuthOptions()
+export function getGlobalAuthOptions(): AuthSessionOptions | null {
+  try {
+    const { getGlobalAuthOptions } = require('./auth-configure')
+    return getGlobalAuthOptions()
+  } catch {
+    // In case of circular dependency or missing module, return null
+    return null
+  }
 }

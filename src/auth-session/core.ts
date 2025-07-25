@@ -25,15 +25,16 @@ export { setAuthProvider } from './internal/auth-provider'
 /** Extract the raw token from provider-specific token data
  * Uses the provider's knowledge of its own token format */
 function extractTokenFromData(
-  tokenData: Record<string, unknown>
+  tokenData: Record<string, unknown>,
+  provider?: ReturnType<typeof getAuthProvider>
 ): string | null {
   try {
-    // Use the provider to extract the token
-    const provider = require('./internal/auth-provider').getAuthProvider()
+    // Use the provided provider or get from global state
+    const authProvider = provider || getAuthProvider()
 
     // Provider must implement extractToken method
-    if (provider && typeof provider.extractToken === 'function') {
-      return provider.extractToken(tokenData)
+    if (authProvider && typeof authProvider.extractToken === 'function') {
+      return authProvider.extractToken(tokenData)
     }
 
     // No extractToken method implemented
@@ -49,19 +50,24 @@ function extractTokenFromData(
 
 /** Internal function to check if a token is expired
  * Uses the provider's isTokenExpired method if implemented */
-function checkTokenExpiration(tokenData: Record<string, unknown>): boolean {
+function checkTokenExpiration(
+  tokenData: Record<string, unknown>,
+  provider?: ReturnType<typeof getAuthProvider>
+): boolean {
   try {
+    // Use the provided provider or get from global state
+    const authProvider = provider || getAuthProvider()
+
     // Extract the raw token first
-    const rawToken = extractTokenFromData(tokenData)
+    const rawToken = extractTokenFromData(tokenData, authProvider)
     if (rawToken === null) {
       log.warningSync('Cannot extract token, considering expired')
       return true // Can't extract token, consider expired
     }
 
     // Use provider's isTokenExpired if implemented
-    const provider = require('./internal/auth-provider').getAuthProvider()
-    if (provider && typeof provider.isTokenExpired === 'function') {
-      return provider.isTokenExpired(rawToken)
+    if (authProvider && typeof authProvider.isTokenExpired === 'function') {
+      return authProvider.isTokenExpired(rawToken)
     }
 
     // If the provider doesn't implement isTokenExpired, consider the token valid
@@ -221,7 +227,10 @@ export async function getAuthToken(
 
   // Try to load an existing storage state with all parsing handled for us
   const existingStorageState = loadStorageState(tokenPath)
-  if (existingStorageState && !checkTokenExpiration(existingStorageState)) {
+  if (
+    existingStorageState &&
+    !checkTokenExpiration(existingStorageState, provider)
+  ) {
     return existingStorageState
   }
 
@@ -236,7 +245,7 @@ export async function getAuthToken(
   // Convert to string for storage while preserving the object for return
   if (storageState) {
     const tokenString = JSON.stringify(storageState)
-    sessionManager.saveToken(tokenString)
+    await sessionManager.saveToken(tokenString)
   }
 
   // Return the storage state object for use with Playwright context

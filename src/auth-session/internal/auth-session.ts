@@ -9,22 +9,94 @@ import * as path from 'path'
 import { getStorageDir } from './auth-storage-utils'
 import { getGlobalAuthOptions } from './auth-configure'
 import { getAuthProvider } from './auth-provider'
-import type { AuthSessionOptions, TokenDataFormatter } from './types'
+import { globalTokenCache } from './cache-manager'
+import type {
+  AuthSessionOptions,
+  PlaywrightStorageState,
+  DefaultTokenDataFormatter,
+  RetryConfig
+} from './types'
 import { log } from '../../log'
 
-// Token cache for improved performance and reduced file I/O
-// Maps storage path to token data with expiration time
-interface TokenCacheEntry {
-  token: string
-  expires: number
-  // Removed unused data field for simplicity
+/** Default retry configuration */
+const DEFAULT_RETRY_CONFIG: Required<RetryConfig> = {
+  maxRetries: 3,
+  initialDelayMs: 100,
+  backoffMultiplier: 2,
+  maxDelayMs: 5000,
+  enableJitter: true
 }
 
-// Using a static cache that persists across all instances
-const tokenCache: Record<string, TokenCacheEntry> = {}
+/**
+ * Sleep for a specified number of milliseconds
+ * @param ms Milliseconds to sleep
+ */
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
-// Default token cache duration (15 minutes)
-const DEFAULT_CACHE_DURATION_MS = 15 * 60 * 1000
+/**
+ * Calculate the delay for a retry attempt with exponential backoff and optional jitter
+ * @param attempt The current attempt number (0-based)
+ * @param config Retry configuration
+ * @returns Delay in milliseconds
+ */
+const calculateRetryDelay = (
+  attempt: number,
+  config: Required<RetryConfig>
+): number => {
+  const baseDelay =
+    config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt)
+  const clampedDelay = Math.min(baseDelay, config.maxDelayMs)
+
+  if (config.enableJitter) {
+    // Add random jitter ±25% to prevent thundering herd
+    const jitter = clampedDelay * 0.25 * (Math.random() * 2 - 1)
+    return Math.max(0, clampedDelay + jitter)
+  }
+
+  return clampedDelay
+}
+
+/**
+ * Execute a function with retry logic and exponential backoff
+ * @param fn Function to execute
+ * @param config Retry configuration
+ * @param context Context string for logging
+ * @returns Promise that resolves to the function result
+ */
+const executeWithRetry = async <T>(
+  fn: () => Promise<T> | T,
+  config: RetryConfig = {},
+  context: string = 'operation'
+): Promise<T> => {
+  const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...config }
+  let lastError: Error | unknown
+
+  for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error
+
+      if (attempt === retryConfig.maxRetries) {
+        // Final attempt failed, throw the error
+        throw error
+      }
+
+      const delay = calculateRetryDelay(attempt, retryConfig)
+      log.warningSync(
+        `${context} failed (attempt ${attempt + 1}/${retryConfig.maxRetries + 1}), retrying in ${delay.toFixed(0)}ms: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+
+      await sleep(delay)
+    }
+  }
+
+  // This should never be reached, but TypeScript requires it
+  throw lastError
+}
 
 /**
  * Helper to check if an object matches the Playwright storage state structure
@@ -92,13 +164,13 @@ const extractTokenFromString = (str: string): string | unknown => {
  * Default token formatter for the standard Playwright storage state format
  * This creates a properly formatted storage state with the raw token value
  */
-export const defaultTokenFormatter: TokenDataFormatter = (
+export const defaultTokenFormatter: DefaultTokenDataFormatter = (
   tokenData: unknown,
   options?: Partial<AuthSessionOptions>
-): unknown => {
+): PlaywrightStorageState => {
   // Check if tokenData is already a valid storage state object
   if (isPlaywrightStorageState(tokenData)) {
-    return tokenData
+    return tokenData as PlaywrightStorageState
   }
 
   // Extract the token based on the input type
@@ -108,7 +180,7 @@ export const defaultTokenFormatter: TokenDataFormatter = (
     token = extractTokenFromString(tokenData)
     // If a storage state was returned, just use it
     if (token && typeof token === 'object') {
-      return token
+      return token as PlaywrightStorageState
     }
   } else if (tokenData && typeof tokenData === 'object') {
     token = extractTokenFromObject(tokenData) || String(tokenData || '')
@@ -129,13 +201,13 @@ export const defaultTokenFormatter: TokenDataFormatter = (
     cookies: [
       {
         name: cookieName,
-        value: token,
+        value: String(token),
         domain,
         path: '/',
         expires: -1,
         httpOnly: true,
         secure: true,
-        sameSite: 'Lax'
+        sameSite: 'Lax' as const
       }
     ],
     origins: []
@@ -228,7 +300,9 @@ export class AuthSessionManager {
    * Save token to storage and update cache
    * @param token The token to save - can be either a string or an object
    */
-  public saveToken(token: string | Record<string, unknown>): void {
+  public async saveToken(
+    token: string | Record<string, unknown>
+  ): Promise<void> {
     if (!token) {
       log.warningSync('Attempted to save empty token')
       return
@@ -239,7 +313,7 @@ export class AuthSessionManager {
 
     this.token = tokenStr
     this.hasToken = true
-    this.saveTokenToStorage(tokenStr)
+    await this.saveTokenToStorageWithRetry(tokenStr)
     this.cacheToken(tokenStr)
   }
 
@@ -281,17 +355,16 @@ export class AuthSessionManager {
   /** Load token from storage if it exists */
   private loadTokenFromStorage(): void {
     try {
-      // Check in-memory cache first
-      const now = Date.now()
-      const cachedData = tokenCache[this.storageFile]
+      // Check in-memory cache first using new cache manager
+      const cachedToken = globalTokenCache.get(this.storageFile)
 
-      if (cachedData && cachedData.expires > now) {
+      if (cachedToken) {
         // Use cached token if it's not expired
-        this.token = cachedData.token
+        this.token = cachedToken
         this.hasToken = true
 
         if (this.options.debug) {
-          log.infoSync('Token loaded from memory cache')
+          log.infoSync('Token loaded from advanced memory cache')
         }
         return
       }
@@ -327,8 +400,8 @@ export class AuthSessionManager {
             this.token = token
             this.hasToken = true
 
-            // Cache the loaded token
-            this.cacheToken(token)
+            // Cache the loaded token using new cache manager
+            globalTokenCache.set(this.storageFile, token)
 
             if (this.options.debug) {
               log.infoSync('Token loaded from storage')
@@ -348,28 +421,16 @@ export class AuthSessionManager {
     }
   }
 
-  /** Cache a token in memory */
+  /** Cache a token in memory using advanced cache manager */
   private cacheToken(token: string): void {
     try {
-      const provider = getAuthProvider()
-      const expiresIn = DEFAULT_CACHE_DURATION_MS
-
-      // Try to extract expiration from token if provider supports it
-      if (provider && typeof provider.isTokenExpired === 'function' && token) {
-        // Add logic to extract expiration if provider has it
-        // For now we'll use the default expiration time
-      }
-
-      const now = Date.now()
-      tokenCache[this.storageFile] = {
-        token,
-        expires: now + expiresIn
-        // Removed data field as it's no longer needed
-      }
+      // Use the advanced cache manager with default TTL
+      globalTokenCache.set(this.storageFile, token)
 
       if (this.options.debug) {
+        const status = globalTokenCache.getStatus()
         log.infoSync(
-          `Token cached in memory until ${new Date(now + expiresIn).toISOString()}`
+          `Token cached in advanced cache (${status.size}/${status.maxSize} entries, ${status.utilizationPercent.toFixed(1)}% utilized)`
         )
       }
     } catch (error) {
@@ -378,6 +439,17 @@ export class AuthSessionManager {
       )
       // Continue without caching
     }
+  }
+
+  /** Save token to storage with retry logic and exponential backoff */
+  private async saveTokenToStorageWithRetry(token: string): Promise<void> {
+    const retryConfig = this.options.retryConfig || DEFAULT_RETRY_CONFIG
+
+    await executeWithRetry(
+      () => this.saveTokenToStorage(token),
+      retryConfig,
+      `Token save for ${this.options.environment}/${this.options.userIdentifier}`
+    )
   }
 
   /** Save token to storage with file locking to prevent concurrent access issues */
@@ -474,12 +546,18 @@ export class AuthSessionManager {
         log.infoSync('[Auth Session] Token cleared from memory')
       }
 
+      // Clear from advanced cache
+      globalTokenCache.delete(this.storageFile)
+
       // Reset internal state
       this.token = null
       this.hasToken = false
 
       if (this.options.debug) {
-        log.successSync('[Auth Session] Token cleared successfully')
+        const cacheStatus = globalTokenCache.getStatus()
+        log.successSync(
+          `[Auth Session] Token cleared successfully (cache: ${cacheStatus.size}/${cacheStatus.maxSize})`
+        )
       }
 
       // Always return true for better developer experience
@@ -566,16 +644,16 @@ export class AuthSessionManager {
   }
 
   /**
-   * Check token expiration using the in-memory cache
+   * Check token expiration using the advanced cache manager
    */
   private checkTokenCacheExpiration(): boolean {
-    const now = Date.now()
-    const cachedData = tokenCache[this.storageFile]
-    if (!cachedData) return false
+    // The advanced cache manager handles expiration automatically
+    // If get() returns null, it means the token is expired or not found
+    const cachedToken = globalTokenCache.get(this.storageFile)
+    const isExpired = cachedToken === null
 
-    const isExpired = cachedData.expires <= now
     if (this.options.debug && isExpired) {
-      log.infoSync('Token expired according to in-memory cache')
+      log.infoSync('Token expired or not found in advanced cache')
     }
 
     return isExpired
@@ -667,7 +745,7 @@ export class AuthSessionManager {
       const token = await this.getTokenFromProvider(request)
       this.token = token
       this.hasToken = true
-      this.saveTokenToStorage(token)
+      await this.saveTokenToStorageWithRetry(token)
 
       return token
     }
@@ -679,24 +757,23 @@ export class AuthSessionManager {
   /**
    * Manage the complete authentication token lifecycle
    * Handles checking existing tokens, fetching new ones if needed, and persistence
-   * Uses in-memory caching for better performance
+   * Uses advanced caching for better performance
    */
   public async manageAuthToken(request: APIRequestContext): Promise<string> {
-    // Check in-memory cache first for maximum efficiency
-    const now = Date.now()
-    const cachedData = tokenCache[this.storageFile]
+    // Check advanced cache first for maximum efficiency
+    const cachedToken = globalTokenCache.get(this.storageFile)
 
-    if (cachedData && cachedData.expires > now) {
+    if (cachedToken) {
       // Token exists in cache and is not expired
       if (this.options.debug) {
-        log.infoSync('Using cached token')
+        log.infoSync('Using cached token from advanced cache')
       }
 
       // Update in-memory state
-      this.token = cachedData.token
+      this.token = cachedToken
       this.hasToken = true
 
-      return cachedData.token
+      return cachedToken
     }
 
     // If we have a token in memory but it's not in cache
@@ -713,8 +790,8 @@ export class AuthSessionManager {
     // Cache the token in memory
     this.cacheToken(token)
 
-    // Save to storage (with file locking)
-    this.saveTokenToStorage(token)
+    // Save to storage (with retry logic)
+    await this.saveTokenToStorageWithRetry(token)
 
     return token
   }

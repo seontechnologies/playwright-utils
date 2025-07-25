@@ -6,6 +6,9 @@
 // Public Types
 export type {
   TokenDataFormatter,
+  PlaywrightStorageState,
+  DefaultTokenDataFormatter,
+  RetryConfig,
   AuthSessionOptions,
   AuthOptions,
   AuthFixtures
@@ -45,6 +48,22 @@ export {
   setAuthProvider,
   getAuthProvider
 } from './internal/auth-provider'
+
+// Auth Provider Validation
+export {
+  validateAuthProvider,
+  validateAndSetAuthProvider,
+  type ValidationConfig,
+  type ValidationResult
+} from './internal/auth-provider-validator'
+
+// Cache Management
+export {
+  TokenCacheManager,
+  globalTokenCache,
+  type CacheConfig,
+  type CacheMetrics
+} from './internal/cache-manager'
 
 // Test fixtures
 export { createAuthFixtures, createRoleSpecificTest } from './fixtures'
