@@ -113,6 +113,81 @@ const handleFileLogging = async (
   }
 }
 
+/** Check if any logging output is enabled */
+const hasAnyLoggingEnabled = (
+  level: LogLevel,
+  options: Partial<LoggingConfig>,
+  config: Partial<LoggingConfig>
+): boolean => {
+  const consoleEnabled =
+    isEnabled(options.console, undefined) !== undefined
+      ? isEnabled(options.console, undefined)
+      : isEnabled(config.console, true)
+  const fileEnabled =
+    isEnabled(options.fileLogging, undefined) !== undefined
+      ? isEnabled(options.fileLogging, undefined)
+      : isEnabled(config.fileLogging, false)
+  const stepEnabled = level === 'step'
+
+  return consoleEnabled || fileEnabled || stepEnabled
+}
+
+/** Extract display message and meta object from input */
+const parseMessageData = (messageOrData: string | unknown) => {
+  if (typeof messageOrData === 'string') {
+    return {
+      displayMessage: messageOrData || '(empty message)',
+      metaObject: undefined
+    }
+  }
+
+  return {
+    displayMessage: '',
+    metaObject: messageOrData
+  }
+}
+
+/** Check if message formatting is needed for console/file logging */
+const needsFormatting = (
+  level: LogLevel,
+  options: Partial<LoggingConfig>,
+  config: Partial<LoggingConfig>
+): boolean => {
+  const consoleEnabled =
+    isEnabled(options.console, undefined) !== undefined
+      ? isEnabled(options.console, undefined)
+      : isEnabled(config.console, true)
+  const fileEnabled =
+    isEnabled(options.fileLogging, undefined) !== undefined
+      ? isEnabled(options.fileLogging, undefined)
+      : isEnabled(config.fileLogging, false)
+
+  const minLevel = options.level || config.level
+  const meetsLevel = meetsMinimumLevel(level, minLevel)
+
+  return (consoleEnabled && meetsLevel) || (fileEnabled && meetsLevel)
+}
+
+/** Format message for console and file output */
+const formatLogMessage = (
+  displayMessage: string,
+  level: LogLevel,
+  options: Partial<LoggingConfig>,
+  config: Partial<LoggingConfig>,
+  metaObject?: unknown
+): string => {
+  const formattingOptions = getFormattingOptions(options)
+  const workerIdConfig = getWorkerIdConfig(options, config)
+
+  return formatMessage(
+    displayMessage,
+    level,
+    formattingOptions,
+    workerIdConfig,
+    metaObject ? [metaObject] : []
+  )
+}
+
 /**
  * Base logging function that handles common logging logic
  * Supports either string message or object as first parameter
@@ -122,44 +197,51 @@ const logBase = async (
   level: LogLevel,
   options: Partial<LoggingConfig> = {}
 ): Promise<void> => {
-  // Get configuration and context
   const config = getLoggingConfig()
-  const testContext = getTestContextInfo()
 
-  // Handle message formatting based on type
-  let displayMessage: string
-  let metaObject: unknown | undefined
-
-  if (typeof messageOrData === 'string') {
-    displayMessage = messageOrData || '(empty message)'
-    metaObject = undefined
-  } else {
-    // If first argument is not a string, treat it as an object to log
-    displayMessage = ''
-    metaObject = messageOrData
+  // Early return if no logging is enabled
+  if (!hasAnyLoggingEnabled(level, options, config)) {
+    return
   }
 
-  // Get configurations
-  const formattingOptions = getFormattingOptions(options)
-  const workerIdConfig = getWorkerIdConfig(options, config)
+  // Parse the input message data
+  const { displayMessage, metaObject } = parseMessageData(messageOrData)
 
-  // Format message with optional object parameter
-  const formattedMessage = formatMessage(
-    displayMessage,
-    level,
-    formattingOptions,
-    workerIdConfig,
-    metaObject ? [metaObject] : []
-  )
+  // Format message if needed for console/file logging
+  let formattedMessage: string | undefined
+  if (needsFormatting(level, options, config)) {
+    formattedMessage = formatLogMessage(
+      displayMessage,
+      level,
+      options,
+      config,
+      metaObject
+    )
+  }
 
-  // Handle different output destinations
-  await handleConsoleLogging(formattedMessage, level, options, config)
-  await handleFileLogging(formattedMessage, level, options, config, testContext)
+  // Execute all logging operations in parallel
+  const logPromises: Promise<void>[] = []
 
-  // Try to use Playwright step (only for 'step' level)
-  // For PW steps, only use the string message for better UI display
+  // Console and file logging use formatted message
+  if (formattedMessage) {
+    logPromises.push(
+      handleConsoleLogging(formattedMessage, level, options, config)
+    )
+
+    const testContext = getTestContextInfo()
+    logPromises.push(
+      handleFileLogging(formattedMessage, level, options, config, testContext)
+    )
+  }
+
+  // Playwright step logging uses raw display message
   if (level === 'step') {
-    await tryPlaywrightStep(displayMessage)
+    logPromises.push(tryPlaywrightStep(displayMessage))
+  }
+
+  // Wait for all logging operations to complete
+  if (logPromises.length > 0) {
+    await Promise.all(logPromises)
   }
 }
 

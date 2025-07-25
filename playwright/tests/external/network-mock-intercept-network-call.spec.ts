@@ -18,7 +18,7 @@ test.describe('describe network interception', () => {
     // Wait for the intercepted response
     const { responseJson, status } = await fruitsResponse
     // verify the network
-    expect(responseJson.length).toBeGreaterThan(0)
+    expect((responseJson as unknown[]).length).toBeGreaterThan(0)
     expect(status).toBe(200)
   })
 
@@ -77,6 +77,6 @@ test.describe('describe network interception', () => {
 
     // Verify the response was successful
     expect(status).toBe(200)
-    expect(responseJson.length).toBeGreaterThan(0)
+    expect((responseJson as unknown[]).length).toBeGreaterThan(0)
   })
 })

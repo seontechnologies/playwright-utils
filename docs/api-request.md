@@ -4,6 +4,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
 
 ## Features
 
+- **Automatic Retry Logic**: Cypress-style retry for server errors (5xx) enabled by default with exponential backoff
 - Strong TypeScript typing for request parameters and responses
 - Three-tier URL resolution strategy (explicit baseUrl, config baseURL, or direct path)
 - Proper handling of URL path normalization and slashes
@@ -72,18 +73,19 @@ async function apiRequest<T = unknown>({
 
 ### Parameters
 
-| Parameter     | Type                                                      | Description                                                                          |
-| ------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| request       | APIRequestContext                                         | The Playwright request context                                                       |
-| method        | 'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH' \| 'HEAD' | HTTP method to use                                                                   |
-| path          | string                                                    | The URL path (e.g., '/api/users')                                                    |
-| baseUrl       | string (optional)                                         | Base URL to prepend to the path                                                      |
-| configBaseUrl | string (optional)                                         | Fallback base URL from Playwright config                                             |
-| body          | unknown (optional)                                        | Request body for POST/PUT/PATCH (internally mapped to Playwright's 'data' parameter) |
-| headers       | Record<string, string> (optional)                         | HTTP headers                                                                         |
-| params        | Record<string, string \| boolean \| number> (optional)    | Query parameters                                                                     |
-| testStep      | boolean (optional)                                        | Whether to wrap the call in test.step() (defaults to true)                           |
-| uiMode        | boolean (optional)                                        | Enable rich UI display in Playwright UI (defaults to false)                          |
+| Parameter     | Type                                                      | Description                                                                            |
+| ------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| request       | APIRequestContext                                         | The Playwright request context                                                         |
+| method        | 'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH' \| 'HEAD' | HTTP method to use                                                                     |
+| path          | string                                                    | The URL path (e.g., '/api/users')                                                      |
+| baseUrl       | string (optional)                                         | Base URL to prepend to the path                                                        |
+| configBaseUrl | string (optional)                                         | Fallback base URL from Playwright config                                               |
+| body          | unknown (optional)                                        | Request body for POST/PUT/PATCH (internally mapped to Playwright's 'data' parameter)   |
+| headers       | Record<string, string> (optional)                         | HTTP headers                                                                           |
+| params        | Record<string, string \| boolean \| number> (optional)    | Query parameters                                                                       |
+| testStep      | boolean (optional)                                        | Whether to wrap the call in test.step() (defaults to true)                             |
+| uiMode        | boolean (optional)                                        | Enable rich UI display in Playwright UI (defaults to false)                            |
+| retryConfig   | ApiRetryConfig (optional)                                 | Retry configuration for server errors (defaults enabled, set maxRetries: 0 to disable) |
 
 ### Return Type
 
@@ -92,6 +94,111 @@ type ApiRequestResponse<T = unknown> = {
   status: number // HTTP status code
   body: T // Response body, typed as T
 }
+```
+
+## Retry Logic (Cypress-Style)
+
+The API Request utility includes automatic retry logic that follows Cypress patterns, retrying only server errors (5xx status codes) by default. This helps with transient network issues and temporary server problems while respecting idempotency for client errors.
+
+### Default Behavior
+
+- **Enabled by Default**: Like Cypress, retry is automatically enabled for all requests
+- **Only 5xx Errors**: Only retries server errors (500, 502, 503, 504) - never client errors (4xx)
+- **Exponential Backoff**: Uses exponential backoff with jitter to prevent thundering herd
+- **3 Attempts**: Default maximum of 3 retry attempts (total 4 requests)
+
+### Retry Configuration
+
+```typescript
+type ApiRetryConfig = {
+  maxRetries?: number // Maximum retry attempts (default: 3)
+  initialDelayMs?: number // Initial delay in ms (default: 100)
+  backoffMultiplier?: number // Exponential multiplier (default: 2)
+  maxDelayMs?: number // Maximum delay cap (default: 5000)
+  enableJitter?: boolean // Add random jitter (default: true)
+  retryStatusCodes?: number[] // Which codes to retry (default: [500, 502, 503, 504])
+}
+```
+
+### Retry Examples
+
+#### Default Retry Behavior
+
+```typescript
+test('automatic retry for server errors', async ({ apiRequest }) => {
+  // Automatically retries 500, 502, 503, 504 errors
+  // Never retries 4xx client errors (good for idempotency)
+  const { status, body } = await apiRequest({
+    method: 'GET',
+    path: '/api/users'
+    // Retry is enabled by default - no config needed
+  })
+
+  expect(status).toBe(200)
+})
+```
+
+#### Disable Retry for Error Testing
+
+```typescript
+test('test error handling without retry', async ({ apiRequest }) => {
+  // Disable retry when you want to test error scenarios
+  const { status } = await apiRequest({
+    method: 'GET',
+    path: '/api/failing-endpoint',
+    retryConfig: { maxRetries: 0 } // Explicitly disable retry
+  })
+
+  expect(status).toBe(500) // Will fail immediately without retry
+})
+```
+
+#### Custom Retry Configuration
+
+```typescript
+test('custom retry settings', async ({ apiRequest }) => {
+  const { status } = await apiRequest({
+    method: 'POST',
+    path: '/api/heavy-operation',
+    body: { data: 'important' },
+    retryConfig: {
+      maxRetries: 5, // More attempts for critical operations
+      initialDelayMs: 500, // Longer initial delay
+      maxDelayMs: 10000, // Higher delay cap
+      enableJitter: false // Disable jitter for predictable timing
+    }
+  })
+
+  expect(status).toBe(201)
+})
+```
+
+### Why Only 5xx Errors?
+
+Following Cypress and HTTP best practices:
+
+- **4xx Client Errors** (400, 401, 403, 404, etc.): These indicate client-side issues (bad request, unauthorized, not found) that won't be resolved by retrying
+- **5xx Server Errors** (500, 502, 503, 504): These indicate temporary server issues that may resolve on retry
+
+```typescript
+test('demonstrates retry behavior', async ({ apiRequest }) => {
+  // These will NOT be retried (fail fast for client errors)
+  try {
+    await apiRequest({
+      method: 'POST',
+      path: '/api/users',
+      body: { email: 'invalid-email' } // 400 Bad Request - no retry
+    })
+  } catch (error) {
+    // Fails immediately without retry attempts
+  }
+
+  // These WILL be retried automatically (server errors)
+  const response = await apiRequest({
+    method: 'GET',
+    path: '/api/sometimes-fails' // May return 503 - will retry with backoff
+  })
+})
 ```
 
 ## Examples

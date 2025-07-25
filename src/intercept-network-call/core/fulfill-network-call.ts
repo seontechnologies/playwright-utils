@@ -1,11 +1,12 @@
 import type { Page, Request, Route } from '@playwright/test'
 import { matchesRequest } from './utils/matches-request'
 import type { NetworkCallResult } from './types'
+import { NetworkInterceptError, NetworkTimeoutError } from './types'
 
-type FulfillResponse = {
+type FulfillResponse<T = unknown> = {
   status?: number
   headers?: Record<string, string>
-  body?: unknown // Can be string, Buffer, or object
+  body?: T // Can be string, Buffer, or object - now generic
 }
 
 type PreparedResponse = {
@@ -19,8 +20,8 @@ type PreparedResponse = {
  * @param {FulfillResponse} fulfillResponse - The response details.
  * @returns {PreparedResponse | undefined} - The prepared response.
  */
-const prepareResponse = (
-  fulfillResponse?: FulfillResponse
+const prepareResponse = <T>(
+  fulfillResponse?: FulfillResponse<T>
 ): PreparedResponse | undefined => {
   if (!fulfillResponse) return undefined
 
@@ -37,14 +38,17 @@ const prepareResponse = (
   }
 }
 
-export async function fulfillNetworkCall(
+export async function fulfillNetworkCall<
+  TRequest = unknown,
+  TResponse = unknown
+>(
   page: Page,
   method?: string,
   url?: string,
-  fulfillResponse?: FulfillResponse,
+  fulfillResponse?: FulfillResponse<TResponse>,
   handler?: (route: Route, request: Request) => Promise<void> | void,
   timeout?: number
-): Promise<NetworkCallResult> {
+): Promise<NetworkCallResult<TRequest, TResponse>> {
   const routePattern = url
     ? url.startsWith('**')
       ? url
@@ -73,33 +77,61 @@ export async function fulfillNetworkCall(
     }
   })
 
-  // Wait for the request to be captured with timeout if specified
-  const request = await Promise.race([
-    requestPromise,
-    // If timeout is specified, create a rejection promise that triggers after timeout
-    ...(timeout
-      ? [
-          new Promise<Request>((_, reject) =>
-            setTimeout(
-              () => reject(new Error(`Request timeout after ${timeout}ms`)),
-              timeout
-            )
-          )
-        ]
-      : [])
-  ])
-  let requestJson = null
   try {
-    requestJson = await request.postDataJSON()
-  } catch {
-    // Request has no post data or is not JSON
-  }
+    // Wait for the request to be captured with timeout if specified
+    const request = await Promise.race([
+      requestPromise,
+      // If timeout is specified, create a rejection promise that triggers after timeout
+      ...(timeout
+        ? [
+            new Promise<Request>((_, reject) =>
+              setTimeout(
+                () =>
+                  reject(
+                    new NetworkTimeoutError(
+                      `Request timeout after ${timeout}ms`,
+                      'fulfill',
+                      timeout,
+                      url,
+                      method
+                    )
+                  ),
+                timeout
+              )
+            )
+          ]
+        : [])
+    ])
 
-  return {
-    request,
-    response: null,
-    responseJson: fulfillResponse?.body ?? null,
-    status: fulfillResponse?.status ?? 200,
-    requestJson
+    let requestJson: TRequest | null = null
+    try {
+      requestJson = await request.postDataJSON()
+    } catch {
+      // Request has no post data or is not JSON
+    }
+
+    return {
+      request,
+      response: null,
+      responseJson: (fulfillResponse?.body ?? null) as TResponse,
+      status: fulfillResponse?.status ?? 200,
+      requestJson: requestJson as TRequest
+    }
+  } catch (error) {
+    // Re-throw our custom errors
+    if (
+      error instanceof NetworkTimeoutError ||
+      error instanceof NetworkInterceptError
+    ) {
+      throw error
+    }
+
+    // Wrap other errors
+    throw new NetworkInterceptError(
+      `Failed to fulfill network call: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'fulfill',
+      url,
+      method
+    )
   }
 }

@@ -1,6 +1,7 @@
 import * as ExcelJS from 'exceljs'
 import path from 'path'
 import type { XLSXReadOptions, XLSXReadResult } from './types'
+import { XLSXError, FileValidationError } from './types'
 
 const DEFAULT_OPTIONS: XLSXReadOptions = {
   parseHeaders: true,
@@ -47,17 +48,38 @@ export async function readXLSX<T = Record<string, unknown>>(
 
     return buildXLSXResult(filePath, worksheets, activeSheet)
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(`Failed to read Excel file: ${error.message}`)
+    // Re-throw existing custom errors
+    if (error instanceof FileValidationError || error instanceof XLSXError) {
+      throw error
     }
-    throw error
+
+    if (error instanceof Error) {
+      throw new XLSXError(
+        `Failed to read Excel file: ${error.message}`,
+        opts.sheetName
+      )
+    }
+    throw new XLSXError(
+      'Unknown error occurred while reading Excel file',
+      opts.sheetName
+    )
   }
 }
 
 async function loadWorkbook(filePath: string): Promise<ExcelJS.Workbook> {
-  const workbook = new ExcelJS.Workbook()
-  await workbook.xlsx.readFile(filePath)
-  return workbook
+  try {
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.readFile(filePath)
+    return workbook
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred'
+    throw new FileValidationError(
+      `Failed to load Excel file: ${errorMessage}`,
+      filePath,
+      'access'
+    )
+  }
 }
 
 function processWorksheets<T>(

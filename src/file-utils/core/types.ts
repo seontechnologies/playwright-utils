@@ -112,6 +112,50 @@ export type PDFReadOptions = {
   pages?: [number, number]
 }
 
+// =========================================================================
+// Enhanced Error Types for File Operations
+// =========================================================================
+
+/**
+ * Custom error for CSV parsing and reading operations
+ */
+export class CSVError extends Error {
+  constructor(
+    message: string,
+    public readonly row?: number,
+    public readonly field?: string
+  ) {
+    super(message)
+    this.name = 'CSVError'
+  }
+}
+
+/**
+ * Custom error for XLSX file operations
+ */
+export class XLSXError extends Error {
+  constructor(
+    message: string,
+    public readonly worksheet?: string
+  ) {
+    super(message)
+    this.name = 'XLSXError'
+  }
+}
+
+/**
+ * Custom error for PDF reading operations
+ */
+export class PDFError extends Error {
+  constructor(
+    message: string,
+    public readonly page?: number
+  ) {
+    super(message)
+    this.name = 'PDFError'
+  }
+}
+
 /**
  * Custom error for ZIP-related operations to allow for specific try/catch blocks.
  */
@@ -119,5 +163,23 @@ export class ZipError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'ZipError'
+  }
+}
+
+/**
+ * General file validation error for input validation issues
+ */
+export class FileValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly filePath?: string,
+    public readonly validationType?:
+      | 'missing'
+      | 'invalid'
+      | 'conflict'
+      | 'access'
+  ) {
+    super(message)
+    this.name = 'FileValidationError'
   }
 }
