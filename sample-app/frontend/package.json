@@ -15,17 +15,17 @@
   },
   "dependencies": {
     "@tanstack/react-query": "5.83.0",
-    "axios": "1.10.0",
+    "axios": "1.11.0",
     "jsdom": "^26.0.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-error-boundary": "5.0.0",
-    "react-router-dom": "7.7.0",
+    "react-router-dom": "7.7.1",
     "styled-components": "6.1.19"
   },
   "devDependencies": {
-    "@testing-library/dom": "10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "14.6.1",
     "@types/node": "22.16.5",
