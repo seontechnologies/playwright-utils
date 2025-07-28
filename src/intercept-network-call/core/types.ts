@@ -1,10 +1,43 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Request, Response } from '@playwright/test'
 
-export type NetworkCallResult = {
+/**
+ * Generic network call result with typed request and response data
+ */
+export type NetworkCallResult<TRequest = unknown, TResponse = unknown> = {
   request: Request | null
   response: Response | null
-  responseJson: any
+  responseJson: TResponse | null
   status: number
-  requestJson: any
+  requestJson: TRequest | null
+}
+
+/**
+ * Custom error for network interception operations
+ */
+export class NetworkInterceptError extends Error {
+  constructor(
+    message: string,
+    public readonly operation: 'observe' | 'fulfill',
+    public readonly url?: string,
+    public readonly method?: string
+  ) {
+    super(message)
+    this.name = 'NetworkInterceptError'
+  }
+}
+
+/**
+ * Timeout error for network operations
+ */
+export class NetworkTimeoutError extends NetworkInterceptError {
+  constructor(
+    message: string,
+    operation: 'observe' | 'fulfill',
+    public readonly timeoutMs: number,
+    url?: string,
+    method?: string
+  ) {
+    super(message, operation, url, method)
+    this.name = 'NetworkTimeoutError'
+  }
 }

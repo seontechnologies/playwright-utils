@@ -32,9 +32,15 @@ const DEFAULT_USER_IDENTIFIER = 'default'
  * */
 const getCurrentEnvironment = (options?: { environment?: string }): string => {
   try {
-    // try to get from provider first
-    const { getAuthProvider } = require('./auth-provider')
-    const provider = getAuthProvider()
+    // Try to get from provider first - use dynamic import to avoid circular deps
+    let provider
+    try {
+      const authProviderModule = require('./auth-provider')
+      provider = authProviderModule.getAuthProvider()
+    } catch {
+      // Provider not available, use fallback
+      return options?.environment || process.env.TEST_ENV || DEFAULT_ENVIRONMENT
+    }
     return provider.getEnvironment(options)
   } catch (error) {
     // Fallback to environment variables
@@ -50,9 +56,15 @@ const getCurrentUserIdentifier = (options?: {
   userIdentifier?: string
 }): string => {
   try {
-    // try to get from provider first
-    const { getAuthProvider } = require('./auth-provider')
-    const provider = getAuthProvider()
+    // Try to get from provider first - use dynamic import to avoid circular deps
+    let provider
+    try {
+      const authProviderModule = require('./auth-provider')
+      provider = authProviderModule.getAuthProvider()
+    } catch {
+      // Provider not available, use fallback
+      return options?.userIdentifier || DEFAULT_USER_IDENTIFIER
+    }
     return provider.getUserIdentifier(options)
   } catch (error) {
     // Fallback to default or provided value

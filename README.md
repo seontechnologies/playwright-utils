@@ -38,6 +38,7 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
     - [Network Interception](#network-interception)
     - [Auth Session](#auth-session)
       - [Implementation Steps](#implementation-steps)
+    - [File Utilities](#file-utilities)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
@@ -128,7 +129,6 @@ npm run test:pw-ui    # Run Playwright tests with UI
 The overall testing approach:
 
 1. **Deployed Apps Tests** - Some tests use Playwright's deployed apps to keep things familiar (`log`, `interceptNetworkCall`):
-
    - `playwright/tests/network-mock-original.spec.ts`
    - `playwright/tests/todo-with-logs.spec.ts`
    - `playwright/tests/network-mock-intercept-network-call.spec.ts`
@@ -359,7 +359,6 @@ export default globalSetup
 > **⚠️ IMPORTANT:** The order of function calls in your global setup is critical. Always register your auth provider with `setAuthProvider()` after configuring the session. This ensures the auth provider is properly initialized.
 
 1. **Create Auth Fixture** - Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures
-
    - Provides standardized Playwright test fixtures for authentication
    - Generally reusable across applications without modification
    - **CRITICAL: Register auth provider early to ensure it's always available**
@@ -514,8 +513,8 @@ A comprehensive set of utilities for reading, validating, and waiting for files 
 import { readCSV } from '@seontechnologies/playwright-utils/file-utils'
 
 test('example', async () => {
-  const result = await readCSV({ filePath: '/path/to/data.csv' });
-});
+  const result = await readCSV({ filePath: '/path/to/data.csv' })
+})
 
 // As a fixture
 import { test } from '@seontechnologies/playwright-utils/file-utils/fixtures'
@@ -523,9 +522,9 @@ import { test } from '@seontechnologies/playwright-utils/file-utils/fixtures'
 test('example', async ({ fileUtils }) => {
   const isValid = await fileUtils.validateCSV({
     filePath: '/path/to/data.csv',
-    expectedRowCount: 10,
-  });
-});
+    expectedRowCount: 10
+  })
+})
 ```
 
 [→ File Utilities Documentation](./docs/file-utils.md)

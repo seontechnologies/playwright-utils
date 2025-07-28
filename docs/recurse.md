@@ -10,7 +10,7 @@ The Recurse utility provides a powerful mechanism for polling and retrying opera
 - Configurable timeout and interval settings
 - Optional logging with customizable messages
 - Post-polling callback support for additional processing
-- Proper error handling with customizable messages
+- **Enhanced Error Categorization**: Specific error types for timeout, command failure, and predicate errors
 
 ## Usage
 
@@ -120,6 +120,61 @@ Internally, the utility handles assertion errors gracefully:
 ### Return Type
 
 The function returns a Promise that resolves to the value returned by the `command` function when the `predicate` function returns true.
+
+## Error Handling
+
+The recurse utility provides enhanced error categorization to help diagnose different types of failures:
+
+### Error Types
+
+```typescript
+// Timeout errors - when polling exceeds the timeout limit
+class RecurseTimeoutError extends Error {
+  timeout: number // The timeout that was exceeded
+  iterations: number // Number of attempts made
+  lastValue?: unknown // Last value returned by command (if any)
+}
+
+// Command execution errors - when the command function throws
+class RecurseCommandError extends Error {
+  iteration: number // Which iteration failed
+  originalError?: Error // The original error from command
+}
+
+// Predicate evaluation errors - when predicate function throws unexpectedly
+class RecursePredicateError extends Error {
+  iteration: number // Which iteration failed
+  value?: unknown // The value that caused predicate to fail
+  originalError?: Error // The original error from predicate
+}
+```
+
+### Error Handling Examples
+
+```typescript
+test('handle different error types', async ({ recurse }) => {
+  try {
+    await recurse(
+      () => unreliableCommand(),
+      (value) => value.status === 'ready',
+      { timeout: 5000 }
+    )
+  } catch (error) {
+    if (error instanceof RecurseTimeoutError) {
+      console.log(`Timeout after ${error.iterations} attempts`)
+      console.log(`Last value was:`, error.lastValue)
+    } else if (error instanceof RecurseCommandError) {
+      console.log(`Command failed on iteration ${error.iteration}`)
+      console.log(`Original error:`, error.originalError)
+    } else if (error instanceof RecursePredicateError) {
+      console.log(`Predicate failed on iteration ${error.iteration}`)
+      console.log(`Value was:`, error.value)
+    } else {
+      throw error // preserve unrecognized failures
+    }
+  }
+})
+```
 
 ## Examples
 

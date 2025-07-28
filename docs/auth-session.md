@@ -41,8 +41,8 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-        - [Our Enhanced Approach](#our-enhanced-approach)
+      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+      - [Our Enhanced Approach](#our-enhanced-approach)
     - [Storage/\*\_ Options for the auth session \_/](#storage_-options-for-the-auth-session-_)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
 
@@ -183,16 +183,48 @@ export default defineConfig({
 <details><summary><strong>Expand for details:</strong></summary>
 
 ```typescript
-// tests/dashboard.spec.**ts**
-import { test, expect } from '@playwright/test'
+// From playwright/tests/auth-session/auth-session-sanity.spec.ts (actual working test)
+import { log } from '../../../src/log'
+import { test, expect } from '../../support/merged-fixtures'
 
-// This test automatically uses the authenticated state
-test('access dashboard page', async ({ page }) => {
-  // Navigate directly to a protected page without login
-  await page.goto('/dashboard')
+/**
+ * Create a preview of a token that's safe for logging
+ */
+const createTokenPreview = (token: string): string =>
+  token.substring(0, 10) + '...' + token.substring(token.length - 5)
 
-  // The page should be accessible because we're authenticated
-  await expect(page.locator('h1')).toHaveText('Dashboard')
+// Configure tests to run in serial mode for proper token reuse testing
+test.describe.configure({ mode: 'serial' })
+test.describe('Auth Session Example', () => {
+  test('should have auth token available', async ({ authToken }) => {
+    // Token is already obtained via the fixture
+    expect(authToken).toBeDefined()
+    expect(typeof authToken).toBe('string')
+    expect(authToken.length).toBeGreaterThan(0)
+
+    // Log token for debugging (shortened for security)
+    const tokenPreview = createTokenPreview(authToken)
+    await log.info(`Token available without explicit fetching: ${tokenPreview}`)
+  })
+
+  test('should reuse the same auth token', async ({
+    authToken,
+    apiRequest
+  }) => {
+    // The token is already available without making a new request
+    expect(authToken).toBeDefined()
+
+    // We can use the token for API requests
+    const { status } = await apiRequest({
+      method: 'GET',
+      path: '/movies',
+      headers: {
+        Authorization: authToken // Use the token directly
+      }
+    })
+
+    expect(status).toBe(200)
+  })
 })
 ```
 
@@ -320,7 +352,7 @@ import {
   setAuthProvider,
   configureAuthSession,
   authGlobalInit
-} from '@seontechnologies/playwright-utils/auth'
+} from '@seontechnologies/playwright-utils/auth-session'
 
 import myCustomProvider from './auth/custom-auth-provider'
 
@@ -349,25 +381,43 @@ The function call order matters: first storage initialization, then configuratio
 Add `playwright/support/auth/auth-fixture.ts` to your merged fixtures:
 
 ```typescript
-// playwright/support/auth/auth-fixture.ts
+// playwright/support/auth/auth-fixture.ts (from actual codebase)
 import { test as base } from '@playwright/test'
 import {
   createAuthFixtures,
+  type AuthOptions,
   type AuthFixtures,
   setAuthProvider
-} from '@seontechnologies/playwright-utils/auth'
-import myCustomProvider from './custom-auth-provider'
+} from '@seontechnologies/playwright-utils/auth-session'
 
-// Register provider here as a safeguard if global setup doesn't run
+// Import our custom auth provider
+import myCustomProvider from './custom-auth-provider'
+import { BASE_URL } from '@playwright/config/local.config'
+import { getEnvironment } from './get-environment'
+import { getUserIdentifier } from './get-user-identifier'
+
+// Register the custom auth provider early to ensure it's available for all tests
 setAuthProvider(myCustomProvider)
 
-// Create and export fixtures
+// Default auth options using the current environment
+const defaultAuthOptions: AuthOptions = {
+  environment: getEnvironment(),
+  userIdentifier: getUserIdentifier(),
+  baseUrl: BASE_URL // Pass baseUrl explicitly to auth session
+}
+
+// Get the fixtures from the factory function
 const fixtures = createAuthFixtures()
+
+// Export the test object with auth fixtures
 export const test = base.extend<AuthFixtures>({
-  authOptions: [
-    { environment: process.env.TEST_ENV || 'local' },
-    { option: true }
-  ],
+  // For authOptions, we need to define it directly using the Playwright array format
+  authOptions: [defaultAuthOptions, { option: true }],
+
+  // Auth session toggle - enables/disables auth functionality completely
+  authSessionEnabled: [true, { option: true }],
+
+  // Use the other fixtures directly
   authToken: fixtures.authToken,
   context: fixtures.context,
   page: fixtures.page
@@ -836,19 +886,29 @@ console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
 The simplest way to specify a user identifier for your tests is to override the `authOptions` fixture:
 
 ```typescript
-// fraudAnalystFlow.spec.ts
-import { test } from '../support/auth/auth-fixture'
-import { expect } from '@playwright/test'
+// From playwright/tests/sample-app/frontend/user-login-multi-user-identifiers.spec.ts (actual test)
+import { test, expect } from '../../../support/merged-fixtures'
 
-// Override authOptions for all tests in this file
-test.use({
-  authOptions: { userIdentifier: 'fraudAnalyst' }
-})
+const userIdentifiers = ['admin', 'freeUser', 'premiumUser']
 
-test('can view fraud queue', async ({ page }) => {
-  // Page is already authenticated as fraud analyst
-  await page.goto('/fraud-queue')
-  await expect(page.getByText('Fraud Queue')).toBeVisible()
+// REQUIRED PATTERN: Wrap each test.use() in a test.describe() block for parallel isolation
+userIdentifiers.forEach((userIdentifier) => {
+  test.describe(`User: ${userIdentifier}`, () => {
+    test.use({
+      authOptions: {
+        userIdentifier
+      }
+    })
+
+    test(`should login with ${userIdentifier}`, async ({ page }) => {
+      await page.goto('/')
+
+      await expect(page.locator('h1')).toContainText('Movie Database')
+      await expect(page.locator('#login-status')).toContainText(
+        `Current user: ${userIdentifier}`
+      )
+    })
+  })
 })
 ```
 

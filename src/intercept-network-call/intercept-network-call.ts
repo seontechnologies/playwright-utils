@@ -4,17 +4,17 @@ import { fulfillNetworkCall } from './core/fulfill-network-call'
 import { observeNetworkCall } from './core/observe-network-call'
 import type { NetworkCallResult } from './core/types'
 
-type FulfillResponse = {
+type FulfillResponse<T = unknown> = {
   status?: number
   headers?: Record<string, string>
-  body?: unknown // Can be string, Buffer, or object
+  body?: T // Can be string, Buffer, or object - now generic
 }
 
-type InterceptOptions = {
+type InterceptOptions<TResponse = unknown> = {
   method?: string
   url?: string
   page: Page
-  fulfillResponse?: FulfillResponse
+  fulfillResponse?: FulfillResponse<TResponse>
   handler?: (route: Route, request: Request) => Promise<void> | void
   timeout?: number // Timeout in milliseconds
 }
@@ -22,20 +22,25 @@ type InterceptOptions = {
 /**
  * Base implementation for network interception
  */
-const interceptNetworkCallBase = async ({
+const interceptNetworkCallBase = async <
+  TRequest = unknown,
+  TResponse = unknown
+>({
   method,
   url,
   page,
   fulfillResponse,
   handler,
   timeout
-}: InterceptOptions): Promise<NetworkCallResult> => {
+}: InterceptOptions<TResponse>): Promise<
+  NetworkCallResult<TRequest, TResponse>
+> => {
   if (!page) {
     throw new Error('The `page` argument is required for network interception')
   }
 
   if (fulfillResponse || handler) {
-    return fulfillNetworkCall(
+    return fulfillNetworkCall<TRequest, TResponse>(
       page,
       method,
       url,
@@ -44,13 +49,13 @@ const interceptNetworkCallBase = async ({
       timeout
     )
   } else {
-    return observeNetworkCall(page, method, url, timeout)
+    return observeNetworkCall<TRequest, TResponse>(page, method, url, timeout)
   }
 }
 
 /** Gets the common components for step names */
-const getStepNameComponents = (
-  options: InterceptOptions
+const getStepNameComponents = <TResponse = unknown>(
+  options: InterceptOptions<TResponse>
 ): {
   operation: string
   methodStr: string
@@ -70,15 +75,17 @@ const getStepNameComponents = (
 }
 
 /** Creates a step name based on the network interception options */
-const createStepName = (options: InterceptOptions): string => {
+const createStepName = <TResponse = unknown>(
+  options: InterceptOptions<TResponse>
+): string => {
   const { operation, methodStr, urlStr } = getStepNameComponents(options)
   return `${operation} ${methodStr} ${urlStr}`
 }
 
 /** Creates a description for when network call completes */
-const createCompletedStepName = (
-  options: InterceptOptions,
-  result: NetworkCallResult
+const createCompletedStepName = <TRequest = unknown, TResponse = unknown>(
+  options: InterceptOptions<TResponse>,
+  result: NetworkCallResult<TRequest, TResponse>
 ): string => {
   const { operation, methodStr, urlStr } = getStepNameComponents(options)
   const statusStr = result.status ? ` (${result.status})` : ''
@@ -86,31 +93,43 @@ const createCompletedStepName = (
   return `Received response for ${operation} ${methodStr} ${urlStr}${statusStr}`
 }
 
-export const interceptNetworkCall = async (
-  options: InterceptOptions
-): Promise<NetworkCallResult> => {
+export const interceptNetworkCall = async <
+  TRequest = unknown,
+  TResponse = unknown
+>(
+  options: InterceptOptions<TResponse>
+): Promise<NetworkCallResult<TRequest, TResponse>> => {
   // Main step for setting up the interception
-  return test.step(createStepName(options), async () => {
+  return test.step(createStepName<TResponse>(options), async () => {
     // Store the result promise
-    const resultPromise = interceptNetworkCallBase(options)
+    const resultPromise = interceptNetworkCallBase<TRequest, TResponse>(options)
 
     // Wait for the result
     const result = await resultPromise
 
     // Add a nested step that shows when the response is received
-    await test.step(createCompletedStepName(options, result), async () => {
-      // Just a marker step - no additional logic needed
-      return
-    })
+    await test.step(
+      createCompletedStepName<TRequest, TResponse>(options, result),
+      async () => {
+        // Just a marker step - no additional logic needed
+        return
+      }
+    )
 
     return result
   })
 }
 
-export type InterceptOptionsFixture = Omit<InterceptOptions, 'page'>
+export type InterceptOptionsFixture<TResponse = unknown> = Omit<
+  InterceptOptions<TResponse>,
+  'page'
+>
 
-export type InterceptNetworkCallFn = (
-  options: InterceptOptionsFixture
-) => Promise<NetworkCallResult>
+export type InterceptNetworkCallFn<TRequest = unknown, TResponse = unknown> = (
+  options: InterceptOptionsFixture<TResponse>
+) => Promise<NetworkCallResult<TRequest, TResponse>>
 
-export type InterceptNetworkCall = ReturnType<typeof interceptNetworkCall>
+export type InterceptNetworkCall<
+  TRequest = unknown,
+  TResponse = unknown
+> = ReturnType<typeof interceptNetworkCall<TRequest, TResponse>>

@@ -7,6 +7,46 @@ import {
   type ResponseDataInterface
 } from './ui-display'
 
+/** Retry configuration for API requests (like Cypress - only retries 5xx server errors, never 4xx client errors) */
+export type ApiRetryConfig = {
+  /** Maximum number of retry attempts for server errors (default: 3) */
+  maxRetries?: number
+  /** Initial delay between retries in milliseconds (default: 100ms) */
+  initialDelayMs?: number
+  /** Exponential backoff multiplier (default: 2) */
+  backoffMultiplier?: number
+  /** Maximum delay between retries in milliseconds (default: 5000ms) */
+  maxDelayMs?: number
+  /** Whether to add random jitter to delays (default: true) */
+  enableJitter?: boolean
+  /** Which status codes to retry (default: [500, 502, 503, 504] - only 5xx server errors) */
+  retryStatusCodes?: number[]
+}
+
+/** Custom error type for API request failures */
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly response?: unknown,
+    public readonly attempt?: number
+  ) {
+    super(message)
+    this.name = 'ApiRequestError'
+  }
+}
+
+/** Network-level error for connection issues */
+export class ApiNetworkError extends Error {
+  constructor(
+    message: string,
+    public readonly originalError?: Error
+  ) {
+    super(message)
+    this.name = 'ApiNetworkError'
+  }
+}
+
 export type ApiRequestParams = {
   request: APIRequestContext
   method: 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD'
@@ -19,6 +59,8 @@ export type ApiRequestParams = {
   testStep?: boolean // Whether to wrap the call in test.step (defaults to true)
   uiMode?: boolean // Whether to show rich UI display (defaults to false, unless API_E2E_UI_MODE env var is set)
   page?: Page // Page context for UI display (automatically provided by fixtures)
+  /** Retry configuration for handling failed requests (enabled by default like Cypress - set maxRetries: 0 to disable) */
+  retryConfig?: ApiRetryConfig
 }
 
 export type ApiRequestResponse<T = unknown> = {
@@ -40,7 +82,118 @@ const createStepName = ({
 
   return `API ${method} ${fullPath}`
 }
+/** Default retry configuration following Cypress patterns - only retries 5xx server errors, not 4xx client errors */
+const DEFAULT_RETRY_CONFIG: Required<ApiRetryConfig> = {
+  maxRetries: 3,
+  initialDelayMs: 100,
+  backoffMultiplier: 2,
+  maxDelayMs: 5000,
+  enableJitter: true,
+  retryStatusCodes: [500, 502, 503, 504] // Only 5xx server errors (transient issues), never 4xx client errors
+}
 
+/**
+ * Sleep for a specified number of milliseconds
+ */
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Calculate the delay for a retry attempt with exponential backoff and optional jitter
+ */
+const calculateRetryDelay = (
+  attempt: number,
+  config: Required<ApiRetryConfig>
+): number => {
+  const baseDelay =
+    config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt)
+  const clampedDelay = Math.min(baseDelay, config.maxDelayMs)
+
+  if (config.enableJitter) {
+    // Add random jitter ±25% to prevent thundering herd
+    const jitter = clampedDelay * 0.25 * (Math.random() * 2 - 1)
+    return Math.max(0, clampedDelay + jitter)
+  }
+
+  return clampedDelay
+}
+
+/**
+ * Determine if a status code should trigger a retry
+ */
+const shouldRetry = (status: number, retryStatusCodes: number[]): boolean => {
+  return retryStatusCodes.includes(status)
+}
+
+/**
+ * Execute API request with retry logic (similar to Cypress)
+ */
+const executeWithRetry = async <T>(
+  requestFn: () => Promise<{ status: number; body: T }>,
+  config: Required<ApiRetryConfig>,
+  context: string
+): Promise<{ status: number; body: T }> => {
+  let lastError: Error | undefined
+  let lastResponse: { status: number; body: T } | undefined
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      const response = await requestFn()
+
+      // Check if response status should trigger a retry
+      if (
+        attempt < config.maxRetries &&
+        shouldRetry(response.status, config.retryStatusCodes)
+      ) {
+        lastResponse = response
+        const delay = calculateRetryDelay(attempt, config)
+
+        await getLogger().warning(
+          `${context} returned ${response.status} (attempt ${attempt + 1}/${config.maxRetries + 1}), retrying in ${delay.toFixed(0)}ms`
+        )
+
+        await sleep(delay)
+        continue
+      }
+
+      // Success or non-retryable status code
+      return response
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+
+      if (attempt === config.maxRetries) {
+        // Final attempt failed with an error
+        throw new ApiNetworkError(
+          `${context} failed after ${config.maxRetries + 1} attempts: ${lastError.message}`,
+          lastError
+        )
+      }
+
+      const delay = calculateRetryDelay(attempt, config)
+      await getLogger().warning(
+        `${context} failed (attempt ${attempt + 1}/${config.maxRetries + 1}), retrying in ${delay.toFixed(0)}ms: ${lastError.message}`
+      )
+
+      await sleep(delay)
+    }
+  }
+
+  // This should not be reached, but if we have a response with retryable status
+  if (lastResponse) {
+    throw new ApiRequestError(
+      `${context} failed with status ${lastResponse.status} after ${config.maxRetries + 1} attempts`,
+      lastResponse.status,
+      lastResponse.body,
+      config.maxRetries + 1
+    )
+  }
+
+  // Fallback error
+  throw new ApiNetworkError(
+    `${context} failed after ${config.maxRetries + 1} attempts`,
+    lastError
+  )
+}
 /**
  * Base implementation of API request without test step wrapping
  */
@@ -54,7 +207,8 @@ const apiRequestBase = async <T = unknown>({
   headers,
   params,
   uiMode = false,
-  page
+  page,
+  retryConfig
 }: ApiRequestParams): Promise<ApiRequestResponse<T>> => {
   // common options; if there's a prop, add it to the options object
   // Note: Playwright expects 'data' for the request body, not 'body'
@@ -87,53 +241,67 @@ const apiRequestBase = async <T = unknown>({
 
   const requestFn = methodMap[method]
   if (!requestFn) throw new Error(`Unsupported HTTP method: ${method}`)
+  // Merge retry config with defaults
+  const effectiveRetryConfig = { ...DEFAULT_RETRY_CONFIG, ...retryConfig }
+  const context = `${method} ${fullUrl}`
 
-  // execute the request with timing
-  const startTime = Date.now()
-  const response = await requestFn()
-  const duration = Date.now() - startTime
-  const status = response.status()
+  // Define the request execution function for retry logic
+  const executeRequest = async (): Promise<{ status: number; body: T }> => {
+    // Execute the request with timing
+    const startTime = Date.now()
+    const response = await requestFn()
+    const duration = Date.now() - startTime
+    const status = response.status()
 
-  // parse response body based on content type
-  const contentType = response.headers()['content-type'] || ''
-  const parseResponseBody = async (): Promise<unknown> => {
-    try {
-      if (contentType.includes('application/json')) {
-        return await response.json()
-      } else if (contentType.includes('text/')) {
-        return await response.text()
+    // Parse response body based on content type
+    const contentType = response.headers()['content-type'] || ''
+    const parseResponseBody = async (): Promise<unknown> => {
+      try {
+        if (contentType.includes('application/json')) {
+          return await response.json()
+        } else if (contentType.includes('text/')) {
+          return await response.text()
+        }
+        return null
+      } catch (err) {
+        await getLogger().warning(
+          `Failed to parse response body for status ${status}: ${err}`
+        )
+        return null
       }
-      return null
-    } catch (err) {
-      await getLogger().warning(
-        `Failed to parse response body for status ${status}: ${err}`
-      )
-      return null
     }
+
+    const responseBody = await parseResponseBody()
+
+    // Display UI if uiMode is enabled or environment variable is set
+    if (uiMode || shouldDisplayApiUI()) {
+      await displayApiUI({
+        url: fullUrl,
+        method,
+        headers,
+        data: body,
+        params,
+        response,
+        responseBody,
+        duration,
+        status,
+        page,
+        uiMode
+      })
+    }
+
+    return { status, body: responseBody as T }
   }
 
-  const responseBody = await parseResponseBody()
-
-  // Display UI if uiMode is enabled or environment variable is set
-  if (uiMode || shouldDisplayApiUI()) {
-    await displayApiUI({
-      url: fullUrl,
-      method,
-      headers,
-      data: body,
-      params,
-      response,
-      responseBody,
-      duration,
-      status,
-      page,
-      uiMode
-    })
+  // Use retry logic by default (like Cypress), only disable if explicitly set to maxRetries: 0
+  if (retryConfig?.maxRetries === 0) {
+    // Explicitly disabled - execute directly without retry
+    return executeRequest()
+  } else {
+    // Default retry behavior (like Cypress) - always retry 5xx errors
+    return executeWithRetry(executeRequest, effectiveRetryConfig, context)
   }
-
-  return { status, body: responseBody as T }
 }
-
 /**
  * Determines if API UI should be displayed based on environment variables
  */
@@ -207,12 +375,14 @@ const displayApiUI = async (params: {
  *    - `body`: The parsed response body from the server, typed as T.
  *
  * @example
- * // GET request to an endpoint
+ * // GET request with default retry behavior (like Cypress - only retries 5xx server errors)
  * test('fetch user data', async ({ apiRequest }) => {
  *   const { status, body } = await apiRequest<UserResponse>({
  *     method: 'GET',
  *     url: '/api/users/123',
  *     headers: { 'Authorization': 'Bearer token' }
+ *     // Automatically retries 500, 502, 503, 504 errors (3 attempts with exponential backoff)
+ *     // Never retries 4xx client errors (400, 401, 403, 404, etc.)
  *   });
  *
  *   expect(status).toBe(200);
@@ -220,18 +390,28 @@ const displayApiUI = async (params: {
  * });
  *
  * @example
- * // POST request with a body
- * test('create new item', async ({ apiRequest }) => {
- *   const { status, body } = await apiRequest<CreateItemResponse>({
+ * // 4xx errors fail immediately without retry (good for idempotency)
+ * test('handle validation error', async ({ apiRequest }) => {
+ *   const { status, body } = await apiRequest({
  *     method: 'POST',
- *     url: '/api/items',
- *     baseUrl: 'https://api.example.com', // override default baseURL
- *     body: { name: 'New Item', price: 19.99 },
- *     headers: { 'Content-Type': 'application/json' }
+ *     url: '/api/users',
+ *     body: { name: '' } // Invalid data
+ *     // 400 Bad Request will NOT be retried - fails fast
  *   });
  *
- *   expect(status).toBe(201);
- *   expect(body.id).toBeDefined();
+ *   expect(status).toBe(400);
+ * });
+ *
+ * @example
+ * // Disable retry when testing error scenarios
+ * test('test server error handling', async ({ apiRequest }) => {
+ *   const { status } = await apiRequest({
+ *     method: 'GET',
+ *     url: '/api/fail-endpoint',
+ *     retryConfig: { maxRetries: 0 } // Disable retry to test error handling
+ *   });
+ *
+ *   expect(status).toBe(500);
  * });
  */
 export const apiRequest = async <T = unknown>(

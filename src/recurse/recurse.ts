@@ -3,6 +3,68 @@
 import { expect } from '@playwright/test'
 import { getLogger } from '../internal'
 
+// =========================================================================
+// Enhanced Error Types for Recurse Operations
+// =========================================================================
+
+/**
+ * Custom error for timeout scenarios during polling
+ */
+export class RecurseTimeoutError extends Error {
+  constructor(
+    message: string,
+    public readonly timeout: number,
+    public readonly iterations: number,
+    public readonly lastValue?: unknown
+  ) {
+    super(message)
+    this.name = 'RecurseTimeoutError'
+  }
+}
+
+/**
+ * Custom error for command execution failures during polling
+ */
+export class RecurseCommandError extends Error {
+  constructor(
+    message: string,
+    public readonly iteration: number,
+    public readonly originalError?: Error
+  ) {
+    super(message)
+    this.name = 'RecurseCommandError'
+  }
+}
+
+/**
+ * Custom error for predicate evaluation failures
+ */
+export class RecursePredicateError extends Error {
+  constructor(
+    message: string,
+    public readonly iteration: number,
+    public readonly value?: unknown,
+    public readonly originalError?: Error
+  ) {
+    super(message)
+    this.name = 'RecursePredicateError'
+  }
+}
+
+/**
+ * Custom error for internal state violations or programming bugs
+ */
+export class RecurseInternalError extends Error {
+  constructor(
+    message: string,
+    public readonly iteration: number,
+    public readonly context?: string
+  ) {
+    super(message)
+    this.name = 'RecurseInternalError'
+  }
+}
+
 /** default options for the recurse function */
 const RecurseDefaults = {
   timeout: 30000, // 30 seconds
@@ -187,48 +249,91 @@ const executePostCallback = async <T>(state: RecurseState<T>) => {
 }
 
 /**
- * Core polling implementation using Playwright's `expect.poll`
+ * Core polling implementation using Playwright's `expect.poll` with enhanced error handling
  * https://playwright.dev/docs/test-assertions#expectpoll
  * @example
  * // Repeatedly calls the command function until predicate returns true
  * await executePolling(state)
  */
 const executePolling = async <T>(state: RecurseState<T>) => {
-  await expect
-    .poll(
-      async () => {
-        state.iteration += 1
-        const value = await state.command()
-        state.lastValue = value
+  try {
+    await expect
+      .poll(
+        async () => {
+          state.iteration += 1
 
-        let successful = false
-        try {
-          // Handle both boolean returns and assertions that might throw
-          const result = state.predicate(value)
-          // If predicate doesn't return anything but has assertions,
-          // treat as true since it didn't throw
-          successful = result === undefined ? true : !!result
-        } catch {
-          // If assertion fails, treat as false
-          successful = false
+          let value: T
+          try {
+            value = await state.command()
+            state.lastValue = value
+          } catch (error) {
+            const commandError = new RecurseCommandError(
+              `Command failed on iteration ${state.iteration}`,
+              state.iteration,
+              error instanceof Error ? error : new Error(String(error))
+            )
+            throw commandError
+          }
+
+          let successful = false
+          try {
+            // Handle both boolean returns and assertions that might throw
+            const result = state.predicate(value)
+            // If predicate doesn't return anything but has assertions,
+            // treat as true since it didn't throw
+            successful = result === undefined ? true : !!result
+          } catch (error) {
+            // If assertion fails, treat as false but store the error for potential debugging
+            successful = false
+            // Only throw predicate errors if they seem unintentional (not assertion failures)
+            if (error instanceof Error && !error.message.includes('expect(')) {
+              throw new RecursePredicateError(
+                `Predicate evaluation failed on iteration ${state.iteration}`,
+                state.iteration,
+                value,
+                error
+              )
+            }
+          }
+
+          await logAttempt(state, value, successful)
+
+          if (successful) {
+            state.wasSuccessful = true
+            return true
+          }
+
+          return false
+        },
+        {
+          message: state.errorMessage,
+          timeout: state.timeout,
+          intervals: [state.interval]
         }
+      )
+      .toBeTruthy()
+  } catch (error) {
+    // Re-throw our custom errors
+    if (
+      error instanceof RecurseCommandError ||
+      error instanceof RecursePredicateError
+    ) {
+      throw error
+    }
 
-        await logAttempt(state, value, successful)
+    // If Playwright's expect.poll times out, wrap it in our timeout error
+    if (error instanceof Error && error.message.includes('Timeout')) {
+      throw new RecurseTimeoutError(
+        `${state.errorMessage} (${state.timeout}ms timeout exceeded)`,
+        state.timeout,
+        state.iteration,
+        state.lastValue
+      )
+    }
 
-        if (successful) {
-          state.wasSuccessful = true
-          return true
-        }
-
-        return false
-      },
-      {
-        message: state.errorMessage,
-        timeout: state.timeout,
-        intervals: [state.interval]
-      }
-    )
-    .toBeTruthy()
+    // Fallback for unexpected errors
+    throw error
+  }
 }
 
 // Legacy type for compatibility with existing code that might use it
@@ -299,7 +404,11 @@ export async function recurse<T>(
 
   // validate and return the result
   if (!state.lastValue) {
-    throw new Error('Recursion completed but no value was stored')
+    throw new RecurseInternalError(
+      'Internal error: Recursion completed but no value was stored',
+      state.iteration,
+      'This indicates a programming bug in the polling logic'
+    )
   }
 
   return state.lastValue

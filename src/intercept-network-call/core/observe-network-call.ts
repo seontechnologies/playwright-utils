@@ -1,55 +1,90 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Page } from '@playwright/test'
 import type { NetworkCallResult } from './types'
+import { NetworkInterceptError, NetworkTimeoutError } from './types'
 import { matchesRequest } from './utils/matches-request'
 
-export async function observeNetworkCall(
+export async function observeNetworkCall<
+  TRequest = unknown,
+  TResponse = unknown
+>(
   page: Page,
   method?: string,
   url?: string,
   timeout?: number
-): Promise<NetworkCallResult> {
-  const request = await page.waitForRequest(
-    (req) => matchesRequest(req, method, url),
-    { timeout }
-  )
-
-  const response = await request.response()
-  if (!response) {
-    throw new Error('No response received for the request')
-  }
-
-  let data: unknown = null
-
+): Promise<NetworkCallResult<TRequest, TResponse>> {
   try {
-    data = await response.json()
-  } catch (_error) {
-    const contentType =
-      response.headers()['content-type'] ||
-      response.headers()['Content-Type'] ||
-      ''
+    const request = await page.waitForRequest(
+      (req) => matchesRequest(req, method, url),
+      { timeout }
+    )
 
-    if (!contentType.includes('application/json')) {
-      data = null
-    } else {
-      console.warn(
-        'Failed to parse JSON response despite Content-Type indicating JSON'
+    const response = await request.response()
+    if (!response) {
+      throw new NetworkInterceptError(
+        'No response received for the request',
+        'observe',
+        url,
+        method
       )
     }
-  }
 
-  let requestJson: unknown = null
-  try {
-    requestJson = await request.postDataJSON()
-  } catch (_error) {
-    // Request has no post data or is not JSON
-  }
+    let data: TResponse | null = null
 
-  return {
-    request,
-    response,
-    responseJson: data,
-    status: response.status(),
-    requestJson
+    try {
+      data = await response.json()
+    } catch (_error) {
+      const contentType =
+        response.headers()['content-type'] ||
+        response.headers()['Content-Type'] ||
+        ''
+
+      if (!contentType.includes('application/json')) {
+        data = null
+      } else {
+        console.warn(
+          'Failed to parse JSON response despite Content-Type indicating JSON'
+        )
+      }
+    }
+
+    let requestJson: TRequest | null = null
+    try {
+      requestJson = await request.postDataJSON()
+    } catch (_error) {
+      // Request has no post data or is not JSON
+    }
+
+    return {
+      request,
+      response,
+      responseJson: data,
+      status: response.status(),
+      requestJson: requestJson
+    }
+  } catch (error) {
+    // Handle timeout errors specifically
+    if (error instanceof Error && error.message.includes('Timeout')) {
+      throw new NetworkTimeoutError(
+        'Request timeout while observing network call',
+        'observe',
+        timeout || 30000,
+        url,
+        method
+      )
+    }
+
+    // Re-throw our custom errors
+    if (error instanceof NetworkInterceptError) {
+      throw error
+    }
+
+    // Wrap other errors
+    throw new NetworkInterceptError(
+      `Failed to observe network call: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'observe',
+      url,
+      method
+    )
   }
 }
