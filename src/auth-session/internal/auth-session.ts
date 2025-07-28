@@ -71,21 +71,22 @@ const executeWithRetry = async <T>(
 ): Promise<T> => {
   const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...config }
   let lastError: Error | unknown
+  const totalAttempts = retryConfig.maxRetries + 1 // 1 initial + maxRetries retries
 
-  for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+  for (let attempt = 0; attempt < totalAttempts; attempt++) {
     try {
       return await fn()
     } catch (error) {
       lastError = error
 
-      if (attempt === retryConfig.maxRetries) {
+      if (attempt === totalAttempts - 1) {
         // Final attempt failed, throw the error
         throw error
       }
 
       const delay = calculateRetryDelay(attempt, retryConfig)
       log.warningSync(
-        `${context} failed (attempt ${attempt + 1}/${retryConfig.maxRetries + 1}), retrying in ${delay.toFixed(0)}ms: ${
+        `${context} failed (attempt ${attempt + 1}/${totalAttempts}), retrying in ${delay.toFixed(0)}ms: ${
           error instanceof Error ? error.message : String(error)
         }`
       )

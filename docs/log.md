@@ -31,18 +31,18 @@ test.beforeEach(async ({ page }) => {
 
 test('Log demo', async () => {
   await log.info('Starting TodoMVC test suite with enhanced logging')
-  
+
   // Object logging with debug level
   await log.debug({ timestamp: new Date(), recordCount: 42 })
-  
+
   // Success logging
   await log.success('success!')
-  
+
   // Step logging (shows in Playwright UI)
   await log.step(
     'You should not log an object here, steps only display strings'
   )
-  
+
   // Objects work but show empty in test steps
   await log.info({ someText: 'objects will show empty in test steps' })
 })
@@ -54,13 +54,13 @@ test('Log demo', async () => {
 // From playwright/tests/sample-app/backend/crud-movie-event.spec.ts
 test('should crud', async ({ authToken, addMovie, getAllMovies }) => {
   await log.info(authToken) // Log the auth token
-  
+
   // Add movie with logging
   const { body: createResponse } = await addMovie(authToken, movie)
   const movieId = createResponse.data.id
-  
+
   await log.step('isKafkaWorking: ' + isKafkaWorking)
-  
+
   // Conditional logging based on environment
   if (isKafkaWorking) {
     await log.warning('Kafka is not working, skipping Kafka event checks')
@@ -142,9 +142,9 @@ class TodoPage {
   constructor(private page: Page) {
     this.name = 'TodoPage'
   }
-  
+
   readonly name: string
-  
+
   @methodTestStep('Add todo item')
   async addTodo(text: string) {
     await log.info(`Adding todo: ${text}`)
@@ -154,7 +154,7 @@ class TodoPage {
     await log.step('step within a decorator')
     await log.success(`Added todo: ${text}`)
   }
-  
+
   @methodTestStep('Get all todos')
   async getTodos() {
     await log.info('Getting all todos')
@@ -173,11 +173,11 @@ const createDefaultTodos = functionTestStep(
     await log.info('Creating default todos')
     await log.step('step within a functionWrapper')
     const todoPage = new TodoPage(page)
-    
+
     for (const item of TODO_ITEMS) {
       await todoPage.addTodo(item)
     }
-    
+
     await log.success('Created all default todos')
   }
 )

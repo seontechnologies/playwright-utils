@@ -6,9 +6,9 @@ import type { Request, Response } from '@playwright/test'
 export type NetworkCallResult<TRequest = unknown, TResponse = unknown> = {
   request: Request | null
   response: Response | null
-  responseJson: TResponse
+  responseJson: TResponse | null
   status: number
-  requestJson: TRequest
+  requestJson: TRequest | null
 }
 
 /**

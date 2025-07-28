@@ -103,17 +103,26 @@ export function setAuthProvider(
   skipValidation: boolean = false
 ): void {
   if (!skipValidation) {
-    // Import validation utility only when needed
-    const { validateAuthProvider } = require('./auth-provider-validator')
-
     try {
+      // Import validation utility only when needed
+      const { validateAuthProvider } = require('./auth-provider-validator')
+
       validateAuthProvider(provider, {
         throwOnError: true,
         enableBenchmarks: false
       })
-    } catch (error) {
+    } catch (importError) {
+      if (
+        importError &&
+        typeof importError === 'object' &&
+        'code' in importError &&
+        importError.code === 'MODULE_NOT_FOUND'
+      ) {
+        console.warn('Auth provider validator not found, skipping validation')
+        return
+      }
       throw new Error(
-        `Invalid AuthProvider: ${error instanceof Error ? error.message : String(error)}\n` +
+        `Invalid AuthProvider: ${importError instanceof Error ? importError.message : String(importError)}\n` +
           'Please ensure your AuthProvider implements all required methods correctly. ' +
           'Use skipValidation=true to bypass validation if needed.'
       )

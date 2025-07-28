@@ -169,6 +169,8 @@ test('handle different error types', async ({ recurse }) => {
     } else if (error instanceof RecursePredicateError) {
       console.log(`Predicate failed on iteration ${error.iteration}`)
       console.log(`Value was:`, error.value)
+    } else {
+      throw error // preserve unrecognized failures
     }
   }
 })

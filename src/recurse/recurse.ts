@@ -51,6 +51,20 @@ export class RecursePredicateError extends Error {
   }
 }
 
+/**
+ * Custom error for internal state violations or programming bugs
+ */
+export class RecurseInternalError extends Error {
+  constructor(
+    message: string,
+    public readonly iteration: number,
+    public readonly context?: string
+  ) {
+    super(message)
+    this.name = 'RecurseInternalError'
+  }
+}
+
 /** default options for the recurse function */
 const RecurseDefaults = {
   timeout: 30000, // 30 seconds
@@ -390,10 +404,10 @@ export async function recurse<T>(
 
   // validate and return the result
   if (!state.lastValue) {
-    throw new RecurseTimeoutError(
-      'Recursion completed but no value was stored - this should not happen',
-      state.timeout,
-      state.iteration
+    throw new RecurseInternalError(
+      'Internal error: Recursion completed but no value was stored',
+      state.iteration,
+      'This indicates a programming bug in the polling logic'
     )
   }
 

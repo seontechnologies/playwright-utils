@@ -113,9 +113,9 @@ export async function fulfillNetworkCall<
     return {
       request,
       response: null,
-      responseJson: (fulfillResponse?.body ?? null) as TResponse,
+      responseJson: (fulfillResponse?.body ?? null) as TResponse | null,
       status: fulfillResponse?.status ?? 200,
-      requestJson: requestJson as TRequest
+      requestJson: requestJson
     }
   } catch (error) {
     // Re-throw our custom errors

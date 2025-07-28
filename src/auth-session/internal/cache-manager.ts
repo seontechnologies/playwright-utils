@@ -176,7 +176,7 @@ export class TokenCacheManager {
 
     const oldestEntryAge =
       entries.length > 0
-        ? Math.min(...entries.map((e) => now - e.lastAccessed))
+        ? Math.max(...entries.map((e) => now - e.lastAccessed))
         : 0
 
     const averageAccessCount =
@@ -211,7 +211,10 @@ export class TokenCacheManager {
     }
 
     // Force eviction if requested or if still over size limit
-    while (forceEviction || this.cache.size > this.config.maxSize) {
+    while (
+      (forceEviction && this.cache.size > 0) ||
+      this.cache.size > this.config.maxSize
+    ) {
       if (!this.evictLeastRecentlyUsed()) {
         break // No more entries to evict
       }
@@ -243,7 +246,7 @@ export class TokenCacheManager {
     if (this.cache.size === 0) return false
 
     let lruKey: string | null = null
-    let lruLastAccessed = Date.now()
+    let lruLastAccessed = Infinity
 
     // Find the least recently used entry
     for (const [key, entry] of this.cache.entries()) {

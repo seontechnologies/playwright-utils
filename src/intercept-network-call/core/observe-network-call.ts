@@ -58,9 +58,9 @@ export async function observeNetworkCall<
     return {
       request,
       response,
-      responseJson: data as TResponse,
+      responseJson: data,
       status: response.status(),
-      requestJson: requestJson as TRequest
+      requestJson: requestJson
     }
   } catch (error) {
     // Handle timeout errors specifically
