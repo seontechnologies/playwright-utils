@@ -96,39 +96,8 @@ let globalAuthProvider: AuthProvider | null = null
  * Users MUST implement their own provider and set it here
  *
  * @param provider The auth provider to use
- * @param skipValidation Whether to skip validation (default: false)
  */
-export function setAuthProvider(
-  provider: AuthProvider,
-  skipValidation: boolean = false
-): void {
-  if (!skipValidation) {
-    try {
-      // Import validation utility only when needed
-      const { validateAuthProvider } = require('./auth-provider-validator')
-
-      validateAuthProvider(provider, {
-        throwOnError: true,
-        enableBenchmarks: false
-      })
-    } catch (importError) {
-      if (
-        importError &&
-        typeof importError === 'object' &&
-        'code' in importError &&
-        importError.code === 'MODULE_NOT_FOUND'
-      ) {
-        console.warn('Auth provider validator not found, skipping validation')
-        return
-      }
-      throw new Error(
-        `Invalid AuthProvider: ${importError instanceof Error ? importError.message : String(importError)}\n` +
-          'Please ensure your AuthProvider implements all required methods correctly. ' +
-          'Use skipValidation=true to bypass validation if needed.'
-      )
-    }
-  }
-
+export function setAuthProvider(provider: AuthProvider): void {
   globalAuthProvider = provider
 }
 

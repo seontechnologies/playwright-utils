@@ -19,10 +19,6 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Create Auth Fixture](#create-auth-fixture)
     - [Implement Custom Auth Provider](#implement-custom-auth-provider)
       - [BaseURL Resolution](#baseurl-resolution)
-    - [Token Validation Best Practices](#token-validation-best-practices)
-      - [Why No Automatic Validation?](#why-no-automatic-validation)
-      - [Implementing Custom Validation](#implementing-custom-validation)
-      - [Migration from Previous Versions](#migration-from-previous-versions)
     - [Create Token Acquisition Logic](#create-token-acquisition-logic)
     - [Update Your Playwright Config](#update-your-playwright-config)
     - [Configure Authentication Options](#configure-authentication-options)
@@ -235,7 +231,7 @@ test.describe('Auth Session Example', () => {
 | **No.** | **Limitation of Playwright’s Approach**                                                                                                                                                                          | **What This Library Adds**                                                                                                                                                          |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1       | **Complex setup** – Requires configuration across multiple files and understanding of projects/dependencies.                                                                                                     | **Simplified setup** – Single configuration approach with built-in token expiration checking and programmatic refresh capabilities.                                                 |
-| 2       | **Manual token management** – No built-in handling of token expiration or refreshing.                                                                                                                            | **Structured token storage** – Organized acquisition and persistence of tokens with optional validation.                                                                            |
+| 2       | **Manual token management** – No built-in handling of token expiration or refreshing.                                                                                                                            | **Structured token storage** – Organized acquisition and persistence of tokens.                                                                            |
 | 3       | **No multi-environment support** – No straightforward way to handle different environments (dev/staging/prod).                                                                                                   | **Multi-environment support** – First-class support for different environments (dev/staging/prod).                                                                                  |
 | 4       | **No multi-user support** – No built-in system for managing different user identifiers (admin/user/guest).                                                                                                       | **User-based testing** – Built-in system for managing different user identifiers (admin/user/guest).                                                                                |
 | 5       | **Limited programmatic control** – No simple API for clearing or refreshing tokens during test execution.                                                                                                        | **Rich programmatic control** – Clear APIs for managing tokens during test execution.                                                                                               |
@@ -396,7 +392,7 @@ import { BASE_URL } from '@playwright/config/local.config'
 import { getEnvironment } from './get-environment'
 import { getUserIdentifier } from './get-user-identifier'
 
-// Register the custom auth provider early to ensure it's available for all tests
+// Register the custom auth provider
 setAuthProvider(myCustomProvider)
 
 // Default auth options using the current environment
@@ -428,7 +424,7 @@ export const test = base.extend<AuthFixtures>({
 
 ### Implement Custom Auth Provider
 
-Create a custom auth provider to handle token acquisition, validation, and management. Your auth provider can also provide custom baseURL resolution logic for multi-user testing scenarios.
+Create a custom auth provider to handle token acquisition and management. Your auth provider can also provide custom baseURL resolution logic for multi-user testing scenarios.
 
 The `AuthProvider` interface includes an optional `getBaseUrl` method that allows you to implement custom logic for resolving the baseURL when using multiple user identifiers. This is particularly useful for tests that require different baseURLs for different users or environments.
 
@@ -551,115 +547,8 @@ const myCustomProvider: AuthProvider = {
 export default myCustomProvider
 ```
 
-> **Note**: See the [complete auth provider example](https://github.com/seontechnologies/playwright-utils/tree/main/examples/auth-provider) for detailed implementation including environment handling, token validation, and browser context setup.
+> **Note**: See the [complete auth provider example](https://github.com/seontechnologies/playwright-utils/tree/main/examples/auth-provider) for detailed implementation including environment handling and browser context setup.
 
-### Token Validation Best Practices
-
-The `loadStorageState` function in this library loads and parses storage state files without performing automatic token validation. This design choice ensures the library remains app-agnostic and works with various token formats including JWTs, API keys, custom tokens, and encrypted tokens.
-
-#### Why No Automatic Validation?
-
-Previous versions included automatic JWT validation, but this created issues for applications using:
-
-- Non-JWT token formats (API keys, session tokens, etc.)
-- Custom token structures
-- Encrypted or encoded tokens
-- Tokens with non-standard expiration mechanisms
-
-The automatic validation assumed all tokens were JWTs with standard `exp` claims, causing non-JWT tokens to always be considered "expired."
-
-#### Implementing Custom Validation
-
-Each application should implement its own token validation logic based on their specific requirements:
-
-```typescript
-// Example: JWT-based validation
-import { loadStorageState } from '@seontechnologies/playwright-utils/auth-session'
-import { extractToken, isTokenExpired } from './token/validation'
-
-export async function checkTokenValidity(tokenPath: string) {
-  // Load storage state without automatic validation
-  const storageState = loadStorageState(tokenPath)
-  if (!storageState) {
-    return null
-  }
-
-  // Implement your application-specific validation
-  const token = extractToken(storageState)
-  if (!token || isTokenExpired(token)) {
-    return null // Token is invalid or expired
-  }
-
-  return storageState // Token is valid
-}
-```
-
-```typescript
-// Example: API key validation
-export async function checkApiKeyValidity(tokenPath: string) {
-  const storageState = loadStorageState(tokenPath)
-  if (!storageState) {
-    return null
-  }
-
-  // For API keys, you might validate format or make a test API call
-  const apiKey = extractApiKey(storageState)
-  if (!apiKey || !isValidApiKeyFormat(apiKey)) {
-    return null
-  }
-
-  return storageState
-}
-```
-
-```typescript
-// Example: Session-based validation with refresh logic
-export async function checkSessionValidity(tokenPath: string) {
-  const storageState = loadStorageState(tokenPath)
-  if (!storageState) {
-    return null
-  }
-
-  const sessionData = extractSessionData(storageState)
-
-  // Check if session is expired
-  if (isSessionExpired(sessionData)) {
-    // Attempt renewal if refresh token is available
-    if (hasValidRefreshToken(sessionData)) {
-      try {
-        await renewSession(tokenPath)
-        return loadStorageState(tokenPath) // Return renewed state
-      } catch (error) {
-        return null // Renewal failed
-      }
-    }
-    return null // No refresh token available
-  }
-
-  return storageState // Session is valid
-}
-```
-
-#### Migration from Previous Versions
-
-If you were previously relying on automatic validation:
-
-**Before:**
-
-```typescript
-const storageState = loadStorageState(tokenPath, true) // With validation
-```
-
-**After:**
-
-```typescript
-const storageState = loadStorageState(tokenPath) // No automatic validation
-if (storageState && !isTokenExpired(extractToken(storageState))) {
-  // Token is valid, use it
-}
-```
-
-This change provides better control over validation logic and ensures compatibility with diverse authentication systems.
 
 ### Create Token Acquisition Logic
 

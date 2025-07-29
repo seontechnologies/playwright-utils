@@ -319,7 +319,7 @@ export async function validateAndSetAuthProvider(
 
     // Import and set the provider only after successful validation
     const { setAuthProvider } = await import('./auth-provider.js')
-    setAuthProvider(provider, true) // Skip validation since we already validated
+    setAuthProvider(provider)
 
     log.successSync('AuthProvider validated and set successfully')
     return true
