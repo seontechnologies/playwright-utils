@@ -49,14 +49,6 @@ export {
   getAuthProvider
 } from './internal/auth-provider'
 
-// Auth Provider Validation
-export {
-  validateAuthProvider,
-  validateAndSetAuthProvider,
-  type ValidationConfig,
-  type ValidationResult
-} from './internal/auth-provider-validator'
-
 // Cache Management
 export {
   TokenCacheManager,
