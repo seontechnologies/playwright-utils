@@ -27,7 +27,3 @@ downloads
 sample-app/backend/test-events/movie-events.log
 .auth
 sample-app/frontend/src/components/movie-details/__screenshots__
-
-# BMAD
-.claude/
-.windsurf/
