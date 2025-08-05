@@ -17,8 +17,20 @@ export const useAuth = () => {
 
   // Keep currentUser in sync with token service
   useEffect(() => {
-    const user = tokenService.getCurrentUser()
-    setCurrentUser(user)
+    // Update current user whenever the component mounts or token service changes
+    const updateUser = () => {
+      const user = tokenService.getCurrentUser()
+      setCurrentUser(user)
+    }
+
+    // Initial update
+    updateUser()
+
+    // Set up an interval to check for updates
+    // This is a simple solution; in production, you'd use an event system
+    const interval = setInterval(updateUser, 1000)
+
+    return () => clearInterval(interval)
   }, [])
 
   /**
@@ -43,6 +55,9 @@ export const useAuth = () => {
       // Store the token info in the token service
       // In a real app, this would properly store the JWT
       storeAuthData(response)
+
+      // Update current user state
+      setCurrentUser(response.identity)
 
       return { success: true }
     } catch (err) {
@@ -75,9 +90,20 @@ export const useAuth = () => {
   /**
    * Log the user out
    */
-  const logout = (): void => {
+  const logout = async (): Promise<void> => {
+    try {
+      // Call the backend logout endpoint to clear httpOnly cookies
+      await fetch('http://localhost:3001/auth/logout', {
+        method: 'POST',
+        credentials: 'include' // Important: include cookies in the request
+      })
+    } catch (error) {
+      console.error('Error during logout:', error)
+    }
+
+    // Clear local storage and tokens
     tokenService.clearTokens()
-    // In a real app, we might invalidate the token on the server too
+    setCurrentUser(null)
   }
 
   return {

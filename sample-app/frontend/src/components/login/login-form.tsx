@@ -14,7 +14,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 export default function LoginForm() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [userIdentifier, setUserIdentifier] = useState('')
+  const [userIdentifier, setUserIdentifier] = useState('admin')
   const [validationError, setValidationError] = useState<z.ZodError | null>(
     null
   )

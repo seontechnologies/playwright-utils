@@ -88,6 +88,18 @@
       "require": "./dist/cjs/file-utils/fixtures.js",
       "import": "./dist/esm/file-utils/fixtures.js",
       "default": "./dist/cjs/file-utils/fixtures.js"
+    },
+    "./network-recorder": {
+      "types": "./dist/types/network-recorder/index.d.ts",
+      "require": "./dist/cjs/network-recorder/index.js",
+      "import": "./dist/esm/network-recorder/index.js",
+      "default": "./dist/cjs/network-recorder/index.js"
+    },
+    "./network-recorder/fixtures": {
+      "types": "./dist/types/network-recorder/fixtures.d.ts",
+      "require": "./dist/cjs/network-recorder/fixtures.js",
+      "import": "./dist/esm/network-recorder/fixtures.js",
+      "default": "./dist/cjs/network-recorder/fixtures.js"
     }
   },
   "files": [

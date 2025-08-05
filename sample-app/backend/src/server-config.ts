@@ -311,4 +311,31 @@ server.post('/auth/renew', (req, res) => {
   })
 })
 
+// Logout endpoint - clears authentication cookies
+server.post('/auth/logout', (_req, res) => {
+  // Clear both cookies by setting them with immediate expiration
+  res.cookie('seon-jwt', '', {
+    domain: 'localhost',
+    path: '/',
+    expires: new Date(0), // Expire immediately
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  })
+
+  res.cookie('seon-refresh', '', {
+    domain: 'localhost',
+    path: '/',
+    expires: new Date(0), // Expire immediately
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  })
+
+  return res.status(200).json({
+    message: 'Logged out successfully',
+    status: 200
+  })
+})
+
 export { server }
