@@ -12,19 +12,19 @@ Set the environment variable in your test file and run your test:
 // Set mode to 'record' to capture network traffic
 process.env.PW_NET_MODE = 'record'
 
-test('should add, edit and delete a movie', async ({ 
-  page, 
-  context, 
-  networkRecorder 
+test('should add, edit and delete a movie', async ({
+  page,
+  context,
+  networkRecorder
 }) => {
   // Setup network recorder - it will record all network traffic
   await networkRecorder.setup(context)
-  
+
   // Your normal test code
   await page.goto('/')
   await page.fill('#movie-name', 'Inception')
   await page.click('#add-movie')
-  
+
   // Network traffic is automatically saved to HAR file
 })
 ```
@@ -37,14 +37,14 @@ Change the mode to 'playback' and run the same test offline:
 // Set mode to 'playback' to use recorded traffic
 process.env.PW_NET_MODE = 'playback'
 
-test('should add, edit and delete a movie', async ({ 
-  page, 
-  context, 
-  networkRecorder 
+test('should add, edit and delete a movie', async ({
+  page,
+  context,
+  networkRecorder
 }) => {
   // Setup network recorder - it will replay from HAR file
   await networkRecorder.setup(context)
-  
+
   // Same test code runs without hitting real backend!
   await page.goto('/')
   await page.fill('#movie-name', 'Inception')
@@ -94,7 +94,7 @@ test.describe('movie crud e2e - browser only (network recorder)', () => {
 
     await log.step('Edit the movie')
     const { editedName, editedYear, editedRating, editedDirector } = {
-      editedName: 'Inception (Director\'s Cut)',
+      editedName: "Inception (Director's Cut)",
       editedYear: 2011,
       editedRating: 9.0,
       editedDirector: 'Christopher Nolan'
@@ -145,11 +145,11 @@ While Playwright offers built-in HAR recording via `context.routeFromHAR()`, our
 test('Fixture usage example', async ({ page, context, networkRecorder }) => {
   // Setup network recorder
   await networkRecorder.setup(context)
-  
+
   // Your test code - network traffic is recorded/played back automatically
   await page.goto('/')
   await page.click('button')
-  
+
   // Cleanup happens automatically
 })
 ```
@@ -162,12 +162,12 @@ import { test } from '@playwright/test'
 
 test('Direct usage example', async ({ page, context }, testInfo) => {
   const recorder = createNetworkRecorder(testInfo)
-  
+
   await recorder.setup(context)
-  
+
   // Your test code
   await page.goto('/')
-  
+
   await recorder.cleanup()
 })
 ```
@@ -240,6 +240,7 @@ This happens automatically - no configuration needed!
 ### Cross-Environment Compatibility
 
 The recorder automatically handles CORS headers based on the request origin, making your tests portable:
+
 - Record on `https://dev.example.com`
 - Playback on `https://stage.example.com`
 - Playback on `http://localhost:3000`
@@ -291,27 +292,34 @@ type NetworkRecorderConfig = {
 ### HAR File Not Found
 
 If you see "HAR file not found" errors during playback:
+
 1. Ensure you've recorded the test first with `PW_NET_MODE=record`
 2. Check the HAR file exists in the expected location (usually `har-files/`)
 3. Enable fallback mode: `playback: { fallback: true }`
 
-### Authentication Issues
+### Authentication and Network Recording
 
-The recorder is authentication-agnostic and works with pre-authenticated contexts:
+The network recorder is designed to work seamlessly with authentication - it doesn't interfere with auth flows because:
+
+1. **It operates on an already-authenticated context** - Auth happens first, then recording starts
+2. **It ignores auth endpoints by default** - The recorder doesn't try to replay auth requests
+3. **It preserves cookies and headers** - Your auth tokens flow through normally
+
+This means you can use it with any auth method:
 
 ```typescript
-test('Authenticated recording', async ({ 
-  page, 
-  context, 
-  authSession, 
-  networkRecorder 
+test('Authenticated recording', async ({
+  page,
+  context,
+  authSession,
+  networkRecorder
 }) => {
   // First authenticate
   await authSession.login('testuser', 'password')
-  
+
   // Then setup network recording with authenticated context
   await networkRecorder.setup(context)
-  
+
   // Test authenticated flows
   await page.goto('/dashboard')
 })
@@ -424,6 +432,7 @@ It automatically switches from static HAR playback to an intelligent stateful mo
 ### Benefits Over Traditional Mocking Tools
 
 Unlike tools like Mockoon or WireMock that require complex rule configuration:
+
 - **No manual state machine setup** - State management is automatic
 - **No scenario configuration** - CRUD patterns are auto-detected
 - **No rule ordering issues** - Operations are handled semantically
