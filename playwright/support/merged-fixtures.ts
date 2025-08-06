@@ -3,6 +3,7 @@ import { test as apiRequest } from '../../src/api-request/fixtures'
 import { test as fileUtils } from '../../src/file-utils/file-utils-fixture'
 import { test as interceptNetworkCall } from '../../src/intercept-network-call/fixtures'
 import { captureTestContext } from '../../src/log'
+import { test as networkRecorder } from '../../src/network-recorder/fixtures'
 import { test as authFixture } from './auth/auth-fixture'
 import { test as crudHelper } from './fixtures/crud-helper-fixture'
 
@@ -17,7 +18,8 @@ const test = mergeTests(
   interceptNetworkCall,
   apiRequest,
   crudHelper,
-  fileUtils
+  fileUtils,
+  networkRecorder
 )
 const expect = base.expect
 export { expect, test }

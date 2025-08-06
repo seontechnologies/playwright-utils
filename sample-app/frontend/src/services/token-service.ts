@@ -446,6 +446,13 @@ export class StorageStateTokenService implements TokenService {
    */
   getAuthorizationHeader(): string {
     const token = this.getToken()
+
+    // If we don't have a token or cookies, return empty string
+    // This happens when cookies are httpOnly
+    if (!token || !token.cookies || token.cookies.length === 0) {
+      return ''
+    }
+
     const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
     if (!cookie) return ''
 

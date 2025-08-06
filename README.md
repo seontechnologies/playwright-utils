@@ -39,6 +39,7 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
     - [Auth Session](#auth-session)
       - [Implementation Steps](#implementation-steps)
     - [File Utilities](#file-utilities)
+    - [Network Recorder](#network-recorder)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
@@ -528,6 +529,42 @@ test('example', async ({ fileUtils }) => {
 ```
 
 [→ File Utilities Documentation](./docs/file-utils.md)
+
+### [Network Recorder](./docs/network-recorder.md)
+
+A HAR-based network traffic recording and playback utility that enables frontend tests to run in complete isolation from backend services. Features intelligent stateful CRUD detection for realistic API behavior.
+
+```typescript
+// Control mode in your test file (recommended)
+process.env.PW_NET_MODE = 'record' // or 'playback'
+
+// As a fixture (recommended)
+import { test } from '@seontechnologies/playwright-utils/network-recorder/fixtures'
+
+test('CRUD operations work offline', async ({ page, context, networkRecorder }) => {
+  // Setup - automatically records or plays back based on PW_NET_MODE
+  await networkRecorder.setup(context)
+  
+  await page.goto('/')
+  
+  // First time: records all network traffic to HAR file
+  // Subsequent runs: plays back from HAR file (no backend needed!)
+  await page.fill('#movie-name', 'Inception')
+  await page.click('#add-movie')
+  
+  // Intelligent CRUD detection ensures the movie appears in the list
+  // even though we're running offline!
+  await expect(page.getByText('Inception')).toBeVisible()
+})
+```
+
+```bash
+# Alternative: Environment-based mode switching
+PW_NET_MODE=record npm run test:pw   # Record network traffic to HAR files
+PW_NET_MODE=playback npm run test:pw # Playback from existing HAR files
+```
+
+[→ Network Recorder Documentation](./docs/network-recorder.md)
 
 ## Testing the Package Locally
 
