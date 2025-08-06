@@ -222,7 +222,17 @@ All 8 stories from the PRD have been implemented following the architecture spec
 
 ## Next Steps
 
-1. **Integration Testing**: Test with existing frontend tests
-2. **Documentation**: Add usage examples to main README
+### Immediate Enhancements
+
+1. **Add log.step UI Visibility**: Integrate with existing log module for Playwright UI visibility
+   - Add `log.step("🎬 Recording network traffic...")` in record mode setup
+   - Add `log.step("📼 Playing back network traffic...")` in playback mode setup
+   - Include HAR file path in log messages for debugging context
+   - Add mode transition logging for better test debugging experience
+
+2. **Integration Testing**: Test with existing frontend tests
+
+### Future Enhancements
+
 3. **Optimization**: Performance testing with large HAR files
 4. **Enhancement**: Additional configuration options based on usage feedback

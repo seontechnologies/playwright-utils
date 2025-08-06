@@ -10,9 +10,10 @@ Comprehensive documentation of entire system - TypeScript utility library for Pl
 
 ### Change Log
 
-| Date       | Version | Description                 | Author |
-| ---------- | ------- | --------------------------- | ------ |
-| 2025-08-05 | 1.0     | Initial brownfield analysis | Mary   |
+| Date       | Version | Description                           | Author |
+| ---------- | ------- | ------------------------------------- | ------ |
+| 2025-08-05 | 1.0     | Initial brownfield analysis           | Mary   |
+| 2025-08-06 | 1.1     | Added network-recorder feature        | Mary   |
 
 ## Quick Reference - Key Files and Entry Points
 
@@ -46,6 +47,7 @@ This is a **TypeScript utility library for Playwright testing** that provides mo
 | File Processing    | exceljs          | 4.4.0    | XLSX processing                                |
 | File Processing    | papaparse        | 5.5.3    | CSV parsing                                    |
 | File Processing    | adm-zip          | 0.5.16   | ZIP file handling                              |
+| HAR Processing     | Native           | -        | Network traffic recording/playback             |
 | Auth Management    | proper-lockfile  | 4.1.2    | Token storage locking                          |
 | Sample App Backend | Express + Prisma | -        | SQLite database, Kafka events                  |
 | Sample App Frontend| React + Vite     | -        | React 19, Styled Components, React Query      |
@@ -71,6 +73,8 @@ playwright-utils/
 │   │   └── core/                # Core file processing logic
 │   ├── intercept-network-call/  # Network request interception and mocking
 │   │   └── core/                # Network interception implementation
+│   ├── network-recorder/        # HAR-based network traffic recording/playback
+│   │   └── core/                # Network recorder implementation
 │   ├── log/                     # Structured logging integrated with Playwright
 │   │   ├── formatters/          # Message formatting logic
 │   │   ├── outputs/             # Console and file output handlers
@@ -111,6 +115,7 @@ playwright-utils/
 - **Auth Session**: `src/auth-session/` - Persistent token management with provider pattern
 - **File Utils**: `src/file-utils/` - File processing utilities (CSV, XLSX, PDF, ZIP) with download support
 - **Network Interception**: `src/intercept-network-call/` - Network mocking and observation utilities
+- **Network Recorder**: `src/network-recorder/` - HAR-based network traffic recording and playback with intelligent stateful mocking
 - **Logging**: `src/log/` - Structured logging with Playwright report integration
 - **Recurse**: `src/recurse/` - Polling utility for waiting on asynchronous conditions
 - **Sample App**: `sample-app/` - Full-stack application for testing utilities in realistic scenarios
@@ -162,6 +167,7 @@ playwright-utils/
 ### Internal Integration Points
 
 - **Fixture Pattern**: All utilities provide both direct function and Playwright fixture interfaces
+- **Network Recording**: Authentication-agnostic HAR recording that works with pre-authenticated contexts
 - **Logging Integration**: Internal logger configured to use log module instead of console
 - **Type Safety**: Comprehensive TypeScript coverage with strict type checking
 - **Module Independence**: Each utility is self-contained with minimal cross-dependencies
@@ -232,6 +238,7 @@ npm run validate          # All checks (typecheck, lint, test, format)
 - **Subpath Exports**: Each utility can be imported individually to reduce bundle size
 - **Dual Module Format**: Supports both CommonJS and ES Modules automatically
 - **Provider Pattern**: Authentication uses composable provider pattern for flexibility
+- **Intelligent State Detection**: Network recorder auto-detects CRUD patterns for stateful vs stateless mocking
 - **Type-First Design**: Full TypeScript coverage with strict type checking
 
 ### Module Organization

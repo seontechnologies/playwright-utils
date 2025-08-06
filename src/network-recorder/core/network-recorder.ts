@@ -112,8 +112,12 @@ export class NetworkRecorder {
       this.releaseLock = await acquireHarFileLock(this.harFilePath)
 
       if (this.mode === 'record') {
+        await log.step(`🎬 Recording network traffic to: ${this.harFilePath}`)
         await this.setupRecording(context)
       } else if (this.mode === 'playback') {
+        await log.step(
+          `📼 Playing back network traffic from: ${this.harFilePath}`
+        )
         await this.setupPlayback(context)
       }
 
@@ -135,6 +139,14 @@ export class NetworkRecorder {
 
   /**
    * Cleans up network recorder resources
+   *
+   * Flushes recorded network data to disk and cleans up memory:
+   * - Writes HAR file (if recording mode with entries)
+   * - Releases file locks for concurrent safety
+   * - Clears in-memory HAR data and recorded requests
+   * - Resets internal state flags
+   *
+   * Note: This does NOT delete HAR files - only cleans up memory/state
    */
   async cleanup(): Promise<void> {
     // Write HAR file if we were recording
@@ -143,6 +155,9 @@ export class NetworkRecorder {
       this.harData &&
       this.harData.log.entries.length > 0
     ) {
+      await log.step(
+        `💾 Saving ${this.harData.log.entries.length} recorded requests to: ${this.harFilePath}`
+      )
       try {
         await fs.writeFile(
           this.harFilePath,
@@ -217,7 +232,7 @@ export class NetworkRecorder {
           this.recordedRequests.get(requestId)?.startTime || endTime
 
         // Create HAR entry from request/response
-        if (this.harData) {
+        if (this.harData && this.harData.log) {
           const harEntry = await requestToHarEntry(
             request,
             response,

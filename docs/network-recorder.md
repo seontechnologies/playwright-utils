@@ -126,16 +126,15 @@ test.describe('movie crud e2e - browser only (network recorder)', () => {
 
 While Playwright offers built-in HAR recording via `context.routeFromHAR()`, our utility provides several key advantages:
 
-| Native Playwright                            | Our Network Recorder Utility                                              |
-| -------------------------------------------- | ------------------------------------------------------------------------- |
-| Manual HAR file path management              | Automatic HAR file organization by test file and test name                |
-| No environment-based mode switching          | Environment variable control (`PW_NET_MODE=record/playback/disabled`)     |
-| Manual concurrent test safety                | Built-in file locking for safe parallel test execution                    |
-| Complex setup and teardown                   | Automatic setup/cleanup via fixtures or explicit lifecycle methods        |
-| No authentication integration                | Authentication-agnostic design that works with pre-authenticated contexts |
-| Limited error handling for missing HAR files | Configurable fallback modes and comprehensive error handling              |
-| Stateless HAR playback only                  | Intelligent stateful mock for CRUD operations (auto-detected)             |
-| No support for polling/recursion scenarios   | Full support for dynamic state changes during test execution              |
+| Native Playwright | Our Network Recorder Utility |
+| ----------------- | ---------------------------- |
+| ~80 lines of boilerplate setup | ~5 lines total setup |
+| Manual HAR file management | Automatic file organization |
+| Complex setup/teardown | Automatic cleanup via fixtures |
+| **Read-only tests only** | **Full CRUD operations supported** |
+| **Stateless - breaks realistic scenarios** | **Stateful mocking - works naturally** |
+
+For a complete code comparison showing these differences in action, see [Comparison with Native Playwright](#comparison-with-native-playwright-detailed).
 
 ## Basic Usage
 
@@ -162,7 +161,6 @@ import { test } from '@playwright/test'
 
 test('Direct usage example', async ({ page, context }, testInfo) => {
   const recorder = createNetworkRecorder(testInfo)
-
   await recorder.setup(context)
 
   // Your test code
@@ -183,8 +181,11 @@ PW_NET_MODE=record npm run test:pw
 # Playback mode - replays network traffic from HAR files
 PW_NET_MODE=playback npm run test:pw
 
-# Disabled mode - no network recording/playback (default)
+# Disabled mode - no network recording/playback
 PW_NET_MODE=disabled npm run test:pw
+
+# Default behavior (when PW_NET_MODE is empty/unset) - same as disabled
+npm run test:pw
 ```
 
 **Tip**: We recommend setting `process.env.PW_NET_MODE` directly in your test file (as shown in examples above) for better control and clarity.
@@ -217,7 +218,127 @@ await networkRecorder.setup(context, {
 await networkRecorder.setup(context, {
   harFile: {
     harDir: 'recordings/api-calls',
-    baseName: 'user-journey'
+    baseName: 'user-journey',
+    organizeByTestFile: false // Optional: flatten directory structure
+  }
+})
+```
+
+**Directory Organization:**
+
+- `organizeByTestFile: true` (default): `har-files/test-file-name/baseName-test-title.har`
+- `organizeByTestFile: false`: `har-files/baseName-test-title.har`
+
+Use `false` for simpler structure or when you have few tests. Use `true` (default) for better organization and to prevent filename conflicts in larger test suites.
+
+### Response Content Storage: Embed vs Attach
+
+The `content` option controls how response content (HTML, JSON, images, etc.) is stored in HAR files. Understanding this choice helps you optimize for file size, sharing, and performance.
+
+#### `embed` (Default - Recommended)
+
+Stores response content directly inside the HAR file as base64-encoded text:
+
+```typescript
+await networkRecorder.setup(context, {
+  recording: {
+    content: 'embed' // Store content inline (default)
+  }
+})
+```
+
+**Pros:**
+
+- **Single self-contained file** - Easy to share, version control, and move around
+- **Better for small-medium responses** - API JSON responses, HTML pages
+- **HAR specification compliant** - Standard way per HAR specification
+- **Simpler for our stateful mock** - Content parsing works seamlessly
+
+**Cons:**
+
+- **Larger HAR files** - File size grows with response content
+- **Not ideal for large binary content** - Images, videos become bloated
+
+**HAR structure example:**
+
+```json
+{
+  "response": {
+    "content": {
+      "text": "eyJzdGF0dXMiOjIwMCwiZGF0YSI6W119", // base64 JSON response
+      "encoding": "base64",
+      "mimeType": "application/json"
+    }
+  }
+}
+```
+
+#### `attach` (Alternative)
+
+Stores response content as separate files or entries:
+
+```typescript
+await networkRecorder.setup(context, {
+  recording: {
+    content: 'attach' // Store content separately
+  }
+})
+```
+
+**Pros:**
+
+- **Smaller HAR files** - Only references to content, not content itself
+- **Better for large responses** - Images, videos, large documents
+- **More efficient disk usage** - Content can be compressed separately
+
+**Cons:**
+
+- **Multiple files to manage** - HAR file + separate content files
+- **Harder to share** - Need to bundle everything together
+- **More complex** - Requires additional file management
+
+**HAR structure example:**
+
+```json
+{
+  "response": {
+    "content": {
+      "text": "", // Empty - content stored separately
+      "encoding": "",
+      "mimeType": "application/json"
+    }
+  }
+}
+```
+
+#### When to Use Each
+
+**Use `embed` (default) when:**
+
+- Recording API responses (JSON, XML)
+- Small to medium HTML pages
+- You want a single, portable file
+- File size under ~10MB is acceptable
+- Sharing HAR files with team members
+
+**Use `attach` when:**
+
+- Recording large images, videos, or documents
+- HAR file size becomes unwieldy (>50MB)
+- You need maximum disk efficiency
+- Working with ZIP archive output
+
+**Example for large content:**
+
+```typescript
+// Recording a media-heavy application
+await networkRecorder.setup(context, {
+  harFile: {
+    harDir: 'recordings/media-app'
+  },
+  recording: {
+    content: 'attach', // Prevent bloated HAR files
+    urlFilter: /\.(jpg|png|mp4|pdf)$/i // Only for large files
   }
 })
 ```
@@ -249,13 +370,37 @@ The recorder automatically handles CORS headers based on the request origin, mak
 
 ### NetworkRecorder Methods
 
-| Method               | Return Type              | Description                                   |
-| -------------------- | ------------------------ | --------------------------------------------- |
-| `setup(context)`     | `Promise<void>`          | Sets up recording/playback on browser context |
-| `cleanup()`          | `Promise<void>`          | Cleans up resources and file locks            |
-| `getContext()`       | `NetworkRecorderContext` | Gets current recorder context information     |
-| `getStatusMessage()` | `string`                 | Gets human-readable status message            |
-| `getHarStats()`      | `Promise<HarFileStats>`  | Gets HAR file statistics and metadata         |
+| Method               | Return Type              | Description                                           |
+| -------------------- | ------------------------ | ----------------------------------------------------- |
+| `setup(context)`     | `Promise<void>`          | Sets up recording/playback on browser context         |
+| `cleanup()`          | `Promise<void>`          | Flushes data to disk and cleans up memory (see below) |
+| `getContext()`       | `NetworkRecorderContext` | Gets current recorder context information             |
+| `getStatusMessage()` | `string`                 | Gets human-readable status message                    |
+| `getHarStats()`      | `Promise<HarFileStats>`  | Gets HAR file statistics and metadata                 |
+
+#### Understanding `cleanup()`
+
+The `cleanup()` method performs memory and resource cleanup - **it does NOT delete HAR files**:
+
+**What it does:**
+
+- **Flushes recorded data to disk** - Writes the HAR file (if in recording mode)
+- **Releases file locks** - Allows other tests to access the same HAR file path
+- **Clears in-memory data** - Frees up HAR data and request tracking from memory
+- **Resets internal state** - Marks the recorder as no longer active
+
+**What it does NOT do:**
+
+- Delete HAR files from disk
+- Remove recorded network traffic
+- Clear browser context or cookies
+
+This design ensures that:
+
+- HAR files persist for inspection and reuse
+- Memory usage stays low across multiple tests
+- File locks don't block parallel test execution
+- Each test gets a clean recorder state
 
 ### Configuration Options
 
@@ -339,85 +484,196 @@ The recorder includes built-in file locking for safe parallel execution. Each te
 
 ## Comparison with Native Playwright (Detailed)
 
-### Recording Network Traffic
+### The Complete Picture: Real Code Comparison
 
-**With Native Playwright:**
+Here's how the same simple test (just loading a page and checking movies) looks with both approaches:
 
-```typescript
-test('Record network traffic', async ({ context, page }) => {
-  // Manual HAR file path management
-  const harPath = path.join('har-files', 'my-test.har')
-
-  // Ensure directory exists
-  await fs.mkdir(path.dirname(harPath), { recursive: true })
-
-  // Start recording
-  await context.routeFromHAR(harPath, { mode: 'record' })
-
-  // Perform test actions
-  await page.goto('/')
-  await page.click('button')
-
-  // Manual cleanup if needed
-})
-```
-
-**With Our Utility:**
+**❌ With Native Playwright** (from our `movie-crud-e2e-network-record-playback-vanilla.spec.ts`):
 
 ```typescript
-test('Record network traffic', async ({ page, context, networkRecorder }) => {
-  // Automatic HAR file path generation and directory creation
-  await networkRecorder.setup(context)
+import { test, expect } from '@playwright/test'
+import { promises as fs } from 'fs'
+import path from 'path'
 
-  // Perform test actions - recording happens automatically
-  await page.goto('/')
-  await page.click('button')
+/**
+ * ⚠️ MAJOR LIMITATION: This demo only loads a page - NO CRUD operations!
+ * Vanilla Playwright HAR playback is STATELESS, making it unsuitable for:
+ * - Create/Update/Delete operations
+ * - Any test that modifies data during execution
+ * - Polling scenarios where state changes over time
+ */
 
-  // Automatic cleanup
-})
-```
+const mode: 'record' | 'playback' = 'playback'
+const harDir = 'har-files/vanilla-demo'
+const harFilePath = path.join(harDir, 'movies-page.har')
 
-### Environment-Based Mode Switching
+test.describe('movie page - vanilla playwright HAR demo', () => {
+  test.beforeAll(async () => {
+    await fs.mkdir(harDir, { recursive: true })
 
-**With Native Playwright:**
-
-```typescript
-// Need to manually implement mode switching logic
-test('Environment-based recording', async ({ context, page }) => {
-  const mode = process.env.NETWORK_MODE || 'disabled'
-  const harPath = path.join('har-files', 'my-test.har')
-
-  if (mode === 'record') {
-    await context.routeFromHAR(harPath, { mode: 'record' })
-  } else if (mode === 'playback') {
-    if (existsSync(harPath)) {
-      await context.routeFromHAR(harPath, { mode: 'replay' })
+    if (mode === 'record') {
+      // ❌ PROBLEM: Vanilla Playwright requires empty HAR file to exist before recording
+      const emptyHar = {
+        log: {
+          version: '1.2',
+          creator: { name: 'playwright', version: '1.0' },
+          pages: [],
+          entries: []
+        }
+      }
+      await fs.writeFile(harFilePath, JSON.stringify(emptyHar, null, 2))
     }
-  }
-  // 'disabled' mode - no network recording/playback
+  })
 
-  await page.goto('/')
+  test('should load movies page and display seeded movies', async ({
+    browser
+  }) => {
+    let context
+
+    // ❌ PROBLEM: Must manually load and manage auth state
+    const authStoragePath = '.auth/local/admin/storage-state.json'
+    let storageState
+    try {
+      storageState = JSON.parse(await fs.readFile(authStoragePath, 'utf-8'))
+    } catch {
+      console.log(
+        '⚠️  No auth storage state found - test may redirect to login'
+      )
+    }
+
+    if (mode === 'record') {
+      context = await browser.newContext({
+        storageState: storageState || undefined
+      })
+      // ❌ PROBLEM: Complex HAR configuration required
+      await context.routeFromHAR(harFilePath, {
+        update: true,
+        updateContent: 'embed'
+      })
+    } else {
+      // ❌ PROBLEM: Manual file existence checks required
+      try {
+        await fs.access(harFilePath)
+      } catch {
+        throw new Error(
+          `HAR file not found at ${harFilePath}. Please run in record mode first.`
+        )
+      }
+
+      context = await browser.newContext({
+        storageState: storageState || undefined
+      })
+      // ❌ PROBLEM: Different configuration for playback mode
+      await context.routeFromHAR(harFilePath, {
+        update: false,
+        notFound: 'fallback'
+      })
+    }
+
+    const page = await context.newPage()
+
+    // ❌ PROBLEM: Must wrap test in try/catch/finally for cleanup
+    try {
+      await page.goto('/')
+      await page.waitForLoadState('networkidle')
+      await expect(page).toHaveURL('/movies')
+
+      const movieElements = page.locator('[data-testid*="movie-"]')
+      await movieElements.first().waitFor({ timeout: 10000 })
+
+      const movieCount = await movieElements.count()
+      expect(movieCount).toBeGreaterThanOrEqual(1)
+    } catch (error) {
+      console.error('❌ Test failed:', error)
+      throw error
+    } finally {
+      // ❌ PROBLEM: Manual cleanup required or HAR data may be lost
+      await context.close()
+    }
+  })
 })
 ```
 
-**With Our Utility:**
+**✅ With Our Network Recorder Utility - Stateful CRUD Operations Supported** (from our `movie-crud-e2e-network-record-playback.spec.ts`):
 
 ```typescript
-// Set in test file
-process.env.PW_NET_MODE = 'record' // or 'playback'
+import { expect, test } from '@playwright/support/merged-fixtures'
+import { addMovie } from '@playwright/support/ui-helpers/add-movie'
+import { editMovie } from '@playwright/support/ui-helpers/edit-movie'
+import { log } from 'src/log'
 
-test('Environment-based recording', async ({
-  page,
-  context,
-  networkRecorder
-}) => {
-  // Automatic mode detection
-  await networkRecorder.setup(context)
+process.env.PW_NET_MODE = 'playback' // or 'record' when capturing
 
-  // Works in any mode: record, playback, or disabled
-  await page.goto('/')
+test.describe('movie crud e2e - browser only (network recorder)', () => {
+  test.beforeEach(async ({ page, networkRecorder, context }) => {
+    // ✅ Automatic mode detection, auth handling, file management
+    await networkRecorder.setup(context)
+    await page.goto('/')
+  })
+
+  test('should add, edit and delete a movie using only browser interactions', async ({
+    page,
+    interceptNetworkCall
+  }) => {
+    const { name, year, rating, director } = {
+      name: 'centum solutio suscipit',
+      year: 2009,
+      rating: 6.3,
+      director: 'ancilla crebro crux'
+    }
+
+    await log.step('add a movie using the UI')
+    await addMovie(page, name, year, rating, director)
+    await page.getByTestId('add-movie-button').click()
+
+    await log.step('click on movie to edit')
+    await page.getByText(name).click()
+
+    await log.step('Edit the movie')
+    const { editedName, editedYear, editedRating, editedDirector } = {
+      editedName: 'angustus antepono crapula',
+      editedYear: 2002,
+      editedRating: 3.4,
+      editedDirector: 'cognatus avarus aeger'
+    }
+
+    const loadUpdateMovie = interceptNetworkCall({
+      method: 'PUT',
+      url: '/movies/*'
+    })
+    await editMovie(page, editedName, editedYear, editedRating, editedDirector)
+    await loadUpdateMovie
+
+    // Go back and verify edit
+    await page.getByTestId('back').click()
+    await expect(page).toHaveURL('/movies')
+    await page.getByText(editedName).waitFor()
+
+    await log.step('delete movie from list')
+    await page.getByTestId(`delete-movie-${editedName}`).click()
+    await expect(
+      page.getByTestId(`delete-movie-${editedName}`)
+    ).not.toBeVisible()
+
+    // ✅ Automatic cleanup, no try/catch needed
+    // ✅ Note: This CRUD test works because our utility creates STATEFUL recordings
+    // ✅ The CREATE, EDIT, and DELETE operations modify in-memory state during playback
+    // ✅ making the test behave realistically even when offline
+  })
 })
 ```
+
+### Key Differences Summary:
+
+| **Native Playwright**                         | **Our Network Recorder**                  |
+| --------------------------------------------- | ----------------------------------------- |
+| **~80 lines** of setup boilerplate            | **~5 lines** total setup                  |
+| ❌ Manual HAR file management                 | ✅ Automatic file organization            |
+| ❌ Manual auth state loading                  | ✅ Automatic auth integration             |
+| ❌ Required try/catch/finally blocks          | ✅ Automatic cleanup via fixtures         |
+| ❌ Manual mode switching logic                | ✅ Environment variable control           |
+| ❌ **FATAL: Read-only tests only**            | ✅ **Full CRUD operations supported**     |
+| ❌ **Stateless - breaks realistic scenarios** | ✅ **Stateful mocking - works naturally** |
 
 ## How Stateful CRUD Detection Works
 
