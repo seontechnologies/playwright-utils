@@ -24,7 +24,7 @@ export const CreateMovieSchema = z
       .number()
       .int()
       .min(1900)
-      .max(2024)
+      .max(2025)
       .openapi({ example: 2010, description: 'Release year' }),
     rating: z.number().openapi({ example: 7.5, description: 'Rating' }),
     director: z.string().min(1).openapi({
@@ -148,7 +148,7 @@ export const UpdateMovieSchema = z
       .number()
       .int()
       .min(1900)
-      .max(2024)
+      .max(2025)
       .optional()
       .openapi({ example: 2010, description: 'Release year' }),
     rating: z
