@@ -541,17 +541,21 @@ process.env.PW_NET_MODE = 'record' // or 'playback'
 // As a fixture (recommended)
 import { test } from '@seontechnologies/playwright-utils/network-recorder/fixtures'
 
-test('CRUD operations work offline', async ({ page, context, networkRecorder }) => {
+test('CRUD operations work offline', async ({
+  page,
+  context,
+  networkRecorder
+}) => {
   // Setup - automatically records or plays back based on PW_NET_MODE
   await networkRecorder.setup(context)
-  
+
   await page.goto('/')
-  
+
   // First time: records all network traffic to HAR file
   // Subsequent runs: plays back from HAR file (no backend needed!)
   await page.fill('#movie-name', 'Inception')
   await page.click('#add-movie')
-  
+
   // Intelligent CRUD detection ensures the movie appears in the list
   // even though we're running offline!
   await expect(page.getByText('Inception')).toBeVisible()

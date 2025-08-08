@@ -9,31 +9,26 @@ The Admin React app currently uses a custom authentication implementation for it
 ### Key Components
 
 1. **LoginRequest Class** (`api/auth/login.ts`)
-
    - Handles API-based authentication
    - Saves storage state to the file system
    - Uses environment variables for credentials
 
 2. **RenewEndpoint Class** (`api/auth/renew.ts`)
-
    - Handles token renewal
    - Updates storage state with fresh tokens
 
 3. **AdminUserLoginHandler Class** (`utils/loginHandler.ts`)
-
    - Manages the authentication lifecycle
    - Checks for token expiration
    - Handles login and token renewal logic
    - Provides the storage state for tests
 
 4. **Auth Configuration** (`utils/auth.ts`)
-
    - Defines storage state paths for different user roles
    - Provides a `notAuthenticatedState` for testing unauthenticated flows
    - Includes password generation/retrieval functions
 
 5. **Worker Initialization** (`fixtures/automaticFixtures.ts`)
-
    - Uses worker fixtures for authentication before tests run
    - Creates authenticated states for all predefined user roles at test startup
    - Limited to fixed user roles: mainAdmin, settingsAdmin, freeUser, shopifyUser
@@ -45,13 +40,11 @@ The Admin React app currently uses a custom authentication implementation for it
 ### Authentication Workflow
 
 1. **Initialization Phase**:
-
    - Worker fixtures run before tests for each worker
    - `AdminUserLoginHandler` is instantiated for each user role
    - Storage state files are checked for existence and validity
 
 2. **Authentication Logic**:
-
    - If storage state doesn't exist → Login via API
    - If refresh token is expired → Login via API
    - If JWT token is expired but refresh token is valid → Renew token

@@ -126,12 +126,12 @@ test.describe('movie crud e2e - browser only (network recorder)', () => {
 
 While Playwright offers built-in HAR recording via `context.routeFromHAR()`, our utility provides several key advantages:
 
-| Native Playwright | Our Network Recorder Utility |
-| ----------------- | ---------------------------- |
-| ~80 lines of boilerplate setup | ~5 lines total setup |
-| Manual HAR file management | Automatic file organization |
-| Complex setup/teardown | Automatic cleanup via fixtures |
-| **Read-only tests only** | **Full CRUD operations supported** |
+| Native Playwright                          | Our Network Recorder Utility           |
+| ------------------------------------------ | -------------------------------------- |
+| ~80 lines of boilerplate setup             | ~5 lines total setup                   |
+| Manual HAR file management                 | Automatic file organization            |
+| Complex setup/teardown                     | Automatic cleanup via fixtures         |
+| **Read-only tests only**                   | **Full CRUD operations supported**     |
 | **Stateless - breaks realistic scenarios** | **Stateful mocking - works naturally** |
 
 For a complete code comparison showing these differences in action, see [Comparison with Native Playwright](#comparison-with-native-playwright-detailed).

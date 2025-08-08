@@ -6,17 +6,21 @@
 // playwright/tests/network-recorder-example.spec.ts
 import { test } from '@seontechnologies/playwright-utils/network-recorder/fixtures'
 
-test('Record network traffic during test', async ({ page, context, networkRecorder }) => {
-  // Setup network recording 
+test('Record network traffic during test', async ({
+  page,
+  context,
+  networkRecorder
+}) => {
+  // Setup network recording
   const recorderContext = await networkRecorder.setup(context)
-  
+
   console.log(`Mode: ${recorderContext.mode}`)
   console.log(`HAR file: ${recorderContext.harFilePath}`)
-  
+
   // Your test code - network traffic will be recorded/played back based on PW_NET_MODE
   await page.goto('/')
   await page.locator('button').click()
-  
+
   // Cleanup happens automatically
 })
 ```
@@ -24,27 +28,26 @@ test('Record network traffic during test', async ({ page, context, networkRecord
 ## Direct Usage without Fixtures
 
 ```typescript
-// playwright/tests/network-recorder-direct.spec.ts  
+// playwright/tests/network-recorder-direct.spec.ts
 import { test } from '@playwright/test'
 import { createNetworkRecorder } from '@seontechnologies/playwright-utils/network-recorder'
 
 test('Direct network recorder usage', async ({ page, context }, testInfo) => {
   const recorder = createNetworkRecorder(testInfo, {
-    harFile: { 
+    harFile: {
       harDir: 'custom-har-files',
-      organizeByTestFile: true 
+      organizeByTestFile: true
     }
   })
-  
+
   try {
     await recorder.setup(context)
-    
+
     // Your test code
     await page.goto('/')
-    
+
     // Check recorder status
     console.log(recorder.getStatusMessage())
-    
   } finally {
     await recorder.cleanup()
   }
@@ -60,7 +63,7 @@ const recorderContext = await networkRecorder.setup(context, {
   harFile: {
     harDir: 'my-har-files',
     baseName: 'api-calls',
-    organizeByTestFile: false  // All HAR files in same directory
+    organizeByTestFile: false // All HAR files in same directory
   }
 })
 ```
@@ -71,8 +74,8 @@ const recorderContext = await networkRecorder.setup(context, {
 // Record mode configuration
 const recorderContext = await networkRecorder.setup(context, {
   recording: {
-    content: 'embed',        // Include response content in HAR
-    urlFilter: /api\/v1/     // Only record API calls
+    content: 'embed', // Include response content in HAR
+    urlFilter: /api\/v1/ // Only record API calls
   }
 })
 ```
@@ -80,11 +83,11 @@ const recorderContext = await networkRecorder.setup(context, {
 ### Playback Configuration
 
 ```typescript
-// Playback mode configuration  
+// Playback mode configuration
 const recorderContext = await networkRecorder.setup(context, {
   playback: {
-    fallback: true,         // Fall back to live requests if HAR entry missing
-    urlFilter: /api\/v1/    // Only playback API calls
+    fallback: true, // Fall back to live requests if HAR entry missing
+    urlFilter: /api\/v1/ // Only playback API calls
   }
 })
 ```
@@ -92,6 +95,7 @@ const recorderContext = await networkRecorder.setup(context, {
 ## Environment-Based Testing
 
 ### Recording Phase
+
 ```bash
 # Record network traffic for later playback
 PW_NET_MODE=record npm run test:pw
@@ -99,7 +103,8 @@ PW_NET_MODE=record npm run test:pw
 # HAR files will be created in har-files/ directory
 ```
 
-### Playback Phase  
+### Playback Phase
+
 ```bash
 # Playback from recorded HAR files (tests run in isolation)
 PW_NET_MODE=playback npm run test:pw
@@ -108,6 +113,7 @@ PW_NET_MODE=playback npm run test:pw
 ```
 
 ### Normal Testing
+
 ```bash
 # Disabled mode - normal test execution
 PW_NET_MODE=disabled npm run test:pw
@@ -124,22 +130,20 @@ import { test as authTest } from '@seontechnologies/playwright-utils/auth-sessio
 // Combine both fixtures
 const testWithAuth = authTest.extend(test.fixtures)
 
-testWithAuth('Test with auth and network recording', async ({ 
-  page, 
-  context, 
-  authSession,
-  networkRecorder 
-}) => {
-  // First authenticate
-  await authSession.login('testuser', 'password')
-  
-  // Then setup network recording (works with authenticated context)
-  await networkRecorder.setup(context)
-  
-  // Test authenticated flows with network recording
-  await page.goto('/dashboard')
-  await page.locator('[data-testid="user-menu"]').click()
-})
+testWithAuth(
+  'Test with auth and network recording',
+  async ({ page, context, authSession, networkRecorder }) => {
+    // First authenticate
+    await authSession.login('testuser', 'password')
+
+    // Then setup network recording (works with authenticated context)
+    await networkRecorder.setup(context)
+
+    // Test authenticated flows with network recording
+    await page.goto('/dashboard')
+    await page.locator('[data-testid="user-menu"]').click()
+  }
+)
 ```
 
 ## Error Handling
@@ -148,13 +152,12 @@ testWithAuth('Test with auth and network recording', async ({
 test('Handle network recorder errors', async ({ context, networkRecorder }) => {
   try {
     const recorderContext = await networkRecorder.setup(context, {
-      playback: { fallback: false }  // Strict mode - fail if HAR missing
+      playback: { fallback: false } // Strict mode - fail if HAR missing
     })
-    
+
     if (recorderContext.mode === 'playback' && !recorderContext.isActive) {
       console.log('Playback mode but no HAR file found')
     }
-    
   } catch (error) {
     if (error.name === 'NetworkRecorderError') {
       console.log(`Network recorder error: ${error.message}`)
@@ -194,14 +197,17 @@ const recorder = createNetworkRecorder(testInfo, {
 ## Debugging and Monitoring
 
 ```typescript
-test('Monitor network recorder status', async ({ networkRecorder, context }) => {
+test('Monitor network recorder status', async ({
+  networkRecorder,
+  context
+}) => {
   const recorderContext = await networkRecorder.setup(context)
-  
+
   console.log(`Status: ${networkRecorder.getStatus()}`)
   console.log(`Mode: ${recorderContext.mode}`)
   console.log(`Active: ${recorderContext.isActive}`)
   console.log(`HAR Path: ${recorderContext.harFilePath}`)
-  
+
   // Get HAR file stats
   const recorder = networkRecorder.create()
   const stats = await recorder.getHarStats()
@@ -214,15 +220,17 @@ test('Monitor network recorder status', async ({ networkRecorder, context }) => 
 ## Best Practices
 
 ### 1. Use Environment Variables
+
 ```bash
 # Development - record new tests
 PW_NET_MODE=record npm run test:pw
 
-# CI/CD - use playback mode for consistent, fast tests  
+# CI/CD - use playback mode for consistent, fast tests
 PW_NET_MODE=playback npm run test:pw
 ```
 
 ### 2. Organize HAR Files
+
 ```typescript
 // Group by feature/test file for maintainability
 {
@@ -234,6 +242,7 @@ PW_NET_MODE=playback npm run test:pw
 ```
 
 ### 3. Handle Authentication Separately
+
 ```typescript
 // ✅ Good - authenticate first, then setup recording
 await authSession.login('user', 'pass')
@@ -243,6 +252,7 @@ await networkRecorder.setup(context)
 ```
 
 ### 4. Use Fixtures for Consistency
+
 ```typescript
 // ✅ Good - use fixtures for automatic cleanup
 import { test } from '@seontechnologies/playwright-utils/network-recorder/fixtures'

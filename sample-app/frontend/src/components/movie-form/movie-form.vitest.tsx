@@ -71,7 +71,7 @@ describe('<MovieForm />', () => {
   it('should exercise validation errors', async () => {
     wrappedRender(<MovieForm />)
 
-    await fillYear(2025)
+    await fillYear(2026)
     await user.click(screen.getByText('Add Movie'))
 
     const validationError = screen.getAllByTestId('validation-error')
@@ -81,7 +81,7 @@ describe('<MovieForm />', () => {
     screen.getByText('Add Movie').click()
     expect(validationError).toHaveLength(3)
 
-    await fillYear(2024)
+    await fillYear(2025)
     await fillName('4')
     await fillDirector('Christopher Nolan')
     screen.getByText('Add Movie').click()
