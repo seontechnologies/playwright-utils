@@ -10,10 +10,10 @@ Comprehensive documentation of entire system - TypeScript utility library for Pl
 
 ### Change Log
 
-| Date       | Version | Description                           | Author |
-| ---------- | ------- | ------------------------------------- | ------ |
-| 2025-08-05 | 1.0     | Initial brownfield analysis           | Mary   |
-| 2025-08-06 | 1.1     | Added network-recorder feature        | Mary   |
+| Date       | Version | Description                    | Author |
+| ---------- | ------- | ------------------------------ | ------ |
+| 2025-08-05 | 1.0     | Initial brownfield analysis    | Mary   |
+| 2025-08-06 | 1.1     | Added network-recorder feature | Mary   |
 
 ## Quick Reference - Key Files and Entry Points
 
@@ -34,23 +34,23 @@ This is a **TypeScript utility library for Playwright testing** that provides mo
 
 ### Actual Tech Stack (from package.json)
 
-| Category           | Technology       | Version  | Notes                                          |
-| ------------------ | ---------------- | -------- | ---------------------------------------------- |
-| Runtime            | Node.js          | >=20.0.0 | Required engine version                        |
-| Test Framework     | Playwright       | 1.54.1   | Peer dependency                                |
-| Language           | TypeScript       | 5.8.3    | Strict mode enabled                            |
-| Package Format     | Dual CJS/ESM     | -        | Supports both CommonJS and ES Modules         |
-| Build System       | TypeScript       | -        | Multiple tsconfig files for different targets |
-| Testing (Backend)  | Jest             | 29.7.0   | Unit tests for backend logic                   |
-| Testing (Frontend) | Vitest           | -        | Component testing for React components         |
-| File Processing    | unpdf            | 1.1.0    | PDF reading                                    |
-| File Processing    | exceljs          | 4.4.0    | XLSX processing                                |
-| File Processing    | papaparse        | 5.5.3    | CSV parsing                                    |
-| File Processing    | adm-zip          | 0.5.16   | ZIP file handling                              |
-| HAR Processing     | Native           | -        | Network traffic recording/playback             |
-| Auth Management    | proper-lockfile  | 4.1.2    | Token storage locking                          |
-| Sample App Backend | Express + Prisma | -        | SQLite database, Kafka events                  |
-| Sample App Frontend| React + Vite     | -        | React 19, Styled Components, React Query      |
+| Category            | Technology       | Version  | Notes                                         |
+| ------------------- | ---------------- | -------- | --------------------------------------------- |
+| Runtime             | Node.js          | >=20.0.0 | Required engine version                       |
+| Test Framework      | Playwright       | 1.54.1   | Peer dependency                               |
+| Language            | TypeScript       | 5.8.3    | Strict mode enabled                           |
+| Package Format      | Dual CJS/ESM     | -        | Supports both CommonJS and ES Modules         |
+| Build System        | TypeScript       | -        | Multiple tsconfig files for different targets |
+| Testing (Backend)   | Jest             | 29.7.0   | Unit tests for backend logic                  |
+| Testing (Frontend)  | Vitest           | -        | Component testing for React components        |
+| File Processing     | unpdf            | 1.1.0    | PDF reading                                   |
+| File Processing     | exceljs          | 4.4.0    | XLSX processing                               |
+| File Processing     | papaparse        | 5.5.3    | CSV parsing                                   |
+| File Processing     | adm-zip          | 0.5.16   | ZIP file handling                             |
+| HAR Processing      | Native           | -        | Network traffic recording/playback            |
+| Auth Management     | proper-lockfile  | 4.1.2    | Token storage locking                         |
+| Sample App Backend  | Express + Prisma | -        | SQLite database, Kafka events                 |
+| Sample App Frontend | React + Vite     | -        | React 19, Styled Components, React Query      |
 
 ### Repository Structure Reality Check
 
@@ -126,7 +126,8 @@ playwright-utils/
 
 **Main Library Types**: See `src/*/index.ts` files for exported types
 
-**Sample App Models**: 
+**Sample App Models**:
+
 - **Movie Model**: See `sample-app/backend/prisma/schema.prisma`
 - **Frontend Types**: See `sample-app/shared/types/`
 
@@ -156,13 +157,13 @@ playwright-utils/
 
 ### External Services (Production Dependencies)
 
-| Service     | Purpose           | Integration Type | Key Files                    |
-| ----------- | ----------------- | ---------------- | ---------------------------- |
-| File System | PDF Processing    | Library          | `src/file-utils/core/`       |
-| File System | XLSX Processing   | Library          | `exceljs` package            |
-| File System | CSV Processing    | Library          | `papaparse` package          |
-| File System | ZIP Processing    | Library          | `adm-zip` package            |
-| File System | Token Storage     | Library          | `proper-lockfile` package    |
+| Service     | Purpose         | Integration Type | Key Files                 |
+| ----------- | --------------- | ---------------- | ------------------------- |
+| File System | PDF Processing  | Library          | `src/file-utils/core/`    |
+| File System | XLSX Processing | Library          | `exceljs` package         |
+| File System | CSV Processing  | Library          | `papaparse` package       |
+| File System | ZIP Processing  | Library          | `adm-zip` package         |
+| File System | Token Storage   | Library          | `proper-lockfile` package |
 
 ### Internal Integration Points
 
@@ -199,7 +200,7 @@ playwright-utils/
 ### Environment Configuration
 
 - **Development**: `TEST_ENV=local` (default)
-- **Logging Control**: 
+- **Logging Control**:
   - `SILENT=true` - Disable all logging
   - `DISABLE_FILE_LOGS=true` - Disable file logging only
   - `DISABLE_CONSOLE_LOGS=true` - Disable console logging only
@@ -244,7 +245,7 @@ npm run validate          # All checks (typecheck, lint, test, format)
 ### Module Organization
 
 - **Index Exports**: Each module exports both functions and types from index.ts
-- **Fixture Separation**: Fixtures defined in separate files (fixtures.ts, *-fixture.ts)
+- **Fixture Separation**: Fixtures defined in separate files (fixtures.ts, \*-fixture.ts)
 - **Core/Internal Split**: Complex modules split into core logic and internal utilities
 - **Documentation Co-location**: Each module has corresponding documentation in docs/
 

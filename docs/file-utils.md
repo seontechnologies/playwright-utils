@@ -4,6 +4,8 @@
   - [Usage Examples](#usage-examples)
     - [UI-Triggered Download Example](#ui-triggered-download-example)
     - [API-Triggered Download Example](#api-triggered-download-example)
+  - [Why Use This Instead of Vanilla Playwright?](#why-use-this-instead-of-vanilla-playwright)
+  - [Comparison with Vanilla Playwright (detailed)](#comparison-with-vanilla-playwright-detailed)
   - [Core Functions](#core-functions)
     - [CSV Reader](#csv-reader)
       - [`readCSV(options)`](#readcsvoptions)
@@ -100,6 +102,94 @@ test('should download file via API', async ({ page, request }) => {
 > 2. The response includes the appropriate `Content-Type` for the file
 > 3. Any required authentication/authorization headers are included
 > 4. The response status code is 200 (OK)
+
+## Why Use This Instead of Vanilla Playwright?
+
+While Playwright can handle downloads and file parsing with custom code, our `file-utils` reduce repetitive boilerplate and centralize best practices.
+
+| Vanilla Playwright                          | File Utils                                       |
+| ------------------------------------------- | ------------------------------------------------ |
+| ~80 lines per CSV flow (download + parse)   | ~10 lines end-to-end                             |
+| Manual event orchestration for downloads    | Encapsulated in `handleDownload()`               |
+| Manual path handling and `saveAs`           | Returns a ready-to-use file path                 |
+| Manual existence checks and error handling  | Centralized in one place via utility patterns    |
+| Manual CSV parsing config (headers, typing) | `readCSV()` returns `{ data, headers }` directly |
+
+This keeps tests concise and consistent across CSV, XLSX, PDF, and ZIP.
+
+## Comparison with Vanilla Playwright (detailed)
+
+See real side-by-side tests in the repo:
+
+- Vanilla example: `playwright/tests/sample-app/frontend/file-utils-vanilla.spec.ts`
+- Utility example: `playwright/tests/sample-app/frontend/file-utils.spec.ts`
+
+Summary of vanilla steps typically required:
+
+- ❌ Orchestrate download event and trigger (e.g., `Promise.all([page.waitForEvent('download'), click])`)
+- ❌ Choose/save a path and verify download (`download.saveAs`, optional `download.failure()`)
+- ❌ Poll for file existence with `expect.poll`
+- ❌ Read file content and handle I/O errors
+- ❌ Configure and run CSV parser (headers, trimming, typing, transforms)
+- ❌ Manually shape and validate parsed data
+
+Vanilla Playwright (real test) snippet:
+
+```ts
+// Source: playwright/tests/sample-app/frontend/file-utils-vanilla.spec.ts
+const [download] = await Promise.all([
+  page.waitForEvent('download'),
+  page.getByTestId('download-button-CSV Export').click()
+])
+
+const failure = await download.failure()
+expect(failure).toBeNull()
+
+const filePath = testInfo.outputPath(download.suggestedFilename())
+await download.saveAs(filePath)
+
+await expect
+  .poll(
+    async () => {
+      try {
+        await fs.access(filePath)
+        return true
+      } catch {
+        return false
+      }
+    },
+    { timeout: 5000, intervals: [100, 200, 500] }
+  )
+  .toBe(true)
+
+const csvContent = await fs.readFile(filePath, 'utf-8')
+
+const parseResult = parse(csvContent, {
+  header: true,
+  skipEmptyLines: true,
+  dynamicTyping: true,
+  transformHeader: (header: string) => header.trim()
+})
+
+if (parseResult.errors.length > 0) {
+  throw new Error(`CSV parsing errors: ${JSON.stringify(parseResult.errors)}`)
+}
+
+const data = parseResult.data as Array<Record<string, unknown>>
+const headers = parseResult.meta.fields || []
+```
+
+With File Utils, the same flow becomes:
+
+```ts
+const downloadPath = await handleDownload({
+  page,
+  downloadDir: DOWNLOAD_DIR,
+  trigger: () => page.getByTestId('download-button-text/csv').click()
+})
+
+const { data, headers } = (await readCSV({ filePath: downloadPath })).content
+```
 
 ## Core Functions
 

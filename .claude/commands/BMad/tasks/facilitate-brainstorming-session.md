@@ -3,8 +3,10 @@
 When this command is used, execute the following task:
 
 ---
+
 docOutputLocation: docs/brainstorming-session-results.md
 template: ".bmad-core/templates/brainstorming-output-tmpl.yaml"
+
 ---
 
 # Facilitate Brainstorming Session Task

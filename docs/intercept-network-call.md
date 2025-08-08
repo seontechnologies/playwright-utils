@@ -445,8 +445,6 @@ This pattern follows the classic test spy/stub pattern:
 
 ### Capturing Multiple Requests to the Same Endpoint
 
-
-
 #### Capturing a Known Number of Requests
 
 By default, each `interceptNetworkCall` captures **only the first matching request**. When the same endpoint is hit multiple times, you need multiple interceptors to capture each occurrence.
