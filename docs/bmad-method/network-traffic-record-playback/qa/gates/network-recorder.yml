@@ -3,9 +3,9 @@ schema: 1
 story: "network-recorder"
 story_title: "Network Traffic Recording & Replay Utility"
 gate: "PASS"
-status_reason: "Excellent implementation with comprehensive testing and only minor performance validation gaps"
+status_reason: "Outstanding implementation with FR6 auto-fallback completed and comprehensive testing coverage"
 reviewer: "Quinn (Test Architect)"
-updated: "2025-08-13T20:00:00Z"
+updated: "2025-08-13T21:45:00Z"
 
 # Always present but only active when WAIVED
 waiver: { active: false }
@@ -19,7 +19,7 @@ top_issues:
     suggested_owner: "dev"
 
 # Extended fields
-quality_score: 90
+quality_score: 95
 expires: "2025-08-27T20:00:00Z"
 
 evidence:
@@ -33,8 +33,6 @@ evidence:
       none: 0
     planning_ref: "docs/bmad-method/network-traffic-record-playback/qa/assessments/trace-requirements-20250813.md"
     uncovered:
-      - ac: "FR6"
-        reason: "No automatic switch to record mode when HAR missing"
       - ac: "NFR3-4" 
         reason: "Performance timing not explicitly tested"
       - ac: "CR5"
@@ -69,8 +67,6 @@ recommendations:
       refs: ["src/network-recorder/core/network-recorder.ts:151-174"]
     - action: "Add latency benchmarks for HAR playback responses (target: <50ms)"
       refs: ["src/network-recorder/core/har-playback-handler.ts"]
-    - action: "Implement auto-record fallback when HAR files missing"
-      refs: ["src/network-recorder/core/mode-detector.ts"]
     - action: "Add default auth endpoint exclusion patterns"
       refs: ["src/network-recorder/core/types.ts:64-65"]
 

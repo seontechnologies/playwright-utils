@@ -264,14 +264,14 @@ In brownfield projects, the Test Architect (Quinn) becomes your safety net again
 
 The Test Architect addresses unique brownfield complexities:
 
-| **Challenge** | **How Test Architect Helps** | **Command** |
-|--------------|------------------------------|-------------|
-| **Regression Risks** | Identifies which existing features might break | `*risk` |
-| **Legacy Dependencies** | Maps integration points and hidden dependencies | `*trace` |
-| **Performance Degradation** | Validates no slowdown in existing flows | `*nfr` |
-| **Coverage Gaps** | Finds untested legacy code that new changes touch | `*design` |
-| **Breaking Changes** | Detects API/contract violations | `*review` |
-| **Migration Safety** | Validates data transformations and rollback plans | `*risk` + `*review` |
+| **Challenge**               | **How Test Architect Helps**                      | **Command**         |
+| --------------------------- | ------------------------------------------------- | ------------------- |
+| **Regression Risks**        | Identifies which existing features might break    | `*risk`             |
+| **Legacy Dependencies**     | Maps integration points and hidden dependencies   | `*trace`            |
+| **Performance Degradation** | Validates no slowdown in existing flows           | `*nfr`              |
+| **Coverage Gaps**           | Finds untested legacy code that new changes touch | `*design`           |
+| **Breaking Changes**        | Detects API/contract violations                   | `*review`           |
+| **Migration Safety**        | Validates data transformations and rollback plans | `*risk` + `*review` |
 
 #### Complete Test Architect Workflow for Brownfield
 
@@ -284,14 +284,14 @@ The Test Architect addresses unique brownfield complexities:
 @qa *risk {brownfield-story}
 # Identifies: Legacy dependencies, breaking changes, integration points
 # Output: docs/qa/assessments/{epic}.{story}-risk-{YYYYMMDD}.md
-# Brownfield Focus: 
+# Brownfield Focus:
 #   - Regression probability scoring
 #   - Affected downstream systems
 #   - Data migration risks
 #   - Rollback complexity
 
 # 2. TEST DESIGN (After risk assessment)
-@qa *design {brownfield-story}  
+@qa *design {brownfield-story}
 # Creates: Regression test strategy + new feature tests
 # Output: docs/qa/assessments/{epic}.{story}-test-design-{YYYYMMDD}.md
 # Brownfield Focus:
@@ -335,7 +335,7 @@ The Test Architect addresses unique brownfield complexities:
 # 5. FULL REVIEW (When development complete)
 @qa *review {brownfield-story}
 # Performs: Deep analysis + active refactoring
-# Outputs: 
+# Outputs:
 #   - QA Results in story file
 #   - Gate file: docs/qa/gates/{epic}.{story}-{slug}.yml
 ```
@@ -366,12 +366,12 @@ The review specifically analyzes:
 
 The Test Architect uses enhanced risk scoring for brownfield:
 
-| **Risk Category** | **Brownfield Factors** | **Impact on Gate** |
-|------------------|------------------------|-------------------|
-| **Regression Risk** | Number of integration points × Age of code | Score ≥9 = FAIL |
-| **Data Risk** | Migration complexity × Data volume | Score ≥6 = CONCERNS |
-| **Performance Risk** | Current load × Added complexity | Score ≥6 = CONCERNS |
-| **Compatibility Risk** | API consumers × Contract changes | Score ≥9 = FAIL |
+| **Risk Category**      | **Brownfield Factors**                     | **Impact on Gate**  |
+| ---------------------- | ------------------------------------------ | ------------------- |
+| **Regression Risk**    | Number of integration points × Age of code | Score ≥9 = FAIL     |
+| **Data Risk**          | Migration complexity × Data volume         | Score ≥6 = CONCERNS |
+| **Performance Risk**   | Current load × Added complexity            | Score ≥6 = CONCERNS |
+| **Compatibility Risk** | API consumers × Contract changes           | Score ≥9 = FAIL     |
 
 #### Brownfield Testing Standards
 
@@ -387,13 +387,13 @@ Quinn enforces additional standards for brownfield:
 
 #### Quick Reference: Brownfield Test Commands
 
-| **Scenario** | **Commands to Run** | **Order** | **Why Critical** |
-|-------------|-------------------|-----------|------------------|
-| **Adding Feature to Legacy Code** | `*risk` → `*design` → `*trace` → `*review` | Sequential | Map all dependencies first |
-| **API Modification** | `*risk` → `*design` → `*nfr` → `*review` | Sequential | Prevent breaking consumers |
-| **Performance-Critical Change** | `*nfr` early and often → `*review` | Continuous | Catch degradation immediately |
-| **Data Migration** | `*risk` → `*design` → `*trace` → `*review` → `*gate` | Full cycle | Ensure data integrity |
-| **Bug Fix in Complex System** | `*risk` → `*trace` → `*review` | Focused | Prevent side effects |
+| **Scenario**                      | **Commands to Run**                                  | **Order**  | **Why Critical**              |
+| --------------------------------- | ---------------------------------------------------- | ---------- | ----------------------------- |
+| **Adding Feature to Legacy Code** | `*risk` → `*design` → `*trace` → `*review`           | Sequential | Map all dependencies first    |
+| **API Modification**              | `*risk` → `*design` → `*nfr` → `*review`             | Sequential | Prevent breaking consumers    |
+| **Performance-Critical Change**   | `*nfr` early and often → `*review`                   | Continuous | Catch degradation immediately |
+| **Data Migration**                | `*risk` → `*design` → `*trace` → `*review` → `*gate` | Full cycle | Ensure data integrity         |
+| **Bug Fix in Complex System**     | `*risk` → `*trace` → `*review`                       | Focused    | Prevent side effects          |
 
 #### Integration with Brownfield Scenarios
 

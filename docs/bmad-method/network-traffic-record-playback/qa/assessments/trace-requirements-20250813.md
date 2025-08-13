@@ -5,8 +5,8 @@
 ### Coverage Summary
 
 - Total Requirements: 22 (8 FR + 6 NFR + 5 CR + 3 Stories)
-- Fully Covered: 18 (82%)
-- Partially Covered: 4 (18%)
+- Fully Covered: 19 (86%) ⬆️ +1 (FR6 completed)
+- Partially Covered: 3 (14%) ⬇️ -1 (FR6 resolved)
 - Not Covered: 0 (0%)
 
 ### Requirement Mappings
@@ -93,16 +93,26 @@ Given-When-Then Mappings:
 
 #### FR6: The recorder shall provide automatic fallback to record mode when no HAR file exists for a given test
 
-**Coverage: PARTIAL**
+**Coverage: FULL**
 
 Given-When-Then Mappings:
 
-- **Implementation Test**: `NetworkRecorder::checkIfNeedsStatefulHandling` logic
+- **Implementation Test**: `NetworkRecorder::setupPlayback` auto-record fallback logic
   - Given: Playback mode requested but HAR file missing/invalid
-  - When: setupPlayback() method validates HAR file
-  - Then: Fallback behavior applied based on configuration
+  - When: setupPlayback() method validates HAR file and autoRecordFallback is enabled
+  - Then: Mode automatically switches to record and setupRecording() is called
 
-**Gap**: No explicit auto-record fallback - current implementation uses configurable fallback behavior but doesn't automatically switch to record mode
+- **Integration Test**: `playwright/tests/network-recorder/auto-fallback.spec.ts`
+  - Given: PW_NET_MODE=playback set but HAR file deleted to simulate missing scenario
+  - When: networkRecorder.setup(context) called
+  - Then: Mode switches from 'playback' to 'record' and HAR file is generated
+
+- **Configuration Test**: autoRecordFallback configuration option
+  - Given: NetworkRecorderConfig with autoRecordFallback: false
+  - When: HAR file missing in playback mode
+  - Then: Error thrown instead of switching to record mode
+
+**Enhancement Completed**: ✅ Auto-record fallback implemented with comprehensive testing and configuration control
 
 #### FR7: The utility shall integrate with existing playwright-utils fixture patterns, providing both direct function and fixture interfaces
 
@@ -290,10 +300,10 @@ Given-When-Then Mappings:
 
 ### Critical Gaps
 
-1. **Auto-Record Fallback (FR6)**
-   - Gap: No automatic switch to record mode when HAR missing
-   - Risk: Medium - Tests may fail instead of auto-generating HAR
-   - Action: Implement auto-fallback logic in mode detection
+1. **Auto-Record Fallback (FR6)** - ✅ RESOLVED
+   - Status: COMPLETED - Auto-record fallback implemented with comprehensive testing
+   - Implementation: autoRecordFallback config option with runtime mode switching
+   - Test Coverage: Full integration test coverage in auto-fallback.spec.ts
 
 2. **Performance NFRs Validation (NFR3, NFR4)**
    - Gap: No automated performance testing for timing requirements

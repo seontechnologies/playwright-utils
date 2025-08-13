@@ -10,10 +10,10 @@ Create comprehensive test scenarios with appropriate test level recommendations 
 
 ```yaml
 required:
-  - story_id: "{epic}.{story}" # e.g., "1.3"
-  - story_path: "docs/stories/{epic}.{story}.*.md"
-  - story_title: "{title}" # If missing, derive from story file H1
-  - story_slug: "{slug}" # If missing, derive from title (lowercase, hyphenated)
+  - story_id: '{epic}.{story}' # e.g., "1.3"
+  - story_path: 'docs/stories/{epic}.{story}.*.md'
+  - story_title: '{title}' # If missing, derive from story file H1
+  - story_slug: '{slug}' # If missing, derive from title (lowercase, hyphenated)
 ```
 
 ## Purpose
@@ -43,10 +43,10 @@ Design a complete test strategy that identifies what to test, at which level (un
 
 ```yaml
 unit_test:
-  component: "PriceCalculator"
-  scenario: "Calculate discount with multiple rules"
-  justification: "Complex business logic with multiple branches"
-  mock_requirements: "None - pure function"
+  component: 'PriceCalculator'
+  scenario: 'Calculate discount with multiple rules'
+  justification: 'Complex business logic with multiple branches'
+  mock_requirements: 'None - pure function'
 ```
 
 ### Integration Tests
@@ -70,10 +70,10 @@ unit_test:
 
 ```yaml
 integration_test:
-  components: ["UserService", "UserRepository", "Database"]
-  scenario: "Create user with duplicate email check"
-  justification: "Tests transaction boundaries and constraint handling"
-  test_doubles: "Mock email service, real test database"
+  components: ['UserService', 'UserRepository', 'Database']
+  scenario: 'Create user with duplicate email check'
+  justification: 'Tests transaction boundaries and constraint handling'
+  test_doubles: 'Mock email service, real test database'
 ```
 
 ### End-to-End Tests
@@ -98,10 +98,10 @@ integration_test:
 
 ```yaml
 e2e_test:
-  flow: "Complete purchase flow"
-  scenario: "User browses, adds to cart, and completes checkout"
-  justification: "Critical business flow requiring full stack validation"
-  environment: "Staging with test payment gateway"
+  flow: 'Complete purchase flow'
+  scenario: 'User browses, adds to cart, and completes checkout'
+  justification: 'Critical business flow requiring full stack validation'
+  environment: 'Staging with test payment gateway'
 ```
 
 ## Test Design Process
@@ -111,23 +111,23 @@ e2e_test:
 Break down each acceptance criterion into testable scenarios:
 
 ```yaml
-acceptance_criterion: "User can reset password via email"
+acceptance_criterion: 'User can reset password via email'
 test_scenarios:
   - level: unit
-    what: "Password validation rules"
-    why: "Complex regex and business rules"
+    what: 'Password validation rules'
+    why: 'Complex regex and business rules'
 
   - level: integration
-    what: "Password reset token generation and storage"
-    why: "Database interaction with expiry logic"
+    what: 'Password reset token generation and storage'
+    why: 'Database interaction with expiry logic'
 
   - level: integration
-    what: "Email service integration"
-    why: "External service with retry logic"
+    what: 'Email service integration'
+    why: 'External service with retry logic'
 
   - level: e2e
-    what: "Complete password reset flow"
-    why: "Critical security flow needing full validation"
+    what: 'Complete password reset flow'
+    why: 'Critical security flow needing full validation'
 ```
 
 ### 2. Apply Test Level Heuristics
@@ -203,26 +203,26 @@ For each identified test need:
 
 ```yaml
 test_scenario:
-  id: "1.3-INT-002"
-  requirement: "AC2: Rate limiting on login attempts"
-  mitigates_risks: ["SEC-001", "PERF-003"] # Links to risk profile
+  id: '1.3-INT-002'
+  requirement: 'AC2: Rate limiting on login attempts'
+  mitigates_risks: ['SEC-001', 'PERF-003'] # Links to risk profile
   priority: P0 # Based on risk score
 
   unit_tests:
-    - name: "RateLimiter calculates window correctly"
-      input: "Timestamp array"
-      expected: "Correct window calculation"
+    - name: 'RateLimiter calculates window correctly'
+      input: 'Timestamp array'
+      expected: 'Correct window calculation'
 
   integration_tests:
-    - name: "Login endpoint enforces rate limit"
-      setup: "5 failed attempts"
-      action: "6th attempt"
-      expected: "429 response with retry-after header"
+    - name: 'Login endpoint enforces rate limit'
+      setup: '5 failed attempts'
+      action: '6th attempt'
+      expected: '429 response with retry-after header'
 
   e2e_tests:
-    - name: "User sees rate limit message"
-      setup: "Trigger rate limit"
-      validation: "Error message displayed, retry timer shown"
+    - name: 'User sees rate limit message'
+      setup: 'Trigger rate limit'
+      validation: 'Error message displayed, retry timer shown'
 ```
 
 ## Deterministic Test Level Minimums
