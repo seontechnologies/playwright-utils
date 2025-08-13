@@ -3,10 +3,8 @@
 When this command is used, execute the following task:
 
 ---
-
 docOutputLocation: docs/brainstorming-session-results.md
 template: ".bmad-core/templates/brainstorming-output-tmpl.yaml"
-
 ---
 
 # Facilitate Brainstorming Session Task
@@ -49,7 +47,7 @@ If user selects Option 1, present numbered list of techniques from the brainstor
 1. Apply selected technique according to data file description
 2. Keep engaging with technique until user indicates they want to:
    - Choose a different technique
-   - Apply current ideas to a new technique
+   - Apply current ideas to a new technique  
    - Move to convergent phase
    - End session
 

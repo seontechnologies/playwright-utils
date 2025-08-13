@@ -2,13 +2,13 @@ markdownExploder: true
 prd:
   prdFile: docs/prd.md
   prdVersion: v4
-  prdSharded: true
+  prdSharded: false
   prdShardedLocation: docs/prd
   epicFilePattern: epic-{n}*.md
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4
-  architectureSharded: true
+  architectureSharded: false
   architectureShardedLocation: docs/architecture
 customTechnicalDocuments: null
 devLoadAlwaysFiles:
