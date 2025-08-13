@@ -283,6 +283,18 @@ export class NetworkRecorder {
     // Validate HAR file exists and is readable
     const isValidHar = await validateHarFileForPlayback(this.harFilePath)
     if (!isValidHar) {
+      // Check if auto-record fallback is enabled (default: true)
+      if (this.config.autoRecordFallback !== false) {
+        await log.info(
+          `📼➡️🎬 HAR file missing/invalid - automatically switching to record mode: ${this.harFilePath}`
+        )
+
+        // Switch mode and setup recording instead
+        this.mode = 'record'
+        await this.setupRecording(context)
+        return
+      }
+
       if (playbackOptions.fallback) {
         // Fallback mode - let requests go through live
         return

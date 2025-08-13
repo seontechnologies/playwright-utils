@@ -115,7 +115,8 @@ export function getModeDefaults(
         playback: {
           fallback: false,
           updateMode: false
-        }
+        },
+        autoRecordFallback: true
       }
 
     case 'disabled':

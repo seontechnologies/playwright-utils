@@ -114,6 +114,11 @@ export type NetworkRecorderConfig = {
    * Force a specific mode regardless of environment
    */
   forceMode?: NetworkMode
+  /**
+   * Automatically switch to record mode when HAR file is missing in playback mode
+   * @default true
+   */
+  autoRecordFallback?: boolean
 }
 
 // =========================================================================
