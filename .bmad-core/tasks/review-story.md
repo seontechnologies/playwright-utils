@@ -6,10 +6,10 @@ Perform a comprehensive test architecture review with quality gate decision. Thi
 
 ```yaml
 required:
-  - story_id: "{epic}.{story}"  # e.g., "1.3"
-  - story_path: "docs/stories/{epic}.{story}.*.md"
-  - story_title: "{title}"  # If missing, derive from story file H1
-  - story_slug: "{slug}"  # If missing, derive from title (lowercase, hyphenated)
+  - story_id: '{epic}.{story}' # e.g., "1.3"
+  - story_path: '{devStoryLocation}/{epic}.{story}.*.md' # Path from core-config.yaml
+  - story_title: '{title}' # If missing, derive from story file H1
+  - story_slug: '{slug}' # If missing, derive from title (lowercase, hyphenated)
 ```
 
 ## Prerequisites
@@ -23,6 +23,7 @@ required:
 ### 1. Risk Assessment (Determines Review Depth)
 
 **Auto-escalate to deep review when:**
+
 - Auth/payment/security files touched
 - No tests added to story
 - Diff > 500 lines
@@ -38,6 +39,7 @@ required:
 - Verify all requirements have corresponding test cases
 
 **B. Code Quality Review**
+
 - Architecture and design patterns
 - Refactoring opportunities (and perform them)
 - Code duplication or inefficiencies
@@ -46,6 +48,7 @@ required:
 - Best practices adherence
 
 **C. Test Architecture Assessment**
+
 - Test coverage adequacy at appropriate levels
 - Test level appropriateness (what should be unit vs integration vs e2e)
 - Test design quality and maintainability
@@ -55,17 +58,20 @@ required:
 - Test execution time and reliability
 
 **D. Non-Functional Requirements (NFRs)**
+
 - Security: Authentication, authorization, data protection
 - Performance: Response times, resource usage
 - Reliability: Error handling, recovery mechanisms
 - Maintainability: Code clarity, documentation
 
 **E. Testability Evaluation**
+
 - Controllability: Can we control the inputs?
 - Observability: Can we observe the outputs?
 - Debuggability: Can we debug failures easily?
 
 **F. Technical Debt Identification**
+
 - Accumulated shortcuts
 - Missing tests
 - Outdated dependencies
@@ -103,6 +109,7 @@ required:
 **CRITICAL**: You are ONLY authorized to update the "QA Results" section of the story file. DO NOT modify any other sections.
 
 **QA Results Anchor Rule:**
+
 - If `## QA Results` doesn't exist, append it at end of file
 - If it exists, append a new dated entry below existing entries
 - Never edit other sections
@@ -113,25 +120,31 @@ After review and any refactoring, append your results to the story file in the Q
 ## QA Results
 
 ### Review Date: [Date]
+
 ### Reviewed By: Quinn (Test Architect)
 
 ### Code Quality Assessment
+
 [Overall assessment of implementation quality]
 
 ### Refactoring Performed
+
 [List any refactoring you performed with explanations]
+
 - **File**: [filename]
   - **Change**: [what was changed]
   - **Why**: [reason for change]
   - **How**: [how it improves the code]
 
 ### Compliance Check
+
 - Coding Standards: [✓/✗] [notes if any]
 - Project Structure: [✓/✗] [notes if any]
 - Testing Strategy: [✓/✗] [notes if any]
 - All ACs Met: [✓/✗] [notes if any]
 
 ### Improvements Checklist
+
 [Check off items you handled yourself, leave unchecked for dev to address]
 
 - [x] Refactored user service for better error handling (services/user.service.ts)
@@ -141,20 +154,27 @@ After review and any refactoring, append your results to the story file in the Q
 - [ ] Update API documentation for new error codes
 
 ### Security Review
+
 [Any security concerns found and whether addressed]
 
 ### Performance Considerations
+
 [Any performance issues found and whether addressed]
 
 ### Files Modified During Review
+
 [If you modified files, list them here - ask Dev to update File List]
 
 ### Gate Status
+
 Gate: {STATUS} → docs/qa/gates/{epic}.{story}-{slug}.yml
 Risk profile: docs/qa/assessments/{epic}.{story}-risk-{YYYYMMDD}.md
 NFR assessment: docs/qa/assessments/{epic}.{story}-nfr-{YYYYMMDD}.md
 
+# Note: Paths should reference core-config.yaml for custom configurations
+
 ### Recommended Status
+
 [✓ Ready for Done] / [✗ Changes Required - See unchecked items above]
 (Story owner decides final status)
 ```
@@ -162,56 +182,57 @@ NFR assessment: docs/qa/assessments/{epic}.{story}-nfr-{YYYYMMDD}.md
 ## Output 2: Create Quality Gate File
 
 **Template and Directory:**
+
 - Render from `templates/qa-gate-tmpl.yaml`
-- Create `docs/qa/gates/` directory if missing
+- Create `docs/qa/gates/` directory if missing (or configure in core-config.yaml)
 - Save to: `docs/qa/gates/{epic}.{story}-{slug}.yml`
 
 Gate file structure:
 
 ```yaml
 schema: 1
-story: "{epic}.{story}"
-story_title: "{story title}"
+story: '{epic}.{story}'
+story_title: '{story title}'
 gate: PASS|CONCERNS|FAIL|WAIVED
-status_reason: "1-2 sentence explanation of gate decision"
-reviewer: "Quinn (Test Architect)"
-updated: "{ISO-8601 timestamp}"
+status_reason: '1-2 sentence explanation of gate decision'
+reviewer: 'Quinn (Test Architect)'
+updated: '{ISO-8601 timestamp}'
 
-top_issues: []  # Empty if no issues
-waiver: { active: false }  # Set active: true only if WAIVED
+top_issues: [] # Empty if no issues
+waiver: { active: false } # Set active: true only if WAIVED
 
 # Extended fields (optional but recommended):
-quality_score: 0-100  # 100 - (20*FAILs) - (10*CONCERNS) or use technical-preferences.md weights
-expires: "{ISO-8601 timestamp}"  # Typically 2 weeks from review
+quality_score: 0-100 # 100 - (20*FAILs) - (10*CONCERNS) or use technical-preferences.md weights
+expires: '{ISO-8601 timestamp}' # Typically 2 weeks from review
 
 evidence:
-  tests_reviewed: {count}
-  risks_identified: {count}
+  tests_reviewed: { count }
+  risks_identified: { count }
   trace:
-    ac_covered: [1, 2, 3]  # AC numbers with test coverage
-    ac_gaps: [4]  # AC numbers lacking coverage
+    ac_covered: [1, 2, 3] # AC numbers with test coverage
+    ac_gaps: [4] # AC numbers lacking coverage
 
 nfr_validation:
-  security: 
+  security:
     status: PASS|CONCERNS|FAIL
-    notes: "Specific findings"
+    notes: 'Specific findings'
   performance:
     status: PASS|CONCERNS|FAIL
-    notes: "Specific findings"
+    notes: 'Specific findings'
   reliability:
     status: PASS|CONCERNS|FAIL
-    notes: "Specific findings"
+    notes: 'Specific findings'
   maintainability:
     status: PASS|CONCERNS|FAIL
-    notes: "Specific findings"
+    notes: 'Specific findings'
 
 recommendations:
-  immediate:  # Must fix before production
-    - action: "Add rate limiting"
-      refs: ["api/auth/login.ts"]
-  future:  # Can be addressed later
-    - action: "Consider caching"
-      refs: ["services/data.ts"]
+  immediate: # Must fix before production
+    - action: 'Add rate limiting'
+      refs: ['api/auth/login.ts']
+  future: # Can be addressed later
+    - action: 'Consider caching'
+      refs: ['services/data.ts']
 ```
 
 ### Gate Decision Criteria
@@ -240,6 +261,7 @@ If risk_summary exists, apply its thresholds first (≥9 → FAIL, ≥6 → CONC
 - WAIVED only when waiver.active: true with reason/approver
 
 Detailed criteria:
+
 - **PASS**: All critical requirements met, no blocking issues
 - **CONCERNS**: Non-critical issues found, team should review
 - **FAIL**: Critical issues that should be addressed

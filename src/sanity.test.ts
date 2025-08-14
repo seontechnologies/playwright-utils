@@ -14,7 +14,9 @@ import {
   readCSV,
   readPDF,
   readXLSX,
-  readZIP
+  readZIP,
+  NetworkRecorder,
+  createNetworkRecorder
   // eslint-disable-next-line import/named
 } from './index'
 // Auth session is imported separately as it's not part of the main exports
@@ -33,6 +35,8 @@ import * as authSessionUtils from './auth-session'
 import * as authSessionFixtures from './auth-session/fixtures'
 import * as fileUtils from './file-utils'
 import * as fileUtilsFixtures from './file-utils/fixtures'
+import * as networkRecorderUtils from './network-recorder'
+import * as networkRecorderFixtures from './network-recorder/fixtures'
 
 describe('sanity tests', () => {
   describe('API exports', () => {
@@ -134,6 +138,24 @@ describe('sanity tests', () => {
       // Verify fixtures are exported
       expect(fileUtilsFixtures).toBeDefined()
       expect(fileUtilsFixtures.test).toBeDefined()
+    })
+
+    it('should properly export network-recorder utilities', () => {
+      // Test main export class and function exist
+      expect(typeof NetworkRecorder).toBe('function')
+      expect(typeof createNetworkRecorder).toBe('function')
+
+      // Verify same instance as direct import
+      expect(NetworkRecorder).toBe(networkRecorderUtils.NetworkRecorder)
+      expect(createNetworkRecorder).toBe(
+        networkRecorderUtils.createNetworkRecorder
+      )
+    })
+
+    it('should properly export network-recorder fixtures', () => {
+      // Verify fixtures are exported
+      expect(networkRecorderFixtures).toBeDefined()
+      expect(networkRecorderFixtures.test).toBeDefined()
     })
   })
 
