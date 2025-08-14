@@ -6,18 +6,19 @@ Quick NFR validation focused on the core four: security, performance, reliabilit
 
 ```yaml
 required:
-  - story_id: "{epic}.{story}"  # e.g., "1.3"
-  - story_path: "docs/stories/{epic}.{story}.*.md"
-  
+  - story_id: '{epic}.{story}' # e.g., "1.3"
+  - story_path: '{devStoryLocation}/{epic}.{story}.*.md' # Path from core-config.yaml
+
 optional:
-  - architecture_refs: "docs/architecture/*.md"
-  - technical_preferences: "docs/technical-preferences.md"
+  - architecture_refs: 'docs/architecture/*.md' # Or from core-config.yaml
+  - technical_preferences: 'docs/technical-preferences.md'
   - acceptance_criteria: From story file
 ```
 
 ## Purpose
 
 Assess non-functional requirements for a story and generate:
+
 1. YAML block for the gate file's `nfr_validation` section
 2. Brief markdown assessment saved to `docs/qa/assessments/{epic}.{story}-nfr-{YYYYMMDD}.md`
 
@@ -26,6 +27,7 @@ Assess non-functional requirements for a story and generate:
 ### 0. Fail-safe for Missing Inputs
 
 If story_path or story file can't be found:
+
 - Still create assessment file with note: "Source story not found"
 - Set all selected NFRs to CONCERNS with notes: "Target unknown / evidence missing"
 - Continue with assessment to provide value
@@ -37,21 +39,22 @@ If story_path or story file can't be found:
 
 ```text
 Which NFRs should I assess? (Enter numbers or press Enter for default)
-[1] Security (default)
-[2] Performance (default)  
-[3] Reliability (default)
-[4] Maintainability (default)
-[5] Usability
-[6] Compatibility
-[7] Portability
-[8] Functional Suitability
+[1] Security (default) - Auth, vulnerabilities, data protection
+[2] Performance (default) - Response times, resource usage
+[3] Reliability (default) - Error handling, recovery, stability
+[4] Maintainability (default) - Code quality, testability, documentation
+[5] Usability - Frontend/UX-heavy stories, accessibility, learnability
+[6] Compatibility - Cross-platform, API versioning, integration stories
+[7] Portability - Multi-environment, containerization, deployment stories
+[8] Functional Suitability - Complex business logic, calculation-heavy features
 
-> [Enter for 1-4]
+> [Enter for 1-4, or specify numbers like "1,2,3,5" for targeted assessment]
 ```
 
 ### 2. Check for Thresholds
 
 Look for NFR requirements in:
+
 - Story acceptance criteria
 - `docs/architecture/*.md` files
 - `docs/technical-preferences.md`
@@ -72,6 +75,7 @@ No security requirements found. Required auth method?
 ### 3. Quick Assessment
 
 For each selected NFR, check:
+
 - Is there evidence it's implemented?
 - Can we validate it?
 - Are there obvious gaps?
@@ -86,29 +90,29 @@ Generate ONLY for NFRs actually assessed (no placeholders):
 # Gate YAML (copy/paste):
 nfr_validation:
   _assessed: [security, performance, reliability, maintainability]
-  security: 
+  security:
     status: CONCERNS
-    notes: "No rate limiting on auth endpoints"
+    notes: 'No rate limiting on auth endpoints'
   performance:
     status: PASS
-    notes: "Response times < 200ms verified"
+    notes: 'Response times < 200ms verified'
   reliability:
     status: PASS
-    notes: "Error handling and retries implemented"
+    notes: 'Error handling and retries implemented'
   maintainability:
     status: CONCERNS
-    notes: "Test coverage at 65%, target is 80%"
+    notes: 'Test coverage at 65%, target is 80%'
 ```
 
 ## Deterministic Status Rules
 
 - **FAIL**: Any selected NFR has critical gap or target clearly not met
-- **CONCERNS**: No FAILs, but any NFR is unknown/partial/missing evidence  
+- **CONCERNS**: No FAILs, but any NFR is unknown/partial/missing evidence
 - **PASS**: All selected NFRs meet targets with evidence
 
 ## Quality Score Calculation
 
-```
+```text
 quality_score = 100
 - 20 for each FAIL attribute
 - 10 for each CONCERNS attribute
@@ -121,20 +125,25 @@ If `technical-preferences.md` defines custom weights, use those instead.
 
 **ALWAYS save to:** `docs/qa/assessments/{epic}.{story}-nfr-{YYYYMMDD}.md`
 
+# Note: Path should reference core-config.yaml for custom configurations
+
 ```markdown
 # NFR Assessment: {epic}.{story}
+
 Date: {date}
 Reviewer: Quinn
 
 <!-- Note: Source story not found (if applicable) -->
 
 ## Summary
+
 - Security: CONCERNS - Missing rate limiting
 - Performance: PASS - Meets <200ms requirement
 - Reliability: PASS - Proper error handling
 - Maintainability: CONCERNS - Test coverage below target
 
 ## Critical Issues
+
 1. **No rate limiting** (Security)
    - Risk: Brute force attacks possible
    - Fix: Add rate limiting middleware to auth endpoints
@@ -144,6 +153,7 @@ Reviewer: Quinn
    - Fix: Add tests for uncovered branches
 
 ## Quick Wins
+
 - Add rate limiting: ~2 hours
 - Increase test coverage: ~4 hours
 - Add performance monitoring: ~1 hour
@@ -152,80 +162,99 @@ Reviewer: Quinn
 ## Output 3: Story Update Line
 
 **End with this line for the review task to quote:**
-```
+
+```text
 NFR assessment: docs/qa/assessments/{epic}.{story}-nfr-{YYYYMMDD}.md
 ```
 
 ## Output 4: Gate Integration Line
 
 **Always print at the end:**
-```
+
+```text
 Gate NFR block ready → paste into docs/qa/gates/{epic}.{story}-{slug}.yml under nfr_validation
+# Note: Gate path should reference core-config.yaml for custom configurations
 ```
 
 ## Assessment Criteria
 
 ### Security
+
 **PASS if:**
+
 - Authentication implemented
 - Authorization enforced
 - Input validation present
 - No hardcoded secrets
 
 **CONCERNS if:**
+
 - Missing rate limiting
 - Weak encryption
 - Incomplete authorization
 
 **FAIL if:**
+
 - No authentication
 - Hardcoded credentials
 - SQL injection vulnerabilities
 
 ### Performance
+
 **PASS if:**
+
 - Meets response time targets
 - No obvious bottlenecks
 - Reasonable resource usage
 
 **CONCERNS if:**
+
 - Close to limits
 - Missing indexes
 - No caching strategy
 
 **FAIL if:**
+
 - Exceeds response time limits
 - Memory leaks
 - Unoptimized queries
 
 ### Reliability
+
 **PASS if:**
+
 - Error handling present
 - Graceful degradation
 - Retry logic where needed
 
 **CONCERNS if:**
+
 - Some error cases unhandled
 - No circuit breakers
 - Missing health checks
 
 **FAIL if:**
+
 - No error handling
 - Crashes on errors
 - No recovery mechanisms
 
 ### Maintainability
+
 **PASS if:**
+
 - Test coverage meets target
 - Code well-structured
 - Documentation present
 
 **CONCERNS if:**
+
 - Test coverage below target
 - Some code duplication
 - Missing documentation
 
 **FAIL if:**
+
 - No tests
 - Highly coupled code
 - No documentation
@@ -262,6 +291,38 @@ maintainability:
   - Dependencies
 ```
 
+## NFR Selection Guide
+
+### When to Include Non-Default NFRs
+
+**Usability (5)** - Select when story involves:
+
+- Frontend components, user interfaces
+- Accessibility requirements (WCAG compliance)
+- User workflow changes, form design
+- Mobile responsiveness, touch interactions
+
+**Compatibility (6)** - Select when story involves:
+
+- API changes affecting external consumers
+- Browser/platform compatibility requirements
+- Integration with external systems
+- Database schema migrations
+
+**Portability (7)** - Select when story involves:
+
+- Docker/containerization changes
+- Cloud deployment configurations
+- Environment-specific configurations
+- Cross-platform build requirements
+
+**Functional Suitability (8)** - Select when story involves:
+
+- Complex business calculations
+- Financial/mathematical operations
+- Data transformation logic
+- Algorithm implementations
+
 ## Key Principles
 
 - Focus on the core four NFRs by default
@@ -272,18 +333,13 @@ maintainability:
 - Deterministic status rules for consistency
 - Unknown targets → CONCERNS, not guesses
 
----
-
 ## Appendix: ISO 25010 Reference
-
-<details>
-<summary>Full ISO 25010 Quality Model (click to expand)</summary>
 
 ### All 8 Quality Characteristics
 
 1. **Functional Suitability**: Completeness, correctness, appropriateness
 2. **Performance Efficiency**: Time behavior, resource use, capacity
-3. **Compatibility**: Co-existence, interoperability  
+3. **Compatibility**: Co-existence, interoperability
 4. **Usability**: Learnability, operability, accessibility
 5. **Reliability**: Maturity, availability, fault tolerance
 6. **Security**: Confidentiality, integrity, authenticity
@@ -291,10 +347,8 @@ maintainability:
 8. **Portability**: Adaptability, installability
 
 Use these when assessing beyond the core four.
-</details>
 
-<details>
-<summary>Example: Deep Performance Analysis (click to expand)</summary>
+### Example: Deep Performance Analysis
 
 ```yaml
 performance_deep_dive:
@@ -304,12 +358,11 @@ performance_deep_dive:
     p99: 350ms
   database:
     slow_queries: 2
-    missing_indexes: ["users.email", "orders.user_id"]
+    missing_indexes: ['users.email', 'orders.user_id']
   caching:
     hit_rate: 0%
-    recommendation: "Add Redis for session data"
+    recommendation: 'Add Redis for session data'
   load_test:
     max_rps: 150
     breaking_point: 200 rps
 ```
-</details>

@@ -254,7 +254,7 @@ Brownfield changes should:
 - Include migration scripts
 - Maintain backwards compatibility
 
-### 4. Test Integration with the Test Architect
+### 4. Test Integration Thoroughly
 
 #### Why the Test Architect is Critical for Brownfield
 

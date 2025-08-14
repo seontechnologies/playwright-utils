@@ -17,6 +17,7 @@ Generate a standalone quality gate file that provides a clear pass/fail decision
 **ALWAYS** create file at: `docs/qa/gates/{epic}.{story}-{slug}.yml`
 
 Slug rules:
+
 - Convert to lowercase
 - Replace spaces with hyphens
 - Strip punctuation
@@ -26,33 +27,33 @@ Slug rules:
 
 ```yaml
 schema: 1
-story: "{epic}.{story}"
+story: '{epic}.{story}'
 gate: PASS|CONCERNS|FAIL|WAIVED
-status_reason: "1-2 sentence explanation of gate decision"
-reviewer: "Quinn"
-updated: "{ISO-8601 timestamp}"
-top_issues: []  # Empty array if no issues
-waiver: { active: false }  # Only set active: true if WAIVED
+status_reason: '1-2 sentence explanation of gate decision'
+reviewer: 'Quinn'
+updated: '{ISO-8601 timestamp}'
+top_issues: [] # Empty array if no issues
+waiver: { active: false } # Only set active: true if WAIVED
 ```
 
 ## Schema with Issues
 
 ```yaml
 schema: 1
-story: "1.3"
+story: '1.3'
 gate: CONCERNS
-status_reason: "Missing rate limiting on auth endpoints poses security risk."
-reviewer: "Quinn"
-updated: "2025-01-12T10:15:00Z"
+status_reason: 'Missing rate limiting on auth endpoints poses security risk.'
+reviewer: 'Quinn'
+updated: '2025-01-12T10:15:00Z'
 top_issues:
-  - id: "SEC-001"
-    severity: high  # ONLY: low|medium|high
-    finding: "No rate limiting on login endpoint"
-    suggested_action: "Add rate limiting middleware before production"
-  - id: "TEST-001"
+  - id: 'SEC-001'
+    severity: high # ONLY: low|medium|high
+    finding: 'No rate limiting on login endpoint'
+    suggested_action: 'Add rate limiting middleware before production'
+  - id: 'TEST-001'
     severity: medium
-    finding: "No integration tests for auth flow"
-    suggested_action: "Add integration test coverage"
+    finding: 'No integration tests for auth flow'
+    suggested_action: 'Add integration test coverage'
 waiver: { active: false }
 ```
 
@@ -60,40 +61,44 @@ waiver: { active: false }
 
 ```yaml
 schema: 1
-story: "1.3"
+story: '1.3'
 gate: WAIVED
-status_reason: "Known issues accepted for MVP release."
-reviewer: "Quinn"
-updated: "2025-01-12T10:15:00Z"
+status_reason: 'Known issues accepted for MVP release.'
+reviewer: 'Quinn'
+updated: '2025-01-12T10:15:00Z'
 top_issues:
-  - id: "PERF-001"
+  - id: 'PERF-001'
     severity: low
-    finding: "Dashboard loads slowly with 1000+ items"
-    suggested_action: "Implement pagination in next sprint"
+    finding: 'Dashboard loads slowly with 1000+ items'
+    suggested_action: 'Implement pagination in next sprint'
 waiver:
   active: true
-  reason: "MVP release - performance optimization deferred"
-  approved_by: "Product Owner"
+  reason: 'MVP release - performance optimization deferred'
+  approved_by: 'Product Owner'
 ```
 
 ## Gate Decision Criteria
 
 ### PASS
+
 - All acceptance criteria met
 - No high-severity issues
 - Test coverage meets project standards
 
 ### CONCERNS
+
 - Non-blocking issues present
 - Should be tracked and scheduled
 - Can proceed with awareness
 
 ### FAIL
+
 - Acceptance criteria not met
 - High-severity issues present
 - Recommend return to InProgress
 
 ### WAIVED
+
 - Issues explicitly accepted
 - Requires approval and reason
 - Proceed despite known issues
@@ -101,6 +106,7 @@ waiver:
 ## Severity Scale
 
 **FIXED VALUES - NO VARIATIONS:**
+
 - `low`: Minor issues, cosmetic problems
 - `medium`: Should fix soon, not blocking
 - `high`: Critical issues, should block release
@@ -134,11 +140,13 @@ After creating gate file, append to story's QA Results section:
 ## QA Results
 
 ### Review Date: 2025-01-12
+
 ### Reviewed By: Quinn (Test Architect)
 
 [... existing review content ...]
 
 ### Gate Status
+
 Gate: CONCERNS → docs/qa/gates/1.3-user-auth-login.yml
 ```
 
