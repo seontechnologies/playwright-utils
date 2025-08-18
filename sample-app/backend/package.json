@@ -34,11 +34,11 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "7.3.4",
-    "@prisma/client": "6.13.0",
+    "@prisma/client": "6.14.0",
     "cookie-parser": "^1.4.7",
     "express": "4.21.2",
     "kafkajs": "2.2.4",
-    "prisma": "6.13.0",
+    "prisma": "6.14.0",
     "zod": "3.25.76"
   }
 }
