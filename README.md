@@ -40,6 +40,7 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
       - [Implementation Steps](#implementation-steps)
     - [File Utilities](#file-utilities)
     - [Network Recorder](#network-recorder)
+    - [Burn-in](#burn-in)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
@@ -569,6 +570,51 @@ PW_NET_MODE=playback npm run test:pw # Playback from existing HAR files
 ```
 
 [→ Network Recorder Documentation](./docs/network-recorder.md)
+
+### [Burn-in](./docs/burn-in.md)
+
+A smart test burn-in utility that intelligently filters which tests to run based on file changes, reducing unnecessary test execution while maintaining reliability.
+
+1. Copy over the `.burn-in.config.ts` from this repo, and configure it to your specification.
+
+2. Create a script file:
+
+```typescript
+// ex: scripts/burn-in-changed.ts
+import { runBurnIn } from '@seontechnologies/playwright-utils/burn-in'
+
+async function main() {
+  await runBurnIn()
+}
+
+main().catch(console.error)
+```
+
+3. Setup `package.json` to use that script file:
+
+```json
+// Package.json script (recommended: use tsx)
+{
+  "scripts": {
+    "test:pw:burn-in-changed": "tsx scripts/burn-in-changed.ts"
+  }
+}
+```
+
+**Common Usage Examples**:
+
+```typescript
+// Default behavior (uses 'main' branch, searches standard config locations)
+await runBurnIn()
+
+// Different base branch & custom config file location
+await runBurnIn({
+  baseBranch: 'master',
+  configPath: './custom/.burn-in.config.ts'
+})
+```
+
+[→ Burn-in Documentation](./docs/burn-in.md)
 
 ## Testing the Package Locally
 
