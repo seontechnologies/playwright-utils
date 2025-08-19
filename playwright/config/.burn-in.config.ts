@@ -24,7 +24,7 @@ const config: BurnInConfig = {
   },
   commonBurnInTestPercentage: process.env.CI ? 0.5 : 1,
   commonBurnInTestTag: '@smoke',
-  maxFilesForSmartMode: 10
+  maxFilesForSmartMode: 5
 }
 
 export default config

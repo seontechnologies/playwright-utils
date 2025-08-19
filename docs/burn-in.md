@@ -106,7 +106,7 @@ const config: BurnInConfig = {
   },
   commonBurnInTestPercentage: process.env.CI ? 0.5 : 1,
   commonBurnInTestTag: '@smoke',
-  maxFilesForSmartMode: 10
+  maxFilesForSmartMode: 5
 }
 
 export default config
@@ -114,7 +114,7 @@ export default config
 
 ## Best Practices
 
-### 🎯 **Keep Common Patterns Minimal**
+### **Keep Common Patterns Minimal**
 
 The fewer `commonBurnInPatterns` you have, the more effective the burn-in becomes. Instead of adding many folder patterns, **reorganize your code**:
 
@@ -135,29 +135,6 @@ commonBurnInPatterns: [
   '**/utils/**' // Move fn-helpers, api-helpers here
 ]
 ```
-
-### 📁 **Recommended Project Structure**
-
-```
-tests/
-├── support/          # All commonly used test utilities
-│   ├── pageObjects/  # Page object models
-│   ├── fixtures/     # Test data and fixtures
-│   └── helpers/      # Test-specific helper functions
-├── utils/            # General utilities (shared beyond tests)
-│   ├── api/          # API utilities
-│   └── data/         # Data manipulation utilities
-└── specs/            # Your actual test files
-    ├── auth/
-    └── checkout/
-```
-
-**Why this works better:**
-
-- ✅ **Fewer patterns** = simpler configuration
-- ✅ **Better organization** = easier to find code
-- ✅ **More predictable** = easier to onboard new team members
-- ✅ **More efficient** = burn-in utility works better
 
 ## Troubleshooting
 
