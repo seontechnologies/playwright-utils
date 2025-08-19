@@ -20,5 +20,3 @@ test('authenticated redirect works correctly', async ({ page }) => {
   // default userIdentifier is admin
   await expect(page.getByText('admin')).toBeVisible()
 })
-
-// test
