@@ -5,7 +5,7 @@ test.use({
   authSessionEnabled: false
 })
 
-test('should login', async ({ page }) => {
+test('should login @smoke', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveURL('/login')
 
@@ -17,3 +17,4 @@ test('should login', async ({ page }) => {
   await expect(page).toHaveURL('/movies')
   await log.step('at movies page')
 })
+// single test change

@@ -100,6 +100,12 @@
       "require": "./dist/cjs/network-recorder/fixtures.js",
       "import": "./dist/esm/network-recorder/fixtures.js",
       "default": "./dist/cjs/network-recorder/fixtures.js"
+    },
+    "./burn-in": {
+      "types": "./dist/types/burn-in/index.d.ts",
+      "require": "./dist/cjs/burn-in/index.js",
+      "import": "./dist/esm/burn-in/index.js",
+      "default": "./dist/cjs/burn-in/index.js"
     }
   },
   "files": [
@@ -144,7 +150,8 @@
     "test:pw": "TEST_ENV=local npx playwright test",
     "test:pw-ui": "TEST_ENV=local npx playwright test --ui",
     "test:pw:burn-in": "PW_BURN_IN=true npx playwright test --repeat-each=3 --retries=0",
-    "test:pw:burn-in-changed": "PW_BURN_IN=true npx playwright test --only-changed=main --repeat-each=3 --retries=0"
+    "test:pw:burn-in-changed-classic": "PW_BURN_IN=true npx playwright test --only-changed=main --repeat-each=3 --retries=0",
+    "test:pw:burn-in-changed": "tsx playwright/scripts/burn-in-changed.ts"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.54.1"
@@ -157,6 +164,7 @@
     "@types/express-serve-static-core": "5.0.7",
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.20",
+    "@types/madge": "^5.0.3",
     "@types/node": "22.17.1",
     "@types/papaparse": "5.3.16",
     "@types/picomatch": "4.0.2",
@@ -187,6 +195,7 @@
     "adm-zip": "0.5.16",
     "deepmerge": "4.3.1",
     "exceljs": "4.4.0",
+    "madge": "8.0.0",
     "papaparse": "5.5.3",
     "picomatch": "4.0.3",
     "proper-lockfile": "4.1.2",

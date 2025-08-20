@@ -65,7 +65,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe('New Todo', () => {
-  test('Log demo', async () => {
+  test('Log demo @smoke', async () => {
     await log.info('Starting TodoMVC test suite with enhanced logging')
 
     // Can also log objects with other log levels

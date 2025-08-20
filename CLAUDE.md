@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test` - Run unit tests (Jest) for backend and frontend
 - `npm run test:pw` - Run Playwright tests
 - `npm run test:pw-ui` - Run Playwright tests with UI mode
-- `npm run test:pw:burn-in` - Run burn-in tests with multiple repeats
+- `npm run test:pw:burn-in` - Run traditional burn-in tests with multiple repeats (see burn-in/ module for smart filtering)
 - `npm run start:sample-app` - Start both backend and frontend servers for testing
 
 ### Package Management
@@ -33,6 +33,7 @@ This is a **TypeScript utility library for Playwright testing** that provides mo
 
 - **api-request/** - HTTP client for making typed API requests in tests
 - **auth-session/** - Authentication session management with token persistence
+- **burn-in/** - Smart test burn-in utility for intelligent test filtering based on file changes
 - **file-utils/** - Utilities for reading/validating CSV, XLSX, PDF, ZIP files
 - **intercept-network-call/** - Network request interception and mocking
 - **log/** - Structured logging that integrates with Playwright reports
