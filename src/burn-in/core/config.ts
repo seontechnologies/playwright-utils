@@ -86,8 +86,8 @@ export function loadConfig(configPath?: string): BurnInConfig {
       ...merged,
       ...config,
       burnIn: {
-        ...merged.burnIn,
-        ...config.burnIn
+        ...(merged.burnIn || {}),
+        ...(config.burnIn || {})
       }
     }),
     {} as BurnInConfig
