@@ -318,20 +318,9 @@ export class BurnInAnalyzer {
 
       // Check if this file is one of our changed files
       if (
-        normalizedChangedFiles.some((changed) => {
-          // Compare normalized paths
-          const normalizedCurrent = path.normalize(currentFile)
-          const normalizedChanged = path.normalize(changed)
-          return (
-            normalizedCurrent === normalizedChanged ||
-            normalizedCurrent.endsWith(
-              path.sep + path.basename(normalizedChanged)
-            ) ||
-            normalizedChanged.endsWith(
-              path.sep + path.basename(normalizedCurrent)
-            )
-          )
-        })
+        normalizedChangedFiles.some((changed) =>
+          this.pathsMatch(currentFile, changed)
+        )
       ) {
         return true
       }
@@ -349,6 +338,21 @@ export class BurnInAnalyzer {
     }
 
     return false
+  }
+
+  private pathsMatch(file1: string, file2: string): boolean {
+    const norm1 = path.normalize(file1)
+    const norm2 = path.normalize(file2)
+
+    return (
+      norm1 === norm2 ||
+      this.isBasenameMatch(norm1, norm2) ||
+      this.isBasenameMatch(norm2, norm1)
+    )
+  }
+
+  private isBasenameMatch(fullPath: string, otherPath: string): boolean {
+    return fullPath.endsWith(path.sep + path.basename(otherPath))
   }
 
   buildCommand(plan: TestRunPlan): string[] | null {
