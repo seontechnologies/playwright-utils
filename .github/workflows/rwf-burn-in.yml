@@ -5,7 +5,7 @@ on:
     outputs:
       runE2E:
         description: 'Whether to run E2E tests'
-        value: ${{ jobs.detect-changes.outputs.runE2E }}
+        value: ${{ jobs.burn-in-rwf.outputs.runE2E }}
     inputs:
       base-ref:
         type: string
@@ -13,82 +13,18 @@ on:
         default: 'main'
       test-directory:
         type: string
-        description: 'Directory containing test files'
+        description: 'Directory containing test files and burn-in script'
         default: 'playwright/'
-      test-pattern:
-        type: string
-        description: 'Regex pattern to match test files'
-        default: '.*\.spec\.ts'
-      repeat-count:
-        type: number
-        description: 'Number of times to repeat each test'
-        default: 2
-      retry-count:
-        type: number
-        description: 'Number of test retries - recommended number is 0'
-        default: 0
       install-command:
         type: string
         description: 'Dependency install command'
         default: 'npm ci'
-      test-command:
-        type: string
-        description: 'Command to run tests'
-        default: 'npx playwright test'
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  detect-changes:
-    runs-on: kubernetes-default
-    permissions:
-      id-token: write
-      contents: read
-      packages: read
-    outputs:
-      runE2E: ${{ steps.set-runE2E.outputs.runE2E }}
-      shouldBurnIn: ${{ steps.detect-changed.outputs.shouldBurnIn }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }} # ensure we're checking out the correct commit
-          fetch-depth: 0
-
-      - name: Detect changed E2E test files
-        id: detect-changed
-        run: |
-          # Fetch base branch explicitly
-          git remote set-branches --add origin ${{ inputs.base-ref }}
-          git fetch origin ${{ inputs.base-ref }}
-          changed_files=$(git diff --name-only origin/${{ inputs.base-ref }} HEAD)
-
-          echo "Changed files:"
-          echo "$changed_files"
-
-          if echo "$changed_files" | grep -Eq '^${{ inputs.test-directory }}.*${{ inputs.test-pattern }}'; then
-            echo "shouldBurnIn=true" >> $GITHUB_OUTPUT
-            echo "Found test file changes => will run burn-in"
-          else
-            echo "shouldBurnIn=false" >> $GITHUB_OUTPUT
-            echo "No test file changes => will skip burn-in"
-          fi
-
-      - name: Set runE2E output
-        id: set-runE2E
-        run: |
-          if [ "${{ steps.detect-changed.outputs.shouldBurnIn }}" = "false" ]; then
-            echo "runE2E=true" >> $GITHUB_OUTPUT
-            echo "No E2E test files changed => skipping burn-in, but E2E can still proceed."
-          else
-            echo "runE2E=true" >> $GITHUB_OUTPUT
-            echo "Test files changed => will run burn-in, E2E depends on its outcome"
-          fi
-
   burn-in-rwf:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.shouldBurnIn == 'true'
     runs-on: kubernetes-default
     timeout-minutes: 30
     strategy:
@@ -100,6 +36,8 @@ jobs:
       id-token: write
       contents: read
       packages: read
+    outputs:
+      runE2E: ${{ steps.burn-in-result.outputs.runE2E }}
     steps:
       # Always check out code first before using any local actions
       - name: Checkout code
@@ -137,22 +75,20 @@ jobs:
           health-check-script: ./sample-app/backend/scripts/kafka-health-check.js
           continue-on-error: true
 
-      - name: Run Burn-in
+      - name: Run Smart Burn-in
         id: burn-in-step
+        working-directory: ${{ inputs.test-directory }}
         env:
-          # Set env variables to indicate we're in CI (used by Kafka health check)
           CI: 'true'
-          # Ensure tests don't fail due to Kafka issues
           ALLOW_KAFKA_FAILURE: 'true'
-          # Enable burn-in mode
           PW_BURN_IN: true
         run: |
+          # Ensure base branch is available
           git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
-          ${{ inputs.test-command }} \
-            --only-changed=${{ inputs.base-ref }} \
-            --repeat-each=${{ inputs.repeat-count }} \
-            --retries=${{ inputs.retry-count }} \
-            --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          
+          # Use smart burn-in script - it handles all decision logic internally
+          # Note: Smart burn-in generates appropriate commands, but we still apply sharding at workflow level
+          npx tsx scripts/burn-in-changed.ts --base-branch=${{ inputs.base-ref }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       # Stop Kafka after tests
       - name: Stop Kafka
@@ -160,13 +96,14 @@ jobs:
         if: always()
         run: docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml down
 
-      - name: Update runE2E based on burn-in result
+      - name: Set E2E execution result
+        id: burn-in-result
         if: always()
         run: |
           if [ "${{ steps.burn-in-step.outcome }}" = "success" ]; then
             echo "runE2E=true" >> $GITHUB_OUTPUT
-            echo "Burn-in passed => E2E can proceed"
+            echo "✅ Smart burn-in completed successfully => E2E can proceed"
           else
             echo "runE2E=false" >> $GITHUB_OUTPUT
-            echo "Burn-in failed => E2E will be skipped"
+            echo "❌ Smart burn-in failed => E2E will be skipped"
           fi

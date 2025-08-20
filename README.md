@@ -46,6 +46,8 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
     - [Publishing Locally](#publishing-locally)
   - [CI/CD Configuration](#cicd-configuration)
+    - [Reusable Workflows](#reusable-workflows)
+      - [Smart Burn-in Workflow](#smart-burn-in-workflow)
     - [Reusable Composite Actions](#reusable-composite-actions)
       - [1. Setup Playwright Browsers](#1-setup-playwright-browsers)
       - [2. Setup Node and Install Dependencies](#2-setup-node-and-install-dependencies)
@@ -573,14 +575,21 @@ PW_NET_MODE=playback npm run test:pw # Playback from existing HAR files
 
 ### [Burn-in](./docs/burn-in.md)
 
-A smart test burn-in utility that intelligently filters which tests to run based on file changes, reducing unnecessary test execution while maintaining reliability.
+A **smart test burn-in utility** that intelligently filters which tests to run based on file changes, replacing Playwright's basic `--only-changed` with sophisticated analysis and decision-making.
 
-1. Copy over the `.burn-in.config.ts` from this repo, and configure it to your specification.
+**Key Benefits**:
 
-2. Create a script file:
+- 🧠 **Intelligent categorization**: Differentiates test files, config files, common utilities, and source code
+- ⚡ **Efficient execution**: Skip tests when only config changes, run @smoke tests for common file changes
+- 🎯 **Targeted testing**: Run specific changed tests or strategic subsets
+- 🛡️ **Secure**: Built with shell injection protection and proper input validation
+
+**Quick Setup**:
+
+1. Create a burn-in script:
 
 ```typescript
-// ex: scripts/burn-in-changed.ts
+// scripts/burn-in-changed.ts
 import { runBurnIn } from '@seontechnologies/playwright-utils/burn-in'
 
 async function main() {
@@ -590,10 +599,9 @@ async function main() {
 main().catch(console.error)
 ```
 
-3. Setup `package.json` to use that script file:
+2. Add package.json script:
 
 ```json
-// Package.json script (recommended: use tsx)
 {
   "scripts": {
     "test:pw:burn-in-changed": "tsx scripts/burn-in-changed.ts"
@@ -601,18 +609,40 @@ main().catch(console.error)
 }
 ```
 
-**Common Usage Examples**:
+3. Create configuration (auto-discovered):
 
 ```typescript
-// Default behavior (uses 'main' branch, searches standard config locations)
-await runBurnIn()
+// config/.burn-in.config.ts (recommended location)
+import type { BurnInConfig } from '@seontechnologies/playwright-utils/burn-in'
 
-// Different base branch & custom config file location
+const config: BurnInConfig = {
+  commonBurnInPatterns: ['**/support/**'], // → Run @smoke tests
+  skipBurnInPatterns: ['**/config/**'], // → Skip entirely
+  commonBurnInTestTag: '@smoke', // Tests to run for common changes
+  burnIn: {
+    repeatEach: process.env.CI ? 2 : 3,
+    retries: process.env.CI ? 0 : 1
+  }
+}
+export default config
+```
+
+**Advanced Usage**:
+
+```typescript
+// Command line arguments supported
 await runBurnIn({
-  baseBranch: 'master',
-  configPath: './custom/.burn-in.config.ts'
+  baseBranch: 'develop',
+  configPath: './custom-config/.burn-in.config.ts'
 })
 ```
+
+**Smart Execution Modes**:
+
+- **Skip Mode**: Config/constant file changes → No tests run
+- **Smoke Mode**: Common utility changes → Run tests tagged with `@smoke`
+- **Targeted Mode**: Test file changes → Run only those specific tests
+- **Run-all Mode**: Source code changes → Use `--only-changed` for full coverage
 
 [→ Burn-in Documentation](./docs/burn-in.md)
 
@@ -665,125 +695,30 @@ npm run publish:local
 
 ## CI/CD Configuration
 
+### Smart Burn-in Workflow
+
+This repository provides a reusable GitHub Actions workflow for intelligent test execution:
+
+```yaml
+jobs:
+  burn-in:
+    uses: seontechnologies/playwright-utils/.github/workflows/rwf-burn-in.yml@main
+    with:
+      base-ref: 'main'
+      test-directory: 'playwright/'
+      install-command: 'npm ci'
+```
+
+The smart burn-in workflow analyzes changed files and intelligently decides which tests to run, providing significant CI time savings while maintaining reliability.
+
+**[→ Complete CI Integration Guide](./docs/burn-in.md#ci-integration)** - Includes step-by-step setup, advanced patterns, troubleshooting, and real-world examples.
+
 ### Reusable Composite Actions
 
-This repository provides several reusable GitHub composite actions that can be used in your own workflows:
+This repository also provides reusable GitHub composite actions for:
 
-#### 1. Setup Playwright Browsers
+- **Setup Playwright Browsers** - Efficient browser caching and installation
+- **Setup Node and Install Dependencies** - Node.js setup with package manager detection
+- **Setup Kafka** - Kafka cluster setup for event-driven testing
 
-Setups and caches Playwright browsers for efficient CI runs. It handles:
-
-- **Cache Key Design**: Caches browser binaries based on OS and Playwright version
-- **System Dependencies**: Only installed when cache is missed using `npx playwright install-deps`
-- **Browser Binaries**: Only installed when cache is missed using `npx playwright install`
-- **Cache Busting**: Workflow includes a manual cache busting mechanism for troubleshooting
-
-**Using in your workflow from LOCAL repository:**
-
-```yaml
-# When using within seontechnologies/playwright-utils repository
-- name: Setup Playwright browsers
-  uses: ./.github/actions/setup-playwright-browsers
-  with:
-    browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
-```
-
-**Using in your workflow from EXTERNAL repositories:**
-
-```yaml
-# When using from another repository
-- name: Setup Playwright browsers
-  uses: seontechnologies/playwright-utils/setup-playwright-browsers@main
-  with:
-    browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
-```
-
-**Input Parameters:**
-
-- `browser-cache-bust` (optional): Set to "true" or a timestamp to force invalidate the cache. Default: ''
-
-**Output Parameters:**
-
-- `cache-hit`: Will be 'true' if the browser cache was hit, 'false' otherwise
-
-#### 2. Setup Node and Install Dependencies
-
-Handles Node.js setup, dependency caching, and installation for npm and pnpm.
-
-**IMPORTANT**: This action must be used after a checkout step. Local composite actions require the repository to be checked out first.
-
-**Using in your workflow (from seontechnologies/playwright-utils repository):**
-
-```yaml
-# Always check out repository first
-- name: Checkout code
-  uses: actions/checkout@v4
-  with:
-    ref: ${{ github.head_ref }}
-
-# Then use the install action
-- name: Setup Node and Install Dependencies
-  uses: seontechnologies/playwright-utils/.github/actions/install@main
-  with:
-    install-command: 'npm ci' # or 'pnpm install'
-    node-version-file: '.nvmrc' # optional, defaults to '.nvmrc'
-```
-
-### Package Manager Support
-
-This action automatically detects your package manager based on the install command:
-
-- **npm**: Uses `~/.npm` for caching and `package-lock.json` for cache key
-- **pnpm**: Uses `~/.local/share/pnpm/store` for caching and `pnpm-lock.yaml` for cache key
-
-#### Cache Busting for Playwright Browsers
-
-If you encounter browser issues or corrupted caches (e.g., 403 rate-limiting errors during system package installation), you can force a cache refresh:
-
-1. Go to GitHub Actions workflow
-2. Select "Run workflow"
-3. Set the "Force browser cache refresh" option to "true"
-4. Run the workflow
-
-This adds a timestamp to the cache key, ensuring a fresh installation of all dependencies and browsers.
-
-**Creating a workflow with browser cache busting:**
-
-```yaml
-name: E2E Tests
-on:
-  workflow_dispatch:
-    inputs:
-      browser_cache_bust:
-        description: 'Force browser cache refresh'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      # Always check out the repository first when using local actions
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Setup Node.js and install dependencies
-      - name: Setup Node and Install Dependencies
-        uses: seontechnologies/playwright-utils/.github/actions/install@main
-        with:
-          install-command: 'npm ci'
-          node-version-file: '.nvmrc'
-
-      # Use the reusable setup-playwright-browsers action
-      - name: Setup Playwright browsers
-        id: setup-pw
-        uses: seontechnologies/playwright-utils/.github/actions/setup-playwright-browsers@main
-        with:
-          browser-cache-bust: ${{ github.event.inputs.browser_cache_bust }}
-
-      # Rest of your workflow...
-```
+These actions handle caching, dependency management, and provide cache busting capabilities for troubleshooting CI issues.

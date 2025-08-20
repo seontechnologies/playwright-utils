@@ -59,11 +59,7 @@ jobs:
     with:
       base-ref: 'main'
       test-directory: 'playwright/'
-      test-pattern: '.*\.spec\.ts'
-      repeat-count: 3 # this will run 6 times between the 2 browsers (chrome & chromium)
-      retry-count: 0
       install-command: ${{ needs.vars.outputs.install_command }}
-      test-command: ${{ needs.vars.outputs.test_command }}
 
   e2e-test:
     needs: [vars, burn-in]

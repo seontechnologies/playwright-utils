@@ -230,6 +230,11 @@ export class BurnInAnalyzer {
       baseCmd.push(...plan.flags)
     }
 
+    // Add shard flag if provided via environment
+    if (process.env.PW_SHARD) {
+      baseCmd.push(`--shard=${process.env.PW_SHARD}`)
+    }
+
     if (plan.tests === null) {
       // Use --only-changed
       const baseBranch = this.options.baseBranch || 'main'
