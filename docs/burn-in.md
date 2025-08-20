@@ -149,9 +149,6 @@ const config: BurnInConfig = {
   // Test file patterns (optional - defaults to *.spec.ts, *.test.ts)
   testPatterns: ['**/*.spec.ts', '**/*.test.ts', '**/*.e2e.ts'],
 
-  // Maximum files before falling back to run-all mode
-  maxFilesForSmartMode: 15,
-
   // Maximum dependency depth for run-all fallback (advanced)
   maxDepthForRunAll: 4,
 
@@ -161,11 +158,7 @@ const config: BurnInConfig = {
     retries: process.env.CI ? 0 : 1 // No retries in CI to fail fast
   },
 
-  // For common burn-in files, run tests with this tag
-  // commonBurnInTestTag: '@smoke',
-
-  // Alternative: run this percentage of tests for common files (0.5 = 50%)
-  // If both tag and percentage are set, tag takes precedence
+  // Run this percentage of tests for common files (0.5 = 50%)
   commonBurnInTestPercentage: process.env.CI ? 0.5 : 1
 }
 
@@ -202,11 +195,10 @@ commonBurnInPatterns: [
 
 #### 1. Too many tests still running
 
-Adjust `maxFilesForSmartMode` or move files to appropriate patterns:
+Move files to appropriate patterns:
 
 ```typescript
 {
-  maxFilesForSmartMode: 2,
   skipBurnInPatterns: ['**/*your-config-files*'],
   commonBurnInPatterns: ['**/*your-helper-files*']
 }

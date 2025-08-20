@@ -86,9 +86,8 @@ jobs:
           # Ensure base branch is available
           git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
           
-          # Use smart burn-in script - it handles all decision logic internally
-          # Note: Smart burn-in generates appropriate commands, but we still apply sharding at workflow level
-          npx tsx scripts/burn-in-changed.ts --base-branch=${{ inputs.base-ref }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          # Use npm script for consistency - config path is hardcoded in script
+          npm run test:pw:burn-in-changed -- --base-branch=${{ inputs.base-ref }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       # Stop Kafka after tests
       - name: Stop Kafka

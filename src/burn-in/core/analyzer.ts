@@ -5,7 +5,6 @@ import type { BurnInConfig, BurnInOptions } from './types'
 // Internal types - not exposed to users
 type ChangedFiles = {
   testFiles: string[]
-  commonBurnInFiles: string[]
   skipBurnInFiles: string[]
   otherFiles: string[]
   all: string[]
@@ -49,7 +48,6 @@ export class BurnInAnalyzer {
       const files = diff ? diff.split('\n') : []
       const result: ChangedFiles = {
         testFiles: [],
-        commonBurnInFiles: [],
         skipBurnInFiles: [],
         otherFiles: [],
         all: files
@@ -58,8 +56,6 @@ export class BurnInAnalyzer {
       files.forEach((file) => {
         if (this.isTestFile(file)) {
           result.testFiles.push(file)
-        } else if (this.isCommonBurnInFile(file)) {
-          result.commonBurnInFiles.push(file)
         } else if (this.isSkipBurnInFile(file)) {
           result.skipBurnInFiles.push(file)
         } else {
@@ -102,11 +98,6 @@ export class BurnInAnalyzer {
     return testPatterns.some((pattern) => this.matchesPattern(file, pattern))
   }
 
-  private isCommonBurnInFile(file: string): boolean {
-    const patterns = this.config.commonBurnInPatterns || []
-    return patterns.some((pattern) => this.matchesPattern(file, pattern))
-  }
-
   private isSkipBurnInFile(file: string): boolean {
     const patterns = this.config.skipBurnInPatterns || []
     return patterns.some((pattern) => this.matchesPattern(file, pattern))
@@ -125,70 +116,30 @@ export class BurnInAnalyzer {
   }
 
   analyzeTestableDependencies(changedFiles: ChangedFiles): TestRunPlan {
-    const { testFiles, commonBurnInFiles, skipBurnInFiles, otherFiles } =
-      changedFiles
+    const { testFiles, skipBurnInFiles, otherFiles, all } = changedFiles
 
-    // Case 1: Only skip burn-in files changed
-    if (
-      skipBurnInFiles.length > 0 &&
-      commonBurnInFiles.length === 0 &&
-      otherFiles.length === 0 &&
-      testFiles.length === 0
-    ) {
+    // Key insight: Filter out changes that should be ignored
+    const relevantChanges =
+      testFiles.length + commonBurnInFiles.length + otherFiles.length
+
+    // If ONLY skip files changed, skip all tests
+    if (relevantChanges === 0 && skipBurnInFiles.length > 0) {
       return {
         tests: [],
-        reason: 'Smart mode: Only skip burn-in files changed, no tests needed'
+        reason: `Smart mode: Only skip-pattern files changed (${skipBurnInFiles.length} files), no tests needed`
       }
     }
 
-    // Case 2: Only common burn-in files changed
-    if (
-      commonBurnInFiles.length > 0 &&
-      skipBurnInFiles.length === 0 &&
-      otherFiles.length === 0 &&
-      testFiles.length === 0
-    ) {
-      return this.handleCommonBurnInChanges()
-    }
-
-    // Case 3: Only test files changed (no other impactful files)
-    if (
-      testFiles.length > 0 &&
-      commonBurnInFiles.length === 0 &&
-      otherFiles.length === 0
-    ) {
+    // If nothing changed at all
+    if (relevantChanges === 0) {
       return {
-        tests: testFiles,
-        reason:
-          'Smart mode: Only test files changed, running those specific tests'
+        tests: [],
+        reason: 'Smart mode: No files changed'
       }
     }
 
-    // Case 4: Other files changed - use run-all mode
-    if (otherFiles.length > 0) {
-      return {
-        tests: null,
-        reason: `Smart mode: ${otherFiles.length} non-test files changed, using run-all mode`
-      }
-    }
-
-    // Case 5: No files changed or only skip files
-    return {
-      tests: [],
-      reason: 'Smart mode: No relevant files changed'
-    }
-  }
-
-  private handleCommonBurnInChanges(): TestRunPlan {
-    // Check for smoke test tag/pattern
-    if (this.config.commonBurnInTestTag) {
-      return {
-        tests: [this.config.commonBurnInTestTag],
-        reason: `Smart mode: Common burn-in files changed, running tests tagged with ${this.config.commonBurnInTestTag}`
-      }
-    }
-
-    // Run a percentage of tests
+    // If we have any relevant changes, delegate to --only-changed but with percentage control
+    // This lets Playwright figure out dependencies while we control volume
     if (this.config.commonBurnInTestPercentage) {
       const percentage = this.config.commonBurnInTestPercentage
 
@@ -200,17 +151,32 @@ export class BurnInAnalyzer {
       }
 
       const shardCount = Math.ceil(1 / percentage)
+
+      // Describe what triggered the burn-in
+      let triggerDescription = ''
+      if (testFiles.length > 0) {
+        triggerDescription = `${testFiles.length} test file(s)`
+      }
+      if (commonBurnInFiles.length > 0) {
+        if (triggerDescription) triggerDescription += ', '
+        triggerDescription += `${commonBurnInFiles.length} common file(s)`
+      }
+      if (otherFiles.length > 0) {
+        if (triggerDescription) triggerDescription += ', '
+        triggerDescription += `${otherFiles.length} other file(s)`
+      }
+
       return {
         tests: null,
         flags: [`--shard=1/${shardCount}`],
-        reason: `Smart mode: Common burn-in files changed, running ${(percentage * 100).toFixed(1)}% of tests`
+        reason: `Smart mode: ${triggerDescription} changed, running ${(percentage * 100).toFixed(0)}% of affected tests`
       }
     }
 
-    // Default: skip burn-in for common burn-in files
+    // Default: Run all affected tests
     return {
-      tests: [],
-      reason: 'Smart mode: Common burn-in files changed, skipping burn-in'
+      tests: null,
+      reason: 'Smart mode: Changes detected, running all affected tests'
     }
   }
 

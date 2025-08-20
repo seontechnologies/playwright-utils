@@ -3,13 +3,6 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 export const DEFAULT_CONFIG: BurnInConfig = {
-  commonBurnInPatterns: [
-    '**/fn-helpers/**',
-    '**/pageObjects/**',
-    '**/fixtures/**',
-    '**/utils/**',
-    '**/support/**'
-  ],
   skipBurnInPatterns: [
     '**/config/**',
     '**/configuration/**',
@@ -24,14 +17,11 @@ export const DEFAULT_CONFIG: BurnInConfig = {
     '**/*.md'
   ],
   testPatterns: ['**/*.spec.ts', '**/*.test.ts'],
-  maxDepthForRunAll: 2,
   burnIn: {
     repeatEach: 3,
     retries: 0
   },
-  commonBurnInTestPercentage: 0.1,
-  commonBurnInTestTag: '@smoke',
-  maxFilesForSmartMode: 5
+  commonBurnInTestPercentage: 0.1
 }
 
 export function loadConfig(configPath?: string): BurnInConfig {

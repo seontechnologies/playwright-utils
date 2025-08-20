@@ -45,14 +45,6 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
     - [Publishing Locally](#publishing-locally)
-  - [CI/CD Configuration](#cicd-configuration)
-    - [Reusable Workflows](#reusable-workflows)
-      - [Smart Burn-in Workflow](#smart-burn-in-workflow)
-    - [Reusable Composite Actions](#reusable-composite-actions)
-      - [1. Setup Playwright Browsers](#1-setup-playwright-browsers)
-      - [2. Setup Node and Install Dependencies](#2-setup-node-and-install-dependencies)
-    - [Package Manager Support](#package-manager-support)
-      - [Cache Busting for Playwright Browsers](#cache-busting-for-playwright-browsers)
 
 ## Installation
 
@@ -692,33 +684,3 @@ export GITHUB_TOKEN=your_personal_access_token
 # 2. Run the publish script
 npm run publish:local
 ```
-
-## CI/CD Configuration
-
-### Smart Burn-in Workflow
-
-This repository provides a reusable GitHub Actions workflow for intelligent test execution:
-
-```yaml
-jobs:
-  burn-in:
-    uses: seontechnologies/playwright-utils/.github/workflows/rwf-burn-in.yml@main
-    with:
-      base-ref: 'main'
-      test-directory: 'playwright/'
-      install-command: 'npm ci'
-```
-
-The smart burn-in workflow analyzes changed files and intelligently decides which tests to run, providing significant CI time savings while maintaining reliability.
-
-**[→ Complete CI Integration Guide](./docs/burn-in.md#ci-integration)** - Includes step-by-step setup, advanced patterns, troubleshooting, and real-world examples.
-
-### Reusable Composite Actions
-
-This repository also provides reusable GitHub composite actions for:
-
-- **Setup Playwright Browsers** - Efficient browser caching and installation
-- **Setup Node and Install Dependencies** - Node.js setup with package manager detection
-- **Setup Kafka** - Kafka cluster setup for event-driven testing
-
-These actions handle caching, dependency management, and provide cache busting capabilities for troubleshooting CI issues.
