@@ -17,3 +17,4 @@ test('should login @smoke', async ({ page }) => {
   await expect(page).toHaveURL('/movies')
   await log.step('at movies page')
 })
+// single test change
