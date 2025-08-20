@@ -21,6 +21,7 @@ node_modules/
 /test-results/
 /playwright-report/
 /playwright-logs/
+/playwright/playwright-logs
 /blob-report/
 /playwright/.cache/
 downloads

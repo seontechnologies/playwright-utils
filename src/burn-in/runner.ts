@@ -50,7 +50,7 @@ export class BurnInRunner {
     }
 
     console.log('\n📦 Command to execute:')
-    console.log(`  ${command}`)
+    console.log(`  ${command.join(' ')}`)
 
     // Set burn-in environment variable
     process.env.PW_BURN_IN = 'true'
@@ -58,7 +58,7 @@ export class BurnInRunner {
     console.log('\n🚀 Starting burn-in tests...\n')
 
     try {
-      execSync(command, {
+      execSync(command.join(' '), {
         stdio: 'inherit',
         env: process.env
       })

@@ -26,7 +26,9 @@ test.describe('App routes (vanilla playwright)', () => {
     )
   })
 
-  test('should redirect to /movies (vanilla playwright)', async ({ page }) => {
+  test('should redirect to /movies @smoke (vanilla playwright)', async ({
+    page
+  }) => {
     await page.goto('/')
 
     await expect(page).toHaveURL('/movies')

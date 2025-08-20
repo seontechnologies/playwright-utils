@@ -5,7 +5,7 @@ test.use({
   authSessionEnabled: false
 })
 
-test('should login', async ({ page }) => {
+test('should login @smoke', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveURL('/login')
 

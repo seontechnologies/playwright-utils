@@ -14,7 +14,7 @@ Playwright's built-in `--only-changed` feature triggers all affected tests when 
 The burn-in utility provides **intelligent test filtering** using TypeScript configuration:
 
 - **Config files** (`skipBurnInPatterns`) → Skip entirely
-- **Helper files** (`commonBurnInPatterns`) → Run tests with @smoke tag or 10% of tests
+- **Helper files** (`commonBurnInPatterns`) → Run tests with @smoke tag or a configurable percentage (default 50% on CI, 100% locally)
 - **Test files** → Run only those tests
 - **Source code** → Use run-all mode
 
@@ -40,14 +40,14 @@ The base branch is also customizable.
 
 ```typescript
 await runBurnIn({
-  configPath: './playwright-tests/.burn-in.config.ts',
+  configPath: './playwright-tests/config/.burn-in.config.ts',
   baseBranch: 'master'
 })
 ```
 
 ### Package.json Script
 
-Recommended to use `tsx` to run the script.
+Recommended to use `tsx` to run the script: `npm i -D tsx` at your repository.
 
 ```json
 {

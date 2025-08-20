@@ -5,7 +5,7 @@ import type { BurnInConfig, BurnInOptions } from './types'
 // Internal types - not exposed to users
 type ChangedFiles = {
   testFiles: string[]
-  commonFiles: string[]
+  commonBurnInFiles: string[]
   skipBurnInFiles: string[]
   otherFiles: string[]
   all: string[]
@@ -49,7 +49,7 @@ export class BurnInAnalyzer {
       const files = diff ? diff.split('\n') : []
       const result: ChangedFiles = {
         testFiles: [],
-        commonFiles: [],
+        commonBurnInFiles: [],
         skipBurnInFiles: [],
         otherFiles: [],
         all: files
@@ -59,7 +59,7 @@ export class BurnInAnalyzer {
         if (this.isTestFile(file)) {
           result.testFiles.push(file)
         } else if (this.isCommonBurnInFile(file)) {
-          result.commonFiles.push(file)
+          result.commonBurnInFiles.push(file)
         } else if (this.isSkipBurnInFile(file)) {
           result.skipBurnInFiles.push(file)
         } else {
@@ -125,12 +125,13 @@ export class BurnInAnalyzer {
   }
 
   analyzeTestableDependencies(changedFiles: ChangedFiles): TestRunPlan {
-    const { testFiles, commonFiles, skipBurnInFiles, otherFiles } = changedFiles
+    const { testFiles, commonBurnInFiles, skipBurnInFiles, otherFiles } =
+      changedFiles
 
     // Case 1: Only skip burn-in files changed
     if (
       skipBurnInFiles.length > 0 &&
-      commonFiles.length === 0 &&
+      commonBurnInFiles.length === 0 &&
       otherFiles.length === 0 &&
       testFiles.length === 0
     ) {
@@ -142,7 +143,7 @@ export class BurnInAnalyzer {
 
     // Case 2: Only common burn-in files changed
     if (
-      commonFiles.length > 0 &&
+      commonBurnInFiles.length > 0 &&
       skipBurnInFiles.length === 0 &&
       otherFiles.length === 0 &&
       testFiles.length === 0
@@ -150,8 +151,12 @@ export class BurnInAnalyzer {
       return this.handleCommonBurnInChanges()
     }
 
-    // Case 3: Only test files changed
-    if (testFiles.length > 0 && otherFiles.length === 0) {
+    // Case 3: Only test files changed (no other impactful files)
+    if (
+      testFiles.length > 0 &&
+      commonBurnInFiles.length === 0 &&
+      otherFiles.length === 0
+    ) {
       return {
         tests: testFiles,
         reason:
@@ -190,7 +195,7 @@ export class BurnInAnalyzer {
       // Validate percentage value
       if (percentage <= 0 || percentage > 1) {
         throw new Error(
-          `Invalid commonBurnInTestPercentage: ${percentage}. Must be between 0 and 1 (exclusive of 0).`
+          `Invalid commonBurnInTestPercentage: ${percentage}. Must be greater than 0 and less than or equal to 1.`
         )
       }
 
@@ -209,7 +214,7 @@ export class BurnInAnalyzer {
     }
   }
 
-  buildCommand(plan: TestRunPlan): string | null {
+  buildCommand(plan: TestRunPlan): string[] | null {
     if (plan.tests !== null && plan.tests.length === 0) {
       return null // No tests to run
     }
@@ -228,24 +233,21 @@ export class BurnInAnalyzer {
     if (plan.tests === null) {
       // Use --only-changed
       const baseBranch = this.options.baseBranch || 'main'
-      return [...baseCmd, `--only-changed=${baseBranch}`, ...burnInFlags].join(
-        ' '
-      )
+      return [...baseCmd, `--only-changed=${baseBranch}`, ...burnInFlags]
     }
 
     // Specific test files or patterns
-    const testArgs = plan.tests.map((test) => {
-      // Sanitize test input to prevent shell injection
-      const sanitizedTest = test.replace(/[`$\\]/g, '\\$&')
-
+    const testArgs: string[] = []
+    plan.tests.forEach((test) => {
       if (test.includes('*') || test.includes('(') || test.includes('|')) {
         // It's a pattern, use -g flag
-        return `-g "${sanitizedTest}"`
+        testArgs.push('-g', test)
+      } else {
+        // It's a file path
+        testArgs.push(test)
       }
-      // It's a file path
-      return sanitizedTest
     })
 
-    return [...baseCmd, ...testArgs, ...burnInFlags].join(' ')
+    return [...baseCmd, ...testArgs, ...burnInFlags]
   }
 }
