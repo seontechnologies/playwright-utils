@@ -567,14 +567,13 @@ PW_NET_MODE=playback npm run test:pw # Playback from existing HAR files
 
 ### [Burn-in](./docs/burn-in.md)
 
-A **smart test burn-in utility** that intelligently filters which tests to run based on file changes, replacing Playwright's basic `--only-changed` with sophisticated analysis and decision-making.
+A **smart test burn-in utility** that enhances Playwright's `--only-changed` using a process of elimination to reduce unnecessary test runs.
 
 **Key Benefits**:
 
-- 🧠 **Intelligent categorization**: Differentiates test files, config files, common utilities, and source code
-- ⚡ **Efficient execution**: Skip tests when only config changes, run @smoke tests for common file changes
-- 🎯 **Targeted testing**: Run specific changed tests or strategic subsets
-- 🛡️ **Secure**: Built with shell injection protection and proper input validation
+- 🚫 **Skip irrelevant changes**: Config/type files don't trigger tests
+- 📊 **Volume control**: Run a percentage of tests AFTER filtering
+- 🎯 **Process of elimination**: Start with all, filter out irrelevant, control volume
 
 **Quick Setup**:
 
@@ -601,16 +600,25 @@ main().catch(console.error)
 }
 ```
 
-3. Create configuration (auto-discovered):
+3. Create configuration:
 
 ```typescript
 // config/.burn-in.config.ts (recommended location)
 import type { BurnInConfig } from '@seontechnologies/playwright-utils/burn-in'
 
 const config: BurnInConfig = {
-  commonBurnInPatterns: ['**/support/**'], // → Run @smoke tests
-  skipBurnInPatterns: ['**/config/**'], // → Skip entirely
-  commonBurnInTestTag: '@smoke', // Tests to run for common changes
+  // Files that should never trigger tests (first filter)
+  skipBurnInPatterns: [
+    '**/config/**',
+    '**/*constants*',
+    '**/*types*',
+    '**/*.md'
+  ],
+
+  // Control test volume AFTER skip filtering (0.3 = 30% of remaining tests)
+  burnInTestPercentage: process.env.CI ? 0.2 : 0.3,
+
+  // Burn-in repetition settings
   burnIn: {
     repeatEach: process.env.CI ? 2 : 3,
     retries: process.env.CI ? 0 : 1
@@ -619,22 +627,14 @@ const config: BurnInConfig = {
 export default config
 ```
 
-**Advanced Usage**:
+**How it works (Custom Dependency Analysis)**:
 
-```typescript
-// Command line arguments supported
-await runBurnIn({
-  baseBranch: 'develop',
-  configPath: './custom-config/.burn-in.config.ts'
-})
-```
+1. **Git diff analysis** identifies all changed files (e.g., 21 files)
+2. **Skip patterns** filter out irrelevant files (e.g., 6 config files → 15 remaining files)
+3. **Custom dependency analyzer** finds tests that actually depend on those 15 files (e.g., 3 tests)
+4. **Volume control** runs a percentage of the found tests (e.g., 100% of 3 = 3 tests)
 
-**Smart Execution Modes**:
-
-- **Skip Mode**: Config/constant file changes → No tests run
-- **Smoke Mode**: Common utility changes → Run tests tagged with `@smoke`
-- **Targeted Mode**: Test file changes → Run only those specific tests
-- **Run-all Mode**: Source code changes → Use `--only-changed` for full coverage
+Result: Run 3 targeted tests instead of 147 with Playwright's `--only-changed`!
 
 [→ Burn-in Documentation](./docs/burn-in.md)
 

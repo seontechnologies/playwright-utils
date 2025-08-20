@@ -21,7 +21,7 @@ export const DEFAULT_CONFIG: BurnInConfig = {
     repeatEach: 3,
     retries: 0
   },
-  commonBurnInTestPercentage: 0.1
+  burnInTestPercentage: 1
 }
 
 export function loadConfig(configPath?: string): BurnInConfig {

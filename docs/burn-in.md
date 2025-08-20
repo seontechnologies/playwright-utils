@@ -10,39 +10,28 @@ A smart test burn-in utility for Playwright that intelligently filters which tes
     - [Package.json Script](#packagejson-script)
     - [Create a Configuration File](#create-a-configuration-file)
   - [Best Practices](#best-practices)
-    - [**Keep Common Patterns Minimal**](#keep-common-patterns-minimal)
-  - [Troubleshooting](#troubleshooting)
-    - [Common Issues](#common-issues)
-      - [1. Too many tests still running](#1-too-many-tests-still-running)
-      - [2. TypeScript config not loading](#2-typescript-config-not-loading)
+    - [**Organize Code to Avoid Accidental Skips**](#organize-code-to-avoid-accidental-skips)
   - [CI Integration](#ci-integration)
     - [GitHub Actions Integration](#github-actions-integration)
-      - [Step 1: Use the Reusable Workflow](#step-1-use-the-reusable-workflow)
-      - [Step 2: Adapt for Your Repository](#step-2-adapt-for-your-repository)
+      - [Step 1: Create Your Burn-in Workflow](#step-1-create-your-burn-in-workflow)
+      - [Step 2: Create Your E2E Workflow](#step-2-create-your-e2e-workflow)
     - [How It Works](#how-it-works)
-    - [Workflow Inputs](#workflow-inputs)
-    - [Workflow Outputs](#workflow-outputs)
-    - [Common Issues](#common-issues-1)
-      - [E2E tests not running after burn-in](#e2e-tests-not-running-after-burn-in)
-      - [Burn-in fails with "tsx not found"](#burn-in-fails-with-tsx-not-found)
-      - [Burn-in always runs all tests](#burn-in-always-runs-all-tests)
-    - [Skip Label](#skip-label)
+    - [Key Configuration Points](#key-configuration-points)
 
 ## The Problem
 
-Playwright's built-in `--only-changed` feature triggers all affected tests when common files change, leading to:
+Playwright's built-in `--only-changed` feature triggers all affected tests when any file changes, leading to:
 
-- **Excessive test runs**: Changes to widely-used files like `featureFlags.ts` or helper utilities trigger hundreds of unnecessary tests
-- **Slow CI/CD pipelines**: Full test suites run even for minor configuration changes
+- **Excessive test runs**: Changes to config files or type definitions trigger hundreds of tests unnecessarily
+- **Slow CI/CD pipelines**: Full test suites run even for changes that don't affect test behavior
+- **No volume control**: It's all or nothing - you can't run a subset for safety
 
 ## The Solution
 
-The burn-in utility provides **intelligent test filtering** using TypeScript configuration:
+The burn-in utility uses custom dependency analysis with two simple controls:
 
-- **Config files** (`skipBurnInPatterns`) → Skip entirely
-- **Helper files** (`commonBurnInPatterns`) → Run tests with @smoke tag or a configurable percentage (default 50% on CI, 100% locally)
-- **Test files** → Run only those tests
-- **Source code** → Use run-all mode
+1. **Skip patterns** (`skipBurnInPatterns`) → Files that should never trigger tests (configs, types, docs)
+2. **Volume control** (`burnInTestPercentage`) → Run a percentage of affected tests after dependency analysis
 
 ## Installation & Usage
 
@@ -51,23 +40,21 @@ The burn-in utility provides **intelligent test filtering** using TypeScript con
 Create `scripts/burn-in-changed.ts`:
 
 ```typescript
-import { runBurnIn } from '../../src/burn-in'
+import { runBurnIn } from '@seontechnologies/playwright-utils/burn-in'
 
 async function main() {
   // Parse command line arguments
   const args = process.argv.slice(2)
   const baseBranchArg = args.find((arg) => arg.startsWith('--base-branch='))
-  const configPathArg = args.find((arg) => arg.startsWith('--config-path='))
   const shardArg = args.find((arg) => arg.startsWith('--shard='))
 
-  const options: Parameters<typeof runBurnIn>[0] = {}
+  const options: Parameters<typeof runBurnIn>[0] = {
+    // Always use the same config file - one source of truth
+    configPath: 'playwright/config/.burn-in.config.ts'
+  }
 
   if (baseBranchArg) {
     options.baseBranch = baseBranchArg.split('=')[1]
-  }
-
-  if (configPathArg) {
-    options.configPath = configPathArg.split('=')[1]
   }
 
   // Store shard info in environment for the burn-in runner to use
@@ -94,7 +81,7 @@ main().catch(console.error)
 tsx scripts/burn-in-changed.ts
 
 # Custom branch and config
-tsx scripts/burn-in-changed.ts --base-branch=develop --config-path=./custom/.burn-in.config.ts
+tsx scripts/burn-in-changed.ts --base-branch=master --config-path=./custom/.burn-in.config.ts
 
 # With sharding (CI usage)
 tsx scripts/burn-in-changed.ts --base-branch=main --shard=1/2
@@ -127,10 +114,6 @@ Manually create a configuration file to customize behavior.
 import type { BurnInConfig } from '@seontechnologies/playwright-utils/burn-in'
 
 const config: BurnInConfig = {
-  // Files that should trigger smart burn-in (smoke tests or percentage)
-  // Best Practice: Keep these patterns minimal - consolidate utilities into fewer folders
-  commonBurnInPatterns: ['**/support/**'],
-
   // Files that should skip burn-in entirely (config, constants, types)
   skipBurnInPatterns: [
     '**/config/**',
@@ -149,17 +132,14 @@ const config: BurnInConfig = {
   // Test file patterns (optional - defaults to *.spec.ts, *.test.ts)
   testPatterns: ['**/*.spec.ts', '**/*.test.ts', '**/*.e2e.ts'],
 
-  // Maximum dependency depth for run-all fallback (advanced)
-  maxDepthForRunAll: 4,
-
   // Burn-in execution settings
   burnIn: {
     repeatEach: process.env.CI ? 2 : 3, // Fewer repeats in CI for speed
     retries: process.env.CI ? 0 : 1 // No retries in CI to fail fast
   },
 
-  // Run this percentage of tests for common files (0.5 = 50%)
-  commonBurnInTestPercentage: process.env.CI ? 0.5 : 1
+  // Run this percentage of tests AFTER dependency analysis (0.5 = 50%)
+  burnInTestPercentage: process.env.CI ? 0.5 : 1
 }
 
 export default config
@@ -167,46 +147,26 @@ export default config
 
 ## Best Practices
 
-### **Keep Common Patterns Minimal**
+### **Organize Code to Avoid Accidental Skips**
 
-The fewer `commonBurnInPatterns` you have, the more effective the burn-in becomes. Instead of adding many folder patterns, **reorganize your code**:
-
-```typescript
-// ❌ Avoid: Too many scattered patterns
-commonBurnInPatterns: [
-  '**/fn-helpers/**',
-  '**/pageObjects/**',
-  '**/fixtures/**',
-  '**/api-helpers/**',
-  '**/test-utils/**',
-  '**/shared/**'
-]
-
-// ✅ Better: Consolidate into fewer, organized folders
-commonBurnInPatterns: [
-  '**/support/**', // Move pageObjects, fixtures, test-utils here
-  '**/utils/**' // Move fn-helpers, api-helpers here
-]
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. Too many tests still running
-
-Move files to appropriate patterns:
+Since the system now analyzes actual dependencies, be careful not to skip files that your tests frequently import. **Best practice**: Keep commonly used utilities in a shared location that won't be accidentally skipped.
 
 ```typescript
-{
-  skipBurnInPatterns: ['**/*your-config-files*'],
-  commonBurnInPatterns: ['**/*your-helper-files*']
-}
+// ❌ Avoid: Scattering common utilities that might get skipped
+src / components / utils / helper.ts // Tests import this
+pages / constants / urls.ts // Tests import this
+config / test - helpers.ts // Tests import this (but might be skipped!)
+
+// ✅ Better: Consolidate shared utilities in a clear location
+src /
+  support / // Clear it's for testing support
+  utils /
+  helper.ts // Won't be skipped by accident
+constants / urls.ts // Clear purpose
+test - helpers.ts // Obviously test-related
 ```
 
-#### 2. TypeScript config not loading
-
-Ensure `tsx` is available for `.ts` config files.
+**Why this matters**: The dependency analyzer will find tests that depend on changed files. If you accidentally skip a widely-used utility file, no tests will run even when that utility changes.
 
 ## CI Integration
 
@@ -214,101 +174,103 @@ Ensure `tsx` is available for `.ts` config files.
 
 Here's the simple, real workflow pattern used in this repository:
 
-#### Step 1: Use the Reusable Workflow
+#### Step 1: Create Your Burn-in Workflow
+
+Create `.github/workflows/burn-in.yml` in your repository:
 
 ```yaml
-# .github/workflows/e2e-tests.yml
-name: Run E2E Tests
+name: Smart Burn-in Tests
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
 
 jobs:
-  # Optional: Check for skip labels
-  vars:
-    runs-on: ubuntu-latest
-    outputs:
-      skip_burn_in: ${{ steps.check_skip_label.outputs.skip_burn_in || 'false' }}
-    steps:
-      - name: Check for skip_burn_in label
-        id: check_skip_label
-        if: github.event_name == 'pull_request'
-        run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip_burn_in') }}" == "true" ]]; then
-            echo "skip_burn_in=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip_burn_in=false" >> $GITHUB_OUTPUT
-          fi
-
-  # Smart burn-in using reusable workflow
   burn-in:
-    needs: vars
-    if: github.event_name == 'pull_request' && needs.vars.outputs.skip_burn_in != 'true'
-    uses: seontechnologies/playwright-utils/.github/workflows/rwf-burn-in.yml@main
-    with:
-      base-ref: 'main'
-      test-directory: 'playwright/'
-      install-command: 'npm ci'
+    runs-on: ubuntu-latest
+    # Key: Use matrix for parallel sharding
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2]
+        shardTotal: [2]
+    permissions:
+      contents: read
+      packages: read # Add if you need private packages
+    outputs:
+      runE2E: ${{ steps.burn-in-result.outputs.runE2E }}
 
-  # E2E tests run based on burn-in result
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Important: Need full history for git diff
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci # or yarn/pnpm install
+
+      - name: Run Smart Burn-in
+        id: burn-in-step
+        working-directory: playwright/ # Adjust to your test directory
+        env:
+          CI: 'true'
+          PW_BURN_IN: true
+          # Add any other environment variables your tests need
+        run: |
+          # Key: Ensure base branch is available for git diff
+          git branch -f main origin/main
+
+          # Key: Use your burn-in script with sharding
+          npm run test:pw:burn-in-changed -- --base-branch=main --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
+      - name: Set burn-in result
+        id: burn-in-result
+        run: |
+          # Set output based on your needs - this determines if E2E tests run
+          echo "runE2E=true" >> $GITHUB_OUTPUT
+```
+
+#### Step 2: Create Your E2E Workflow
+
+Create `.github/workflows/e2e-tests.yml`:
+
+```yaml
+name: E2E Tests
+on:
+  workflow_run:
+    workflows: ['Smart Burn-in Tests']
+    types: [completed]
+
+jobs:
   e2e-tests:
-    needs: [vars, burn-in]
-    if: |
-      always() && 
-      (needs.vars.outputs.skip_burn_in == 'true' || 
-       (needs.burn-in.result == 'success' && needs.burn-in.outputs.runE2E == 'true') ||
-       (needs.burn-in.result == 'skipped'))
+    if: ${{ github.event.workflow_run.outputs.runE2E == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run E2E Tests
-        run: npm run test:e2e
+      - name: Setup and run E2E tests
+        run: |
+          npm ci
+          npm run test:e2e  # Your actual E2E test command
 ```
-
-#### Step 2: Adapt for Your Repository
-
-1. **Replace the workflow reference** - Change `seontechnologies/playwright-utils/.github/workflows/rwf-burn-in.yml@main` to point to your fork or use a specific version
-2. **Update paths** - Change `test-directory: 'playwright/'` to match your test directory
-3. **Update commands** - Change `install-command: 'npm ci'` and test commands as needed
 
 ### How It Works
 
-The reusable workflow runs your burn-in script:
+Your burn-in workflow will:
 
-```bash
-npx tsx scripts/burn-in-changed.ts --base-branch=main --shard=1/2
-```
+1. **Check out code** with full git history (`fetch-depth: 0`)
+2. **Set up environment** and install dependencies
+3. **Ensure base branch exists** for git diff comparison
+4. **Run burn-in script** with sharding: `npm run test:pw:burn-in-changed -- --base-branch=main --shard=1/2`
+5. **Set output** to determine if E2E tests should run
 
-The script analyzes changed files and decides whether to run E2E tests based on your configuration patterns.
+### Key Configuration Points
 
-### Workflow Inputs
-
-| Input             | Description                                        | Default         |
-| ----------------- | -------------------------------------------------- | --------------- |
-| `base-ref`        | Base branch to compare changes against             | `'main'`        |
-| `test-directory`  | Directory containing your tests and burn-in script | `'playwright/'` |
-| `install-command` | Package manager install command                    | `'npm ci'`      |
-
-### Workflow Outputs
-
-| Output   | Description                  | Values                |
-| -------- | ---------------------------- | --------------------- |
-| `runE2E` | Whether E2E tests should run | `'true'` \| `'false'` |
-
-### Common Issues
-
-#### E2E tests not running after burn-in
-
-- Check: `if: needs.burn-in.outputs.runE2E == 'true'`
-
-#### Burn-in fails with "tsx not found"
-
-- Install: `npm install -D tsx`
-
-#### Burn-in always runs all tests
-
-- Check your `.burn-in.config.ts` skip patterns
-
-### Skip Label
-
-Add `skip_burn_in` label to any PR to bypass burn-in and run E2E tests directly.
+| Setting                 | Purpose                                  | Example                    |
+| ----------------------- | ---------------------------------------- | -------------------------- |
+| `fetch-depth: 0`        | Git needs full history for diff analysis | Required for git diff      |
+| `shardIndex/shardTotal` | Parallel test execution                  | `[1,2]/[2]` = run 2 shards |
+| `working-directory`     | Where your test scripts are              | `playwright/`              |
+| `git branch -f`         | Ensures base branch exists               | Prevents git diff errors   |

@@ -25,9 +25,9 @@ const config: BurnInConfig = {
     retries: process.env.CI ? 0 : 1 // No retries in CI to fail fast
   },
 
-  // Run this percentage of tests for common files (0.5 = 50%)
-  // This controls test volume when non-skip files change
-  commonBurnInTestPercentage: process.env.CI ? 0.2 : 1
+  // Run this percentage of tests AFTER skip patterns filter (0.5 = 50%)
+  // This controls test volume after skip patterns have filtered files
+  burnInTestPercentage: process.env.CI ? 0.5 : 1
 }
 
 export default config

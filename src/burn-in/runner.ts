@@ -33,7 +33,7 @@ export class BurnInRunner {
     console.log(`📝 Found ${changedFiles.all.length} changed file(s)`)
 
     // Analyze and create test plan
-    const plan = this.analyzer.analyzeTestableDependencies(changedFiles)
+    const plan = await this.analyzer.analyzeTestableDependencies(changedFiles)
     const command = this.analyzer.buildCommand(plan)
 
     console.log('\n🎯 Test execution plan:')

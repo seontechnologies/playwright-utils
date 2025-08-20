@@ -13,8 +13,8 @@ export type BurnInConfig = {
     retries?: number
   }
 
-  /** Percentage of tests to run for common files (e.g., 0.1 for 10%) */
-  commonBurnInTestPercentage?: number
+  /** Percentage of tests to run AFTER skip patterns filter (e.g., 0.1 for 10%) */
+  burnInTestPercentage?: number
 }
 
 export type BurnInOptions = {

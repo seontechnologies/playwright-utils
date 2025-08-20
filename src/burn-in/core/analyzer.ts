@@ -1,5 +1,7 @@
 import { execSync } from 'node:child_process'
 import picomatch from 'picomatch'
+import madge from 'madge'
+import path from 'node:path'
 import type { BurnInConfig, BurnInOptions } from './types'
 
 // Internal types - not exposed to users
@@ -115,15 +117,13 @@ export class BurnInAnalyzer {
     }
   }
 
-  analyzeTestableDependencies(changedFiles: ChangedFiles): TestRunPlan {
-    const { testFiles, skipBurnInFiles, otherFiles, all } = changedFiles
-
-    // Key insight: Filter out changes that should be ignored
-    const relevantChanges =
-      testFiles.length + commonBurnInFiles.length + otherFiles.length
+  async analyzeTestableDependencies(
+    changedFiles: ChangedFiles
+  ): Promise<TestRunPlan> {
+    const { skipBurnInFiles, testFiles, otherFiles, all } = changedFiles
 
     // If ONLY skip files changed, skip all tests
-    if (relevantChanges === 0 && skipBurnInFiles.length > 0) {
+    if (all.length > 0 && all.length === skipBurnInFiles.length) {
       return {
         tests: [],
         reason: `Smart mode: Only skip-pattern files changed (${skipBurnInFiles.length} files), no tests needed`
@@ -131,53 +131,224 @@ export class BurnInAnalyzer {
     }
 
     // If nothing changed at all
-    if (relevantChanges === 0) {
+    if (all.length === 0) {
       return {
         tests: [],
         reason: 'Smart mode: No files changed'
       }
     }
 
-    // If we have any relevant changes, delegate to --only-changed but with percentage control
-    // This lets Playwright figure out dependencies while we control volume
-    if (this.config.commonBurnInTestPercentage) {
-      const percentage = this.config.commonBurnInTestPercentage
+    // Get the files that should affect tests (non-skip files)
+    const relevantFiles = [...testFiles, ...otherFiles]
+    const nonSkipCount = relevantFiles.length
+
+    console.log(
+      `🔍 Analyzing dependencies for ${relevantFiles.length} relevant files...`
+    )
+
+    // Use custom dependency analysis instead of Playwright's --only-changed
+    return await this.createCustomTestPlan(relevantFiles, nonSkipCount)
+  }
+
+  private async createCustomTestPlan(
+    relevantFiles: string[],
+    nonSkipCount: number
+  ): Promise<TestRunPlan> {
+    if (relevantFiles.length === 0) {
+      return {
+        tests: [],
+        reason: 'Smart mode: No relevant files changed after filtering'
+      }
+    }
+
+    try {
+      // Use madge to analyze dependencies and find which tests are affected
+      const affectedTests = await this.findAffectedTests(relevantFiles)
+
+      if (affectedTests.length === 0) {
+        return {
+          tests: [],
+          reason: `Smart mode: ${nonSkipCount} non-skip file(s) changed, but no tests depend on them`
+        }
+      }
+
+      console.log(`📊 Found ${affectedTests.length} tests affected by changes`)
+
+      // Apply percentage control
+      const percentage = this.config.burnInTestPercentage || 1
 
       // Validate percentage value
       if (percentage <= 0 || percentage > 1) {
         throw new Error(
-          `Invalid commonBurnInTestPercentage: ${percentage}. Must be greater than 0 and less than or equal to 1.`
+          `Invalid burnInTestPercentage: ${percentage}. Must be greater than 0 and less than or equal to 1.`
         )
       }
 
-      const shardCount = Math.ceil(1 / percentage)
+      // Calculate how many tests to run
+      const testsToRun = Math.ceil(affectedTests.length * percentage)
+      const selectedTests = affectedTests.slice(0, testsToRun)
 
-      // Describe what triggered the burn-in
-      let triggerDescription = ''
-      if (testFiles.length > 0) {
-        triggerDescription = `${testFiles.length} test file(s)`
+      return {
+        tests: selectedTests,
+        reason: `Smart mode: ${nonSkipCount} non-skip file(s) changed, found ${affectedTests.length} affected tests, running ${testsToRun} (${(percentage * 100).toFixed(0)}%)`
       }
-      if (commonBurnInFiles.length > 0) {
-        if (triggerDescription) triggerDescription += ', '
-        triggerDescription += `${commonBurnInFiles.length} common file(s)`
-      }
-      if (otherFiles.length > 0) {
-        if (triggerDescription) triggerDescription += ', '
-        triggerDescription += `${otherFiles.length} other file(s)`
-      }
+    } catch (error) {
+      console.warn(
+        '⚠️  Custom dependency analysis failed, falling back to percentage mode:',
+        error
+      )
+
+      // Fallback to percentage-based sharding if dependency analysis fails
+      const percentage = this.config.burnInTestPercentage || 1
+      const shardCount = Math.ceil(1 / percentage)
 
       return {
         tests: null,
-        flags: [`--shard=1/${shardCount}`],
-        reason: `Smart mode: ${triggerDescription} changed, running ${(percentage * 100).toFixed(0)}% of affected tests`
+        flags: [
+          `--shard=1/${shardCount}`,
+          `--only-changed=${this.options.baseBranch || 'main'}`
+        ],
+        reason: `Smart mode: ${nonSkipCount} non-skip file(s) changed, using fallback percentage mode (${(percentage * 100).toFixed(0)}%)`
+      }
+    }
+  }
+
+  private async findAffectedTests(changedFiles: string[]): Promise<string[]> {
+    // Get all test files in the project
+    const testPatterns = this.config.testPatterns || [
+      '**/*.spec.ts',
+      '**/*.test.ts'
+    ]
+    const allTestFiles = this.findTestFiles(testPatterns)
+
+    if (allTestFiles.length === 0) {
+      console.log('⚠️  No test files found')
+      return []
+    }
+
+    console.log(
+      `📁 Analyzing ${allTestFiles.length} test files for dependencies...`
+    )
+
+    // Use madge to analyze the dependency graph
+    const res = await madge(process.cwd(), {
+      fileExtensions: ['ts', 'js', 'tsx', 'jsx'],
+      tsConfig: this.findTsConfig(),
+      includeNpm: false,
+      detectiveOptions: {
+        skipTypeImports: false // Include type imports in analysis
+      }
+    })
+
+    const dependencyGraph = res.obj()
+    const affectedTests = new Set<string>()
+
+    // Find all tests that import any of the changed files (directly or indirectly)
+    for (const testFile of allTestFiles) {
+      if (
+        this.testDependsOnChangedFiles(testFile, changedFiles, dependencyGraph)
+      ) {
+        affectedTests.add(testFile)
       }
     }
 
-    // Default: Run all affected tests
-    return {
-      tests: null,
-      reason: 'Smart mode: Changes detected, running all affected tests'
+    return Array.from(affectedTests)
+  }
+
+  private findTsConfig(): string {
+    // Look for tsconfig files in common locations
+    const locations = [
+      'tsconfig.json',
+      'tsconfig.build.json',
+      'src/tsconfig.json'
+    ]
+    for (const location of locations) {
+      try {
+        execSync(`test -f ${location}`, { stdio: 'pipe' })
+        return location
+      } catch {
+        // Continue looking
+      }
     }
+    return 'tsconfig.json' // Default fallback
+  }
+
+  private findTestFiles(testPatterns: string[]): string[] {
+    try {
+      // Use git to find all tracked files matching test patterns
+      const gitFiles = execSync('git ls-files', {
+        encoding: 'utf-8',
+        stdio: 'pipe'
+      })
+        .trim()
+        .split('\n')
+
+      return gitFiles.filter((file) =>
+        testPatterns.some((pattern) => this.matchesPattern(file, pattern))
+      )
+    } catch {
+      console.warn('⚠️  Failed to get git files, using empty test list')
+      return []
+    }
+  }
+
+  private testDependsOnChangedFiles(
+    testFile: string,
+    changedFiles: string[],
+    dependencyGraph: Record<string, string[]>
+  ): boolean {
+    const visited = new Set<string>()
+    const queue = [path.resolve(testFile)]
+
+    // Normalize changed files to absolute paths for comparison
+    const normalizedChangedFiles = changedFiles.map((file) => {
+      if (path.isAbsolute(file)) {
+        return file
+      }
+      return path.resolve(process.cwd(), file)
+    })
+
+    while (queue.length > 0) {
+      const currentFile = queue.shift()!
+
+      if (visited.has(currentFile)) {
+        continue
+      }
+      visited.add(currentFile)
+
+      // Check if this file is one of our changed files
+      if (
+        normalizedChangedFiles.some((changed) => {
+          // Compare normalized paths
+          const normalizedCurrent = path.normalize(currentFile)
+          const normalizedChanged = path.normalize(changed)
+          return (
+            normalizedCurrent === normalizedChanged ||
+            normalizedCurrent.endsWith(
+              path.sep + path.basename(normalizedChanged)
+            ) ||
+            normalizedChanged.endsWith(
+              path.sep + path.basename(normalizedCurrent)
+            )
+          )
+        })
+      ) {
+        return true
+      }
+
+      // Add dependencies to queue for further checking
+      const dependencies = dependencyGraph[currentFile] || []
+      for (const dep of dependencies) {
+        const absoluteDep = path.isAbsolute(dep)
+          ? dep
+          : path.resolve(path.dirname(currentFile), dep)
+        if (!visited.has(absoluteDep)) {
+          queue.push(absoluteDep)
+        }
+      }
+    }
+
+    return false
   }
 
   buildCommand(plan: TestRunPlan): string[] | null {
@@ -202,23 +373,12 @@ export class BurnInAnalyzer {
     }
 
     if (plan.tests === null) {
-      // Use --only-changed
+      // Use --only-changed (fallback mode)
       const baseBranch = this.options.baseBranch || 'main'
       return [...baseCmd, `--only-changed=${baseBranch}`, ...burnInFlags]
     }
 
-    // Specific test files or patterns
-    const testArgs: string[] = []
-    plan.tests.forEach((test) => {
-      if (test.includes('*') || test.includes('(') || test.includes('|')) {
-        // It's a pattern, use -g flag
-        testArgs.push('-g', test)
-      } else {
-        // It's a file path
-        testArgs.push(test)
-      }
-    })
-
-    return [...baseCmd, ...testArgs, ...burnInFlags]
+    // Specific test files
+    return [...baseCmd, ...plan.tests, ...burnInFlags]
   }
 }
