@@ -51,6 +51,7 @@ async function main() {
   const options: Parameters<typeof runBurnIn>[0] = {
     // Always use the same config file - one source of truth
     configPath: 'playwright/config/.burn-in.config.ts'
+    baseBranch: 'master' // if it's not main by default
   }
 
   if (baseBranchArg) {

@@ -21,6 +21,8 @@ import {
 } from './index'
 // Auth session is imported separately as it's not part of the main exports
 import { configureAuthSession, getAuthToken } from './auth-session'
+// Burn-in is imported separately as it's not part of the main exports
+import { runBurnIn } from './burn-in'
 
 // Import modules directly to verify they're the same instance
 import * as apiUtils from './api-request'
@@ -37,6 +39,7 @@ import * as fileUtils from './file-utils'
 import * as fileUtilsFixtures from './file-utils/fixtures'
 import * as networkRecorderUtils from './network-recorder'
 import * as networkRecorderFixtures from './network-recorder/fixtures'
+import * as burnInUtils from './burn-in'
 
 describe('sanity tests', () => {
   describe('API exports', () => {
@@ -156,6 +159,14 @@ describe('sanity tests', () => {
       // Verify fixtures are exported
       expect(networkRecorderFixtures).toBeDefined()
       expect(networkRecorderFixtures.test).toBeDefined()
+    })
+
+    it('should properly export burn-in utilities', () => {
+      // Test main export function exists
+      expect(typeof runBurnIn).toBe('function')
+
+      // Verify same instance as direct import
+      expect(runBurnIn).toBe(burnInUtils.runBurnIn)
     })
   })
 

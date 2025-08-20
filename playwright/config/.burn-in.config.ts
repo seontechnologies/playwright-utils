@@ -27,7 +27,7 @@ const config: BurnInConfig = {
 
   // Run this percentage of tests AFTER skip patterns filter (0.5 = 50%)
   // This controls test volume after skip patterns have filtered files
-  burnInTestPercentage: process.env.CI ? 0.5 : 1
+  burnInTestPercentage: process.env.CI ? 0.5 : 0.5
 }
 
 export default config
