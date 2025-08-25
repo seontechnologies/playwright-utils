@@ -107,14 +107,36 @@ export class BurnInAnalyzer {
 
   private isSkipBurnInFile(file: string): boolean {
     const patterns = this.config.skipBurnInPatterns || []
-    return patterns.some((pattern) => this.matchesPattern(file, pattern))
+    const isSkipped = patterns.some((pattern) => {
+      const matches = this.matchesPattern(file, pattern)
+      if (file.includes('network-record-playback')) {
+        console.log(
+          `    🔍 Checking "${file}" against pattern "${pattern}": ${matches}`
+        )
+      }
+      return matches
+    })
+    if (file.includes('network-record-playback')) {
+      console.log(`    📌 Final skip decision for "${file}": ${isSkipped}`)
+    }
+    return isSkipped
   }
 
   private matchesPattern(file: string, pattern: string): boolean {
     // Use picomatch for safe and proper glob matching
     try {
       const isMatch = picomatch(pattern)
-      return isMatch(file)
+      const result = isMatch(file)
+
+      // Debug logging for network-record-playback tests
+      if (
+        file.includes('network-record-playback') &&
+        pattern.includes('network-record-playback')
+      ) {
+        console.log(`      📐 picomatch("${pattern}")("${file}") = ${result}`)
+      }
+
+      return result
     } catch (error) {
       // If pattern is invalid, log warning and return false
       console.warn(`Invalid glob pattern: ${pattern}`, error)
