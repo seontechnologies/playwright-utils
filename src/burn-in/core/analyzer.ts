@@ -257,7 +257,23 @@ export class BurnInAnalyzer {
       }
     }
 
-    return Array.from(affectedTests)
+    // Filter out any affected tests that match skip patterns
+    const skipPatterns = this.config.skipBurnInPatterns || []
+    const filteredAffectedTests = Array.from(affectedTests).filter(
+      (testFile) =>
+        !skipPatterns.some((skipPattern) =>
+          this.matchesPattern(testFile, skipPattern)
+        )
+    )
+
+    const skippedTestsCount = affectedTests.size - filteredAffectedTests.length
+    if (skippedTestsCount > 0) {
+      console.log(
+        `🚫 Filtered out ${skippedTestsCount} affected test(s) matching skip patterns`
+      )
+    }
+
+    return filteredAffectedTests
   }
 
   private findTsConfig(): string {
