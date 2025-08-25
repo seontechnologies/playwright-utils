@@ -5,6 +5,7 @@
 import type { BrowserContext, Route } from '@playwright/test'
 import { promises as fs } from 'fs'
 import type { HarFile, HarEntry } from './har-builder'
+import type { HarPlaybackOptions } from './types'
 import { log } from '../../log'
 
 type RequestKey = string
@@ -30,10 +31,67 @@ const loadHarFile = async (harFilePath: string): Promise<HarFile | null> => {
 }
 
 /**
- * Create request key for matching
+ * Map URL from current environment to recorded environment for HAR lookup
+ * This enables cross-environment playback (e.g., recorded on dev, played on preview)
  */
-const createRequestKey = (method: string, url: string): RequestKey =>
-  `${method}:${url}`
+const mapUrlForHarLookup = (
+  currentUrl: string,
+  urlMapping?: HarPlaybackOptions['urlMapping']
+): string => {
+  if (!urlMapping) {
+    return currentUrl
+  }
+
+  try {
+    // 1. Custom function takes precedence
+    if (urlMapping.mapUrl) {
+      return urlMapping.mapUrl(currentUrl)
+    }
+
+    const url = new URL(currentUrl)
+
+    // 2. Simple hostname mapping
+    if (urlMapping.hostMapping) {
+      const mappedHost = urlMapping.hostMapping[url.hostname]
+      if (typeof mappedHost === 'string') {
+        url.hostname = mappedHost
+        return url.toString()
+      }
+    }
+
+    // 3. Regex pattern matching
+    if (urlMapping.patterns) {
+      let mappedUrl = currentUrl
+      for (const pattern of urlMapping.patterns) {
+        if (pattern.match.test(url.hostname)) {
+          if (typeof pattern.replace === 'string') {
+            url.hostname = url.hostname.replace(pattern.match, pattern.replace)
+          } else {
+            url.hostname = pattern.replace(url.hostname)
+          }
+          return url.toString()
+        }
+      }
+      return mappedUrl
+    }
+
+    return currentUrl
+  } catch {
+    return currentUrl
+  }
+}
+
+/**
+ * Create request key for matching, with URL mapping for cross-environment support
+ */
+const createRequestKey = (
+  method: string,
+  url: string,
+  urlMapping?: HarPlaybackOptions['urlMapping']
+): RequestKey => {
+  const mappedUrl = mapUrlForHarLookup(url, urlMapping)
+  return `${method}:${mappedUrl}`
+}
 
 /**
  * Sort HAR entries by timestamp to maintain chronological order
@@ -48,11 +106,18 @@ const sortHarEntries = (entries: HarEntry[]): HarEntry[] =>
 /**
  * Group HAR entries by request key for faster lookup
  */
-const groupEntriesByUrl = (entries: HarEntry[]): HarEntryMap => {
+const groupEntriesByUrl = (
+  entries: HarEntry[],
+  urlMapping?: HarPlaybackOptions['urlMapping']
+): HarEntryMap => {
   const entriesByUrl = new Map<RequestKey, HarEntry[]>()
 
   for (const entry of entries) {
-    const key = createRequestKey(entry.request.method, entry.request.url)
+    const key = createRequestKey(
+      entry.request.method,
+      entry.request.url,
+      urlMapping
+    )
 
     if (!entriesByUrl.has(key)) {
       entriesByUrl.set(key, [])
@@ -270,12 +335,16 @@ const fulfillRoute = async (
  * Log request interception for debugging
  */
 const logRequestInterception = async (
-  url: string,
+  originalUrl: string,
+  mappedUrl: string,
   method: string,
   entriesCount: number
 ): Promise<void> => {
-  if (url.includes('/movies')) {
-    await log.debug(`🔍 Request intercepted: ${method} ${url}`)
+  if (originalUrl.includes('/movies') || originalUrl !== mappedUrl) {
+    await log.debug(`🔍 Request intercepted: ${method} ${originalUrl}`)
+    if (originalUrl !== mappedUrl) {
+      await log.debug(`  🔄 Mapped for HAR lookup: ${mappedUrl}`)
+    }
     await log.debug(`  Entries found: ${entriesCount}`)
   }
 }
@@ -284,22 +353,23 @@ const logRequestInterception = async (
  * Create route handler for HAR playback
  */
 const createRouteHandler =
-  (state: PlaybackState, options: { fallback?: boolean }) =>
+  (state: PlaybackState, options: HarPlaybackOptions) =>
   async (route: Route): Promise<void> => {
     const request = route.request()
-    const url = request.url()
+    const originalUrl = request.url()
     const method = request.method()
-    const key = createRequestKey(method, url)
+    const key = createRequestKey(method, originalUrl, options.urlMapping)
+    const mappedUrl = mapUrlForHarLookup(originalUrl, options.urlMapping)
 
     // Find matching entries
     const entries = state.entriesByUrl.get(key) || []
 
     // Log request interception
-    await logRequestInterception(url, method, entries.length)
+    await logRequestInterception(originalUrl, mappedUrl, method, entries.length)
 
     // Handle no matches
     if (entries.length === 0) {
-      await handleNoMatch(route, url, method, options)
+      await handleNoMatch(route, originalUrl, method, options)
       return
     }
 
@@ -307,10 +377,10 @@ const createRouteHandler =
     const matchedEntry = await selectHarEntry(entries, key, state.usedIndexMap)
 
     // Log matched entry details
-    await logMatchedEntry(url, method, matchedEntry)
+    await logMatchedEntry(originalUrl, method, matchedEntry)
 
     // Fulfill the route
-    await fulfillRoute(route, matchedEntry, url, method)
+    await fulfillRoute(route, matchedEntry, originalUrl, method)
   }
 
 /**
@@ -319,7 +389,7 @@ const createRouteHandler =
 export async function setupCustomHarPlayback(
   context: BrowserContext,
   harFilePath: string,
-  options: { fallback?: boolean } = {}
+  options: HarPlaybackOptions = {}
 ): Promise<void> {
   // Load and parse HAR file
   const harData = await loadHarFile(harFilePath)
@@ -332,7 +402,7 @@ export async function setupCustomHarPlayback(
 
   // Process HAR entries
   const sortedEntries = sortHarEntries(harData.log.entries)
-  const entriesByUrl = groupEntriesByUrl(sortedEntries)
+  const entriesByUrl = groupEntriesByUrl(sortedEntries, options.urlMapping)
 
   // Initialize playback state
   const state: PlaybackState = {

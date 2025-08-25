@@ -126,13 +126,14 @@ test.describe('movie crud e2e - browser only (network recorder)', () => {
 
 While Playwright offers built-in HAR recording via `context.routeFromHAR()`, our utility provides several key advantages:
 
-| Native Playwright                          | Our Network Recorder Utility           |
-| ------------------------------------------ | -------------------------------------- |
-| ~80 lines of boilerplate setup             | ~5 lines total setup                   |
-| Manual HAR file management                 | Automatic file organization            |
-| Complex setup/teardown                     | Automatic cleanup via fixtures         |
-| **Read-only tests only**                   | **Full CRUD operations supported**     |
-| **Stateless - breaks realistic scenarios** | **Stateful mocking - works naturally** |
+| Native Playwright                          | Our Network Recorder Utility                 |
+| ------------------------------------------ | -------------------------------------------- |
+| ~80 lines of boilerplate setup             | ~5 lines total setup                         |
+| Manual HAR file management                 | Automatic file organization                  |
+| Complex setup/teardown                     | Automatic cleanup via fixtures               |
+| **Read-only tests only**                   | **Full CRUD operations supported**           |
+| **Stateless - breaks realistic scenarios** | **Stateful mocking - works naturally**       |
+| **No cross-environment support**           | **Flexible URL mapping for any environment** |
 
 For a complete code comparison showing these differences in action, see [Comparison with Native Playwright](#comparison-with-native-playwright-detailed).
 
@@ -360,11 +361,121 @@ This happens automatically - no configuration needed!
 
 ### Cross-Environment Compatibility
 
-The recorder automatically handles CORS headers based on the request origin, making your tests portable:
+**The Problem**: When you record network traffic on one environment (e.g., `dev.example.com`) and try to play it back on another environment (e.g., `staging.example.com`), the test fails because:
 
-- Record on `https://dev.example.com`
-- Playback on `https://stage.example.com`
-- Playback on `http://localhost:3000`
+- The HAR file contains URLs for `dev.example.com`
+- Your test is running on `staging.example.com`
+- The recorder can't find matching entries and returns `net::ERR_FAILED`
+
+**The Solution**: URL mapping allows the same HAR file to work across all environments by translating URLs during playback.
+
+The recorder provides flexible URL mapping options to make your tests fully portable across environments:
+
+#### Configuration Options
+
+**1. Simple Hostname Mapping**
+
+```typescript
+await networkRecorder.setup(context, {
+  playback: {
+    urlMapping: {
+      hostMapping: {
+        'preview.example.com': 'dev.example.com',
+        'staging.example.com': 'dev.example.com',
+        'localhost:3000': 'dev.example.com'
+      }
+    }
+  }
+})
+```
+
+**2. Pattern-Based Mapping (Recommended)**
+
+```typescript
+await networkRecorder.setup(context, {
+  playback: {
+    urlMapping: {
+      patterns: [
+        // Map any preview-XXXX subdomain to dev
+        { match: /preview-\d+\.example\.com/, replace: 'dev.example.com' }
+      ]
+    }
+  }
+})
+```
+
+**3. Custom Function**
+
+```typescript
+await networkRecorder.setup(context, {
+  playback: {
+    urlMapping: {
+      mapUrl: (url) => {
+        // Your custom logic here
+        return url.replace('staging.example.com', 'dev.example.com')
+      }
+    }
+  }
+})
+```
+
+**4. Complex Multi-Environment Example**
+
+For enterprise applications with many environments, you can combine all approaches:
+
+```typescript
+// Real-world configuration for multiple environments
+await networkRecorder.setup(context, {
+  playback: {
+    urlMapping: {
+      // Static mapping for known environments
+      hostMapping: {
+        // Local development
+        'localhost:3000': 'admin.seondev.space',
+
+        // Staging environments
+        'admin-staging.seon.io': 'admin.seondev.space',
+        'admin-staging.us-east-1-main.seon.io': 'admin.seondev.space',
+
+        // Production environments
+        'admin.seon.io': 'admin.seondev.space',
+        'admin.us-east-1-main.seon.io': 'admin.seondev.space',
+        'admin.ap-southeast-1-main.seon.io': 'admin.seondev.space'
+      },
+
+      // Pattern matching for dynamic environments
+      patterns: [
+        // PR preview environments (admin-1234.seondev.space)
+        { match: /admin-\d+\.seondev\.space/, replace: 'admin.seondev.space' },
+
+        // Staging PR previews
+        {
+          match: /admin-staging-pr-\w+-\d\.seon\.io/,
+          replace: 'admin.seondev.space'
+        }
+      ]
+    }
+  }
+})
+```
+
+**How it works:**
+
+- URLs are mapped during HAR lookup to find matching recorded entries
+- CORS headers are automatically updated based on the request origin
+- All network traffic "just works" regardless of which environment you recorded on
+
+**Benefits of this approach:**
+
+- **Record once on dev**: All environments map back to your dev recordings
+- **Environment isolation**: Each environment gets its own test runs
+
+**Debug URL mapping:**
+
+```bash
+LOG_LEVEL=debug npm run test
+# Shows: 🔄 Mapped for HAR lookup: https://dev.example.com/api/v2/endpoint
+```
 
 ## API Reference
 
@@ -663,7 +774,7 @@ test.describe('movie crud e2e - browser only (network recorder)', () => {
 })
 ```
 
-### Key Differences Summary:
+### Key Differences Summary
 
 | **Native Playwright**                         | **Our Network Recorder**                  |
 | --------------------------------------------- | ----------------------------------------- |
