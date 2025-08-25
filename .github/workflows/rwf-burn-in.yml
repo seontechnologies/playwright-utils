@@ -30,8 +30,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shardIndex: [1, 2]
-        shardTotal: [2]
+        shardIndex: [1]
+        shardTotal: [1] # with smart burn-in, we don't need sharding for now
     permissions:
       id-token: write
       contents: read
@@ -45,7 +45,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: '0'
-          
+
       # Use the install composite action
       - name: Setup Node and Install Dependencies
         uses: ./.github/actions/install
@@ -85,7 +85,7 @@ jobs:
         run: |
           # Ensure base branch is available
           git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
-          
+
           # Use npm script for consistency - config path is hardcoded in script
           npm run test:pw:burn-in-changed -- --base-branch=${{ inputs.base-ref }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 

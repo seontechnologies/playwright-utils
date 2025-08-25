@@ -294,25 +294,24 @@ export class BurnInAnalyzer {
 
       // Filter out test files that match skip patterns
       const skipPatterns = this.config.skipBurnInPatterns || []
-      if (skipPatterns.length > 0) {
-        const filteredTestFiles = allTestFiles.filter(
-          (testFile) =>
-            !skipPatterns.some((skipPattern) =>
-              this.matchesPattern(testFile, skipPattern)
+      const filteredTestFiles =
+        skipPatterns.length > 0
+          ? allTestFiles.filter(
+              (testFile) =>
+                !skipPatterns.some((skipPattern) =>
+                  this.matchesPattern(testFile, skipPattern)
+                )
             )
+          : allTestFiles
+
+      const skippedCount = allTestFiles.length - filteredTestFiles.length
+      if (skippedCount > 0) {
+        console.log(
+          `🚫 Filtered out ${skippedCount} test file(s) matching skip patterns`
         )
-
-        const skippedCount = allTestFiles.length - filteredTestFiles.length
-        if (skippedCount > 0) {
-          console.log(
-            `🚫 Filtered out ${skippedCount} test file(s) matching skip patterns`
-          )
-        }
-
-        return filteredTestFiles
       }
 
-      return allTestFiles
+      return filteredTestFiles
     } catch {
       console.warn('⚠️  Failed to get git files, using empty test list')
       return []
