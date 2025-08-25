@@ -295,7 +295,7 @@ export class BurnInAnalyzer {
       // Filter out test files that match skip patterns
       const skipPatterns = this.config.skipBurnInPatterns || []
       const filteredTestFiles =
-        skipPatterns.length > 0
+        skipPatterns.length > 0 && allTestFiles.length > 0
           ? allTestFiles.filter(
               (testFile) =>
                 !skipPatterns.some((skipPattern) =>
