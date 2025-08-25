@@ -63,14 +63,16 @@ const mapUrlForHarLookup = (
     if (urlMapping.patterns) {
       let mappedUrl = currentUrl
       for (const pattern of urlMapping.patterns) {
-        if (pattern.match.test(url.hostname)) {
-          if (typeof pattern.replace === 'string') {
-            url.hostname = url.hostname.replace(pattern.match, pattern.replace)
-          } else {
-            url.hostname = pattern.replace(url.hostname)
-          }
-          return url.toString()
-        }
+if (pattern.match.test(url.hostname)) {
+  if (pattern.replace === undefined) {
+    continue;
+  } else if (typeof pattern.replace === 'string') {
+    url.hostname = url.hostname.replace(pattern.match, pattern.replace)
+  } else {
+    url.hostname = pattern.replace(url.hostname)
+  }
+  return url.toString()
+}
       }
       return mappedUrl
     }
