@@ -287,3 +287,5 @@ test.describe('Network Recorder - Mode Detection', () => {
     expect(recorderContext.mode).toBe('record')
   })
 })
+
+// testing smart burn-in, remove this line later

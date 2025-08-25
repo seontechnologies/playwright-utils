@@ -4,6 +4,7 @@ const config: BurnInConfig = {
   // Files that should skip burn-in entirely (config, constants, types)
   skipBurnInPatterns: [
     '**/config/**',
+    '**/network-record-playback/**',
     '**/configuration/**',
     '**/playwright.config.ts',
     '**/*featureFlags*',
