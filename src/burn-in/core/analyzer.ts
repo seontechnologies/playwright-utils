@@ -22,10 +22,15 @@ type TestRunPlan = {
 }
 
 export class BurnInAnalyzer {
+  private debugMode: boolean
+
   constructor(
     private config: BurnInConfig,
     private options: BurnInOptions
-  ) {}
+  ) {
+    // Enable debug mode via config or environment variable
+    this.debugMode = this.config.debug || process.env.BURN_IN_DEBUG === 'true'
+  }
 
   getChangedFiles(baseBranch: string): ChangedFiles {
     // Input validation
@@ -109,16 +114,16 @@ export class BurnInAnalyzer {
     const patterns = this.config.skipBurnInPatterns || []
     const isSkipped = patterns.some((pattern) => {
       const matches = this.matchesPattern(file, pattern)
-      if (file.includes('network-record-playback')) {
-        console.log(
-          `    🔍 Checking "${file}" against pattern "${pattern}": ${matches}`
-        )
+      if (this.debugMode && matches) {
+        console.log(`    🔍 File "${file}" matches skip pattern "${pattern}"`)
       }
       return matches
     })
-    if (file.includes('network-record-playback')) {
-      console.log(`    📌 Final skip decision for "${file}": ${isSkipped}`)
+
+    if (this.debugMode && patterns.length > 0) {
+      console.log(`    📌 Skip decision for "${file}": ${isSkipped}`)
     }
+
     return isSkipped
   }
 
@@ -126,17 +131,7 @@ export class BurnInAnalyzer {
     // Use picomatch for safe and proper glob matching
     try {
       const isMatch = picomatch(pattern)
-      const result = isMatch(file)
-
-      // Debug logging for network-record-playback tests
-      if (
-        file.includes('network-record-playback') &&
-        pattern.includes('network-record-playback')
-      ) {
-        console.log(`      📐 picomatch("${pattern}")("${file}") = ${result}`)
-      }
-
-      return result
+      return isMatch(file)
     } catch (error) {
       // If pattern is invalid, log warning and return false
       console.warn(`Invalid glob pattern: ${pattern}`, error)
