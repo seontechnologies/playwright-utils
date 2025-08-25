@@ -140,10 +140,75 @@ const config: BurnInConfig = {
   },
 
   // Run this percentage of tests AFTER dependency analysis (0.5 = 50%)
-  burnInTestPercentage: process.env.CI ? 0.5 : 1
+  burnInTestPercentage: process.env.CI ? 0.5 : 1,
+
+  // Enable verbose debug output for pattern matching (optional)
+  debug: false
 }
 
 export default config
+```
+
+## Debugging and Troubleshooting
+
+### Debug Mode
+
+If your skip patterns aren't working as expected, enable debug mode to see detailed pattern matching information:
+
+**Option 1 - Via Configuration:**
+```typescript
+const config: BurnInConfig = {
+  skipBurnInPatterns: [
+    '**/some-folder/**',
+    // ... other patterns
+  ],
+  debug: true  // Enable verbose debug output
+}
+```
+
+**Option 2 - Via Environment Variable:**
+```bash
+BURN_IN_DEBUG=true npm run test:pw:burn-in-changed
+```
+
+Debug mode will show:
+- Which patterns are being checked against each file
+- Which patterns match
+- Final skip decisions for each file
+
+### Common Issues and Solutions
+
+#### 1. Config File Not Found
+
+**Problem**: Skip patterns from default config are being used instead of your custom patterns.
+
+**Solution**: Ensure your config path in the burn-in script matches the actual location:
+```typescript
+// If your config is at project-root/.burn-in.config.ts
+configPath: '.burn-in.config.ts'
+
+// If it's in a subdirectory
+configPath: 'config/.burn-in.config.ts'
+```
+
+#### 2. Patterns Not Matching
+
+**Problem**: Files aren't being skipped even though they seem to match the pattern.
+
+**Common causes and solutions:**
+- **Wrong glob syntax**: Use `**/folder/**` to match all files in a folder and subfolders
+- **Missing variations**: Include both `**/folder/**` and `**/folder/*` to cover all cases
+- **Path format**: Patterns are matched against relative paths from the repository root
+
+**Example patterns:**
+```typescript
+skipBurnInPatterns: [
+  '**/node_modules/**',          // Skip all node_modules
+  '**/dist/**',                   // Skip built files
+  '**/*.config.ts',               // Skip all config files
+  '**/tests/experimental/**',     // Skip experimental test folder
+  'specific-file.ts',             // Skip a specific file
+]
 ```
 
 ## Best Practices

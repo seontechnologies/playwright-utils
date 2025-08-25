@@ -15,6 +15,9 @@ export type BurnInConfig = {
 
   /** Percentage of tests to run AFTER skip patterns filter (e.g., 0.1 for 10%) */
   burnInTestPercentage?: number
+
+  /** Enable verbose debug output for pattern matching (can also use BURN_IN_DEBUG env var) */
+  debug?: boolean
 }
 
 export type BurnInOptions = {
