@@ -88,6 +88,49 @@ export type HarPlaybackOptions = {
    * @default false
    */
   updateMode?: boolean
+  /**
+   * URL mapping configuration for cross-environment playback
+   */
+  urlMapping?: {
+    /**
+     * Custom function to map URLs from current environment to recorded environment
+     * @example
+     * ```typescript
+     * urlMapping: {
+     *   mapUrl: (url) => url.replace('preview.example.com', 'dev.example.com')
+     * }
+     * ```
+     */
+    mapUrl?: (url: string) => string
+    /**
+     * Simple hostname mapping
+     * @example
+     * ```typescript
+     * urlMapping: {
+     *   hostMapping: {
+     *     'preview.example.com': 'dev.example.com',
+     *     'staging.example.com': 'dev.example.com'
+     *   }
+     * }
+     * ```
+     */
+    hostMapping?: Record<string, string>
+    /**
+     * Regex-based URL transformations
+     * @example
+     * ```typescript
+     * urlMapping: {
+     *   patterns: [
+     *     { match: /admin-\d+\.seondev\.space/, replace: 'admin.seondev.space' }
+     *   ]
+     * }
+     * ```
+     */
+    patterns?: Array<{
+      match: RegExp
+      replace: string | ((match: string) => string)
+    }>
+  }
 }
 
 // =========================================================================

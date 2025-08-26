@@ -327,9 +327,7 @@ export class NetworkRecorder {
       )
       await log.debug(`   Fallback mode: ${playbackOptions.fallback}`)
 
-      await setupCustomHarPlayback(context, this.harFilePath, {
-        fallback: playbackOptions.fallback
-      })
+      await setupCustomHarPlayback(context, this.harFilePath, playbackOptions)
     }
   }
 
