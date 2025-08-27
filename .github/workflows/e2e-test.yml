@@ -185,5 +185,5 @@ jobs:
           echo "* Environment: dev" >> $GITHUB_STEP_SUMMARY
           echo "* Test Command: npm run test:pw" >> $GITHUB_STEP_SUMMARY
           echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
-          echo "* Download [Playwright HTML Report](${{ steps.upload_html_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+          echo "* Download Playwright HTML Report from the Actions artifacts" >> $GITHUB_STEP_SUMMARY
           echo "* Check the trace files - [How to view traces](https://playwright.dev/docs/trace-viewer-intro)" >> $GITHUB_STEP_SUMMARY
