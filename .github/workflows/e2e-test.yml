@@ -146,9 +146,16 @@ jobs:
   merge-reports:
     needs: e2e-test
     # even if the previous jobs in the needs: list failed, still run this job
-    if: always() && needs.burn-in.outputs.runE2E == 'true'
+    if: always() && (needs.burn-in.outputs.runE2E == 'true' || needs.burn-in.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node and Install Dependencies
+        uses: ./.github/actions/install
+        with:
+          install-command: npm ci
+          node-version-file: '.nvmrc'
       - name: Download shard reports
         uses: actions/download-artifact@v4
         with:
@@ -163,8 +170,20 @@ jobs:
           npx playwright merge-reports --reporter=html all-blob-reports
 
       - name: Upload merged report
+        id: upload_html_report
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report
           retention-days: 3
+
+      - name: Generate GitHub Actions UI summary
+        if: always()
+        run: |
+          echo "## Playwright-Utils E2E Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "* Environment: dev" >> $GITHUB_STEP_SUMMARY
+          echo "* Test Command: npm run test:pw" >> $GITHUB_STEP_SUMMARY
+          echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "* Download Playwright HTML Report from the Actions artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "* Check the trace files - [How to view traces](https://playwright.dev/docs/trace-viewer-intro)" >> $GITHUB_STEP_SUMMARY
