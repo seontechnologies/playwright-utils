@@ -1,6 +1,6 @@
 {
   "name": "@seontechnologies/playwright-utils",
-  "version": "3.6.4",
+  "version": "3.6.5",
   "description": "A collection of utilities for Playwright.",
   "workspaces": [
     "sample-app/*"
