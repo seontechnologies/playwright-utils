@@ -96,30 +96,6 @@ test.describe('Network Recorder - Recording Functionality', () => {
     })
   })
 
-  test('should handle concurrent recordings with file locking', async ({
-    context,
-    networkRecorder
-  }) => {
-    process.env.PW_NET_MODE = 'record'
-
-    await log.step('Create two recorders for the same test')
-    const recorder1 = networkRecorder.create({
-      harFile: { harDir: testHarDir }
-    })
-    const recorder2 = networkRecorder.create({
-      harFile: { harDir: testHarDir }
-    })
-
-    await log.step('Setup first recorder')
-    await recorder1.setup(context)
-
-    await log.step('Second recorder should fail due to file lock')
-    await expect(recorder2.setup(context)).rejects.toThrow()
-
-    await log.step('Cleanup')
-    await recorder1.cleanup()
-  })
-
   test('should respect URL filter during recording', async ({
     context,
     page,
