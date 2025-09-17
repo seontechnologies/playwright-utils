@@ -1,6 +1,6 @@
 {
   "name": "@seontechnologies/playwright-utils",
-  "version": "3.6.4",
+  "version": "3.6.5",
   "description": "A collection of utilities for Playwright.",
   "workspaces": [
     "sample-app/*"
@@ -165,13 +165,13 @@
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.20",
     "@types/madge": "^5.0.3",
-    "@types/node": "22.17.2",
+    "@types/node": "22.18.4",
     "@types/papaparse": "5.3.16",
     "@types/picomatch": "4.0.2",
     "@types/proper-lockfile": "4.1.4",
     "@types/uuid": "10.0.0",
-    "@typescript-eslint/eslint-plugin": "8.40.0",
-    "@typescript-eslint/parser": "8.40.0",
+    "@typescript-eslint/eslint-plugin": "8.44.0",
+    "@typescript-eslint/parser": "8.44.0",
     "dotenv": "16.6.1",
     "eslint": "8.57.1",
     "eslint-config-prettier": "10.1.8",
@@ -186,9 +186,9 @@
     "lodash": "4.17.21",
     "npm-run-all2": "7.0.2",
     "prettier": "3.6.2",
-    "ts-jest": "29.4.1",
+    "ts-jest": "29.4.2",
     "ts-node": "10.9.2",
-    "tsx": "4.20.4",
+    "tsx": "4.20.5",
     "typescript": "5.9.2"
   },
   "dependencies": {
@@ -199,7 +199,7 @@
     "papaparse": "5.5.3",
     "picomatch": "4.0.3",
     "proper-lockfile": "4.1.2",
-    "unpdf": "1.2.1",
+    "unpdf": "1.2.2",
     "uuid": "11.1.0"
   }
 }

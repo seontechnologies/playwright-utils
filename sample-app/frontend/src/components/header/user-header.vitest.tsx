@@ -4,21 +4,33 @@ import {
   describe,
   it,
   screen,
-  expect
+  expect,
+  beforeEach
 } from '@vitest-utils/utils'
 import { vi } from 'vitest'
 
 const username = 'testuser'
 const userIdentifier = 'admin'
-// Define mock before the test - vi.mock is hoisted to the top
-vi.mock('../../hooks/use-auth', () => ({
-  useAuth: () => ({
-    currentUser: { username, userIdentifier },
-    logout: vi.fn()
-  })
-}))
 
 describe('<UserHeader />', () => {
+  beforeEach(() => {
+    // Set up localStorage with user data
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: vi.fn((key) => {
+          if (key === 'seon-user-identity') {
+            return JSON.stringify({ username, userIdentifier })
+          }
+          return null
+        }),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn()
+      },
+      writable: true
+    })
+  })
+
   it('renders with user information', () => {
     wrappedRender(<UserHeader />)
 
