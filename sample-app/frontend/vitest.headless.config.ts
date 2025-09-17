@@ -6,8 +6,13 @@ import merge from 'lodash/merge'
 const browserConfig: UserConfigExport = {
   test: {
     browser: {
-      headless: true,
-      name: 'chromium'
+      instances: [
+        {
+          browser: 'chromium',
+          name: 'chromium-headless'
+        }
+      ],
+      headless: true
     }
   }
 }

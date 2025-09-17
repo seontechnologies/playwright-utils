@@ -156,22 +156,25 @@ export default config
 If your skip patterns aren't working as expected, enable debug mode to see detailed pattern matching information:
 
 **Option 1 - Via Configuration:**
+
 ```typescript
 const config: BurnInConfig = {
   skipBurnInPatterns: [
-    '**/some-folder/**',
+    '**/some-folder/**'
     // ... other patterns
   ],
-  debug: true  // Enable verbose debug output
+  debug: true // Enable verbose debug output
 }
 ```
 
 **Option 2 - Via Environment Variable:**
+
 ```bash
 BURN_IN_DEBUG=true npm run test:pw:burn-in-changed
 ```
 
 Debug mode will show:
+
 - Which patterns are being checked against each file
 - Which patterns match
 - Final skip decisions for each file
@@ -183,6 +186,7 @@ Debug mode will show:
 **Problem**: Skip patterns from default config are being used instead of your custom patterns.
 
 **Solution**: Ensure your config path in the burn-in script matches the actual location:
+
 ```typescript
 // If your config is at project-root/.burn-in.config.ts
 configPath: '.burn-in.config.ts'
@@ -196,18 +200,20 @@ configPath: 'config/.burn-in.config.ts'
 **Problem**: Files aren't being skipped even though they seem to match the pattern.
 
 **Common causes and solutions:**
+
 - **Wrong glob syntax**: Use `**/folder/**` to match all files in a folder and subfolders
 - **Missing variations**: Include both `**/folder/**` and `**/folder/*` to cover all cases
 - **Path format**: Patterns are matched against relative paths from the repository root
 
 **Example patterns:**
+
 ```typescript
 skipBurnInPatterns: [
-  '**/node_modules/**',          // Skip all node_modules
-  '**/dist/**',                   // Skip built files
-  '**/*.config.ts',               // Skip all config files
-  '**/tests/experimental/**',     // Skip experimental test folder
-  'specific-file.ts',             // Skip a specific file
+  '**/node_modules/**', // Skip all node_modules
+  '**/dist/**', // Skip built files
+  '**/*.config.ts', // Skip all config files
+  '**/tests/experimental/**', // Skip experimental test folder
+  'specific-file.ts' // Skip a specific file
 ]
 ```
 
