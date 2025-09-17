@@ -92,5 +92,6 @@ Tests use `TEST_ENV` environment variable (defaults to 'local'). The sample app 
 ## BMAD Installation
 
 ### Available Modules
+
 - **core**: .claude/commands/bmad/core/
 - **bmm**: .claude/commands/bmad/bmm/

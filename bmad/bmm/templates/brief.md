@@ -48,7 +48,7 @@
         - Urgency and importance of solving this now
 
         <llm><i>Push for specificity and evidence. Challenge vague statements.</i></llm>
-        
+
 <llm critical="true">
   <i>IF market research has not been provided as input, MANDATORY: Use the 'bmm-market-researcher' subagent to validate the problem statement and assess market opportunity.</i>
 </llm>
@@ -85,7 +85,7 @@
             - Goals they're trying to achieve
 
             <llm><i>Be specific - avoid generic personas like "busy professionals"</i></llm>
-            
+
 <llm critical="true">
   <i>IF target user analysis has not been provided, MANDATORY: Use the 'bmm-user-researcher' subagent to develop detailed user profiles and validate user needs.</i>
 </llm>
@@ -127,7 +127,7 @@
           <instruction>
             List 3-5 KPIs with definitions and targets.
             Format: "- KPI Name: Definition and target value"
-            
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-data-analyst' subagent to define and validate KPIs, success metrics, and measurement approaches.</i>
 </llm>
@@ -232,7 +232,7 @@
             - Hosting/Infrastructure preferences
 
             <llm><i>Note these are preferences, not decisions - let the user know also that PM and Architect will finalize</i></llm>
-            
+
 <llm critical="true">
   <i>IF technical assumptions need validation, use the 'bmm-technical-evaluator' subagent to assess feasibility and identify technical risks.</i>
 </llm>
@@ -266,7 +266,7 @@
             - **Timeline:** Target dates or deadlines
             - **Resources:** Team size and expertise available
             - **Technical:** Technical limitations or requirements
-            
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-requirements-analyst' subagent to extract initial high-level requirements from the brief content.</i>
 </llm>
@@ -317,7 +317,7 @@
     <section id="appendices" title="Appendices" status="optional">
       <instruction>
         Include supporting materials and references.
-        
+
 <llm critical="true">
   <i>MANDATORY: Before finalizing the brief, use the 'bmm-document-reviewer' subagent to ensure completeness and internal consistency.</i>
 </llm>

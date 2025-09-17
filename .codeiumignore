@@ -1,0 +1,51 @@
+# Codeium ignore file for Windsurf PR reviews
+# This file uses the same syntax as .gitignore but allows ignoring files that can't be in .gitignore
+
+# Lock files (can't be in .gitignore but should be ignored for PR reviews)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.lock
+
+# Node modules and dependencies
+node_modules/
+/dist
+/build
+/coverage
+
+# Large markdown files that can cause PR review issues
+# Files over ~500 lines tend to be problematic for PR reviews
+docs/auth-session.md
+docs/network-recorder.md
+docs/api-request.md
+docs/intercept-network-call.md
+docs/bmad-method/
+
+# Generated files and logs
+/test-results/
+/playwright-report/
+/playwright-logs/
+/playwright/playwright-logs
+/blob-report/
+/playwright/.cache/
+*.log
+sample-app/backend/test-events/movie-events.log
+
+# HAR files (can be large and not useful for code review)
+har-files/
+*.har
+*.har.lock
+
+# Temporary and cache files
+.DS_Store
+.env
+.vscode
+.auth
+**/__screenshots__/
+downloads/
+
+# Build artifacts
+es/checkly-pw-examples
+
+# Other large or generated content that doesn't need review
+CLAUDE.md

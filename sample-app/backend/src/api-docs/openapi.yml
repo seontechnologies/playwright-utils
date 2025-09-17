@@ -25,7 +25,7 @@ components:
         year:
           type: integer
           minimum: 1900
-          maximum: 2024
+          maximum: 2025
           description: Release year
           example: 2010
         rating:
@@ -159,6 +159,7 @@ components:
             - string
             - "null"
           description: Error message if an error occurred, otherwise null
+          example: null
       required:
         - status
         - data
@@ -219,7 +220,7 @@ components:
         year:
           type: integer
           minimum: 1900
-          maximum: 2024
+          maximum: 2025
           description: Release year
           example: 2010
         rating:

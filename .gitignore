@@ -28,3 +28,4 @@ downloads
 sample-app/backend/test-events/movie-events.log
 .auth
 **/__screenshots__/
+es/checkly-pw-examples
