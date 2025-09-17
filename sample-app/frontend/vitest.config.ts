@@ -13,8 +13,13 @@ const config = mergeConfig(
       retry: 3,
       browser: {
         enabled: true,
-        name: 'chromium',
-        provider: 'playwright'
+        provider: 'playwright',
+        instances: [
+          {
+            browser: 'chromium',
+            name: 'chromium'
+          }
+        ]
       },
       environment: 'happy-dom',
       setupFiles: ['./src/test-utils/vitest-utils/vitest.setup.ts'],
