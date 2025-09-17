@@ -9,12 +9,10 @@ const browserConfig: UserConfigExport = {
       instances: [
         {
           browser: 'chromium',
-          name: 'chromium-headless',
-          options: {
-            headless: true
-          }
+          name: 'chromium-headless'
         }
-      ]
+      ],
+      headless: true
     }
   }
 }
