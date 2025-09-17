@@ -1,0 +1,146 @@
+<manifest id="bmad/_cfg/manifest.xml" version="6.0.0-pre-alpha" generated="2025-09-17T15:33:19.122Z">
+  <installation>
+    <path>/Users/murat.ozcan/seon/playwright-utils</path>
+    <version>6.0.0-pre-alpha</version>
+    <installDate>2025-09-17T15:33:19.092Z</installDate>
+    <lastUpdated>2025-09-17T15:33:19.122Z</lastUpdated>
+    <modules>
+      <module name="core" />
+      <module name="bmm" />
+    </modules>
+    <ides>
+      <i>claude-code</i>
+      <i>windsurf</i>
+    </ides>
+  </installation>
+  <files>
+    <file type="elicitation" path="bmad/core/adv-elic/active-recall.md" name="Active Recall Testing" />
+    <file type="elicitation" path="bmad/core/adv-elic/analyze-flow.md" name="Analyze Logical Flow" />
+    <file type="elicitation" path="bmad/core/adv-elic/assess-alignment.md" name="Assess Alignment with Goals" />
+    <file type="elicitation" path="bmad/core/adv-elic/challenge-critical.md" name="Challenge from Critical Perspective" />
+    <file type="elicitation" path="bmad/core/adv-elic/critique-refine.md" name="Critique and Refine" />
+    <file type="elicitation" path="bmad/core/adv-elic/dependency-map.md" name="Dependency Mapping" />
+    <file type="elicitation" path="bmad/core/adv-elic/expand-contract.md" name="Expand or Contract for Audience" />
+    <file type="elicitation" path="bmad/core/adv-elic/expert-panel.md" name="Expert Panel" />
+    <file type="elicitation" path="bmad/core/adv-elic/explain-reasoning.md" name="Explain Reasoning" />
+    <file type="elicitation" path="bmad/core/adv-elic/failure-modes.md" name="Failure Mode Analysis" />
+    <file type="elicitation" path="bmad/core/adv-elic/feynman.md" name="Feynman Technique" />
+    <file type="elicitation" path="bmad/core/adv-elic/first-principles.md" name="First Principles Analysis" />
+    <file type="elicitation" path="bmad/core/adv-elic/five-whys.md" name="5 Whys Deep Dive" />
+    <file type="elicitation" path="bmad/core/adv-elic/graph-of-thoughts.md" name="Graph of Thoughts (GoT)" />
+    <file type="elicitation" path="bmad/core/adv-elic/hindsight.md" name="Hindsight Reflection" />
+    <file type="elicitation" path="bmad/core/adv-elic/identify-risks.md" name="Identify Potential Risks and Unforeseen Issues" />
+    <file type="csv" path="bmad/core/adv-elic/index.csv" name="index" />
+    <file type="elicitation" path="bmad/core/adv-elic/info-architecture.md" name="Information Architecture Review" />
+    <file type="elicitation" path="bmad/core/adv-elic/lessons-learned.md" name="Lessons Learned" />
+    <file type="elicitation" path="bmad/core/adv-elic/meta-prompting.md" name="Meta-Prompting Analysis" />
+    <file type="elicitation" path="bmad/core/adv-elic/new-game-plus.md" name="New Game Plus" />
+    <file type="elicitation" path="bmad/core/adv-elic/observer-effect.md" name="Observer Effect Consideration" />
+    <file type="elicitation" path="bmad/core/adv-elic/occams-razor.md" name="Occam&apos;s Razor Application" />
+    <file type="elicitation" path="bmad/core/adv-elic/peer-review.md" name="Peer Review Simulation" />
+    <file type="elicitation" path="bmad/core/adv-elic/pre-mortem.md" name="Pre-mortem Analysis" />
+    <file type="elicitation" path="bmad/core/adv-elic/reasoning-planning.md" name="Reasoning via Planning (RAP)" />
+    <file type="elicitation" path="bmad/core/adv-elic/red-blue-team.md" name="Red Team vs Blue Team" />
+    <file type="elicitation" path="bmad/core/adv-elic/reproducibility.md" name="Reproducibility" />
+    <file type="elicitation" path="bmad/core/adv-elic/reverse-engineer.md" name="Reverse Engineering" />
+    <file type="elicitation" path="bmad/core/adv-elic/roguelike.md" name="Roguelike" />
+    <file type="elicitation" path="bmad/core/adv-elic/scamper.md" name="SCAMPER Method" />
+    <file type="elicitation" path="bmad/core/adv-elic/self-consistency.md" name="Self-Consistency Validation" />
+    <file type="elicitation" path="bmad/core/adv-elic/skeleton-thought.md" name="Skeleton of Thought (SoT)" />
+    <file type="elicitation" path="bmad/core/adv-elic/socratic.md" name="Socratic Questioning" />
+    <file type="elicitation" path="bmad/core/adv-elic/speedrun.md" name="Speedrun Optimization" />
+    <file type="elicitation" path="bmad/core/adv-elic/stakeholder-roundtable.md" name="Stakeholder Round Table" />
+    <file type="elicitation" path="bmad/core/adv-elic/thread-of-thought.md" name="Thread of Thought (ThoT)" />
+    <file type="elicitation" path="bmad/core/adv-elic/tree-of-thoughts.md" name="Tree of Thoughts Deep Dive" />
+    <file type="elicitation" path="bmad/core/adv-elic/trolley-problem.md" name="Trolley Problem Variations" />
+    <file type="elicitation" path="bmad/core/adv-elic/unreliable-narrator.md" name="Unreliable Narrator Mode" />
+    <file type="elicitation" path="bmad/core/adv-elic/what-if.md" name="What If Scenarios" />
+    <file type="agent" path="bmad/core/agents/bmad-master.md" name="BMad Master" title="BMad Master Task Executor" />
+    <file type="task" path="bmad/core/tasks/adv-elicit.md" name="Advanced Elicitation" />
+    <file type="task" path="bmad/core/tasks/agent-party-generate.md" name="Agent Manifest Generate" />
+    <file type="task" path="bmad/core/tasks/bmad-init.md" name="BMAD Init" />
+    <file type="task" path="bmad/core/tasks/create-doc.md" name="Create Document from Template" />
+    <file type="task" path="bmad/core/tasks/index-docs.md" name="Index Docs" />
+    <file type="task" path="bmad/core/tasks/kb-interact.md" name="KB Mode Interaction" />
+    <file type="task" path="bmad/core/tasks/party-mode.md" name="Party Mode" />
+    <file type="task" path="bmad/core/tasks/run-chkl.md" name="Run Checklist" />
+    <file type="task" path="bmad/core/tasks/shard-doc.md" name="Shard Doc" />
+    <file type="agent" path="bmad/bmm/agents/analyst.md" name="Mary" title="Business Analyst" />
+    <file type="agent" path="bmad/bmm/agents/architect.md" name="Winston" title="Architect" />
+    <file type="agent" path="bmad/bmm/agents/dev.md" name="Skippy" title="Senior Software Developer" />
+    <file type="agent" path="bmad/bmm/agents/pm.md" name="John" title="Product Manager" />
+    <file type="agent" path="bmad/bmm/agents/po.md" name="Sarah" title="Product Owner" />
+    <file type="agent" path="bmad/bmm/agents/sm.md" name="Bob" title="Scrum Master" />
+    <file type="agent" path="bmad/bmm/agents/tea.md" name="Murat" title="Master Test Architect" />
+    <file type="agent" path="bmad/bmm/agents/ux-expert.md" name="Sally" title="UX Expert" />
+    <file type="xml" path="bmad/bmm/t2/architect-chkl.xml" name="architect-chkl" />
+    <file type="xml" path="bmad/bmm/t2/architecture.xml" name="architecture" />
+    <file type="xml" path="bmad/bmm/t2/br-cohesion-chkl.xml" name="br-cohesion-chkl" />
+    <file type="xml" path="bmad/bmm/t2/brief.xml" name="brief" />
+    <file type="xml" path="bmad/bmm/t2/brownfield-arch.xml" name="brownfield-arch" />
+    <file type="xml" path="bmad/bmm/t2/brownfield-prd.xml" name="brownfield-prd" />
+    <file type="xml" path="bmad/bmm/t2/competitor.xml" name="competitor" />
+    <file type="task" path="bmad/bmm/t2/create-doc.md" name="Create Document from Template" />
+    <file type="xml" path="bmad/bmm/t2/fe-arch.xml" name="fe-arch" />
+    <file type="xml" path="bmad/bmm/t2/gr-cohesion-chkl.xml" name="gr-cohesion-chkl" />
+    <file type="xml" path="bmad/bmm/t2/market.xml" name="market" />
+    <file type="section" path="bmad/bmm/t2/new-template-plan.md" />
+    <file type="xml" path="bmad/bmm/t2/prd-chk.xml" name="prd-chk" />
+    <file type="yaml" path="bmad/bmm/t2/prd-v2.yaml" name="prd-v2" />
+    <file type="xml" path="bmad/bmm/t2/prd.xml" name="prd" />
+    <file type="xml" path="bmad/bmm/t2/story-dod-chkl.xml" name="story-dod-chkl" />
+    <file type="template" path="bmad/bmm/t2/story.md" name="User Story" />
+    <file type="xml" path="bmad/bmm/t2/uxui-spec.xml" name="uxui-spec" />
+    <file type="task" path="bmad/bmm/tasks/adrp.md" name="Create Analyst Deep Research Prompt" />
+    <file type="task" path="bmad/bmm/tasks/ai-fe-prompt.md" name="AI Frontend Prompt" />
+    <file type="task" path="bmad/bmm/tasks/bf-epic.md" name="Create Brownfield Epic" />
+    <file type="task" path="bmad/bmm/tasks/bf-story.md" name="Brownfield Story" />
+    <file type="checklist" path="bmad/bmm/tasks/correct-course-chkl.md" name="Change Navigation Checklist" />
+    <file type="task" path="bmad/bmm/tasks/correct-course.md" name="Correct Course" />
+    <file type="task" path="bmad/bmm/tasks/create-story.md" name="Create Next Story" />
+    <file type="task" path="bmad/bmm/tasks/daily-standup.md" name="Daily Standup" />
+    <file type="task" path="bmad/bmm/tasks/dev-story.md" name="Develop Story" />
+    <file type="task" path="bmad/bmm/tasks/doc-proj.md" name="Document Project" />
+    <file type="task" path="bmad/bmm/tasks/green-story.md" name="TDD GREEN - Make Tests Pass" />
+    <file type="task" path="bmad/bmm/tasks/mk-bf-story.md" name="Make Brownfield Story" />
+    <file type="task" path="bmad/bmm/tasks/red-story.md" name="TDD RED - Write Failing Tests" />
+    <file type="task" path="bmad/bmm/tasks/refactor-story.md" name="TDD REFACTOR - Improve Code" />
+    <file type="task" path="bmad/bmm/tasks/retrospective.md" name="Team Retrospective" />
+    <file type="task" path="bmad/bmm/tasks/rev-draft-story.md" name="Review Draft Story" />
+    <file type="task" path="bmad/bmm/tasks/review-story.md" name="Review Story" />
+    <file type="team" path="bmad/bmm/teams/team-all.md" name="Team All" />
+    <file type="team" path="bmad/bmm/teams/team-fullstack.md" name="Team Fullstack" />
+    <file type="team" path="bmad/bmm/teams/team-no-ui.md" name="Team No UI" />
+    <file type="checklist" path="bmad/bmm/templates/architect-chkl.md" name="Architecture Solution Validation Checklist" />
+    <file type="template" path="bmad/bmm/templates/architecture.md" name="Architecture" />
+    <file type="checklist" path="bmad/bmm/templates/br-cohesion-chkl.md" name="Brownfield Project Cohesion Validation" />
+    <file type="template" path="bmad/bmm/templates/brief.md" name="Project Brief" />
+    <file type="template" path="bmad/bmm/templates/brownfield-arch.md" name="Brownfield Enhancement Solution Design" />
+    <file type="template" path="bmad/bmm/templates/brownfield-prd.md" name="{project-root}{output-directory}/prd.md" />
+    <file type="template" path="bmad/bmm/templates/competitor.md" name="Competitive Analysis Report" />
+    <file type="template" path="bmad/bmm/templates/fe-arch.md" name="Architecture" />
+    <file type="template" path="bmad/bmm/templates/fs-arch.md" name="Fullstack Architecture" />
+    <file type="checklist" path="bmad/bmm/templates/gr-cohesion-chkl.md" name="Greenfield Project Cohesion Validation" />
+    <file type="template" path="bmad/bmm/templates/market.md" name="Market Research" />
+    <file type="checklist" path="bmad/bmm/templates/prd-chkl.md" name="PRD Checklist" />
+    <file type="template" path="bmad/bmm/templates/prd.md" name="Product Requirements (PRD)" />
+    <file type="checklist" path="bmad/bmm/templates/story-dod-chkl.md" name="Story Definition of Done (DoD) Checklist" />
+    <file type="template" path="bmad/bmm/templates/story.md" name="User Story" />
+    <file type="template" path="bmad/bmm/templates/uxui-spec.md" name="UX/UI Specification" />
+    <file type="task" path="bmad/bmm/testarch/automate.md" name="Test Automation Implementation" />
+    <file type="task" path="bmad/bmm/testarch/ci.md" name="CI/CD Pipeline Setup" />
+    <file type="task" path="bmad/bmm/testarch/framework.md" name="Test Framework Setup" />
+    <file type="task" path="bmad/bmm/testarch/nfr-assess.md" name="NFR Assessment" />
+    <file type="task" path="bmad/bmm/testarch/risk-profile.md" name="Risk Profile" />
+    <file type="task" path="bmad/bmm/testarch/tdd.md" name="Acceptance Test-Driven Development" />
+    <file type="template" path="bmad/bmm/testarch/tea-gate.md" name="Quality Gate Decision" />
+    <file type="task" path="bmad/bmm/testarch/test-design.md" name="Test Design" />
+    <file type="task" path="bmad/bmm/testarch/trace-requirements.md" name="Trace Requirements" />
+    <file type="workflow" path="bmad/bmm/wfs/bf-fs.md" name="Brownfield Full-Stack Enhancement" />
+    <file type="workflow" path="bmad/bmm/wfs/bf-svc.md" name="Brownfield Service/API Enhancement" />
+    <file type="workflow" path="bmad/bmm/wfs/bf-ui.md" name="Brownfield UI/Frontend Enhancement" />
+    <file type="workflow" path="bmad/bmm/wfs/gf-fs.md" name="Greenfield Full-Stack Application Development" />
+    <file type="workflow" path="bmad/bmm/wfs/gf-svc.md" name="Greenfield Service/API Development" />
+    <file type="workflow" path="bmad/bmm/wfs/gf-ui.md" name="Greenfield UI/Frontend Development" />
+  </files>
+</manifest>

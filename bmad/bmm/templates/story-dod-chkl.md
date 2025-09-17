@@ -1,0 +1,123 @@
+<!-- Powered by BMAD-CORE™ -->
+
+# BMAD-CORE™ Story Definition of Done Checklist
+
+```xml
+<checklist id="bmad/bmm/templates/story-dod-chkl.md" name="Story Definition of Done (DoD) Checklist" filename="">
+
+  <llm>
+    <i>Self-assessment for developers - be honest about what's actually done</i>
+    <i>Mark items as ✅ Done, ❌ Not Done, or N/A Not Applicable</i>
+    <i>Add brief comments explaining any ❌ or N/A items</i>
+    <i>Be specific about what was actually implemented</i>
+    <i>Flag any concerns or technical debt created</i>
+    <i>The goal is quality delivery, not just checking boxes</i>
+  </llm>
+
+  <section id="requirements" name="1. Requirements Met">
+    <desc>Verify all story requirements are implemented</desc>
+    <llm>Be specific - list each requirement and whether it's complete</llm>
+
+    <subsection name="1.1 Core Requirements">
+      <i>All functional requirements specified in the story are implemented</i>
+      <i>All acceptance criteria defined in the story are met</i>
+    </subsection>
+  </section>
+
+  <section id="code-quality" name="2. Coding Standards and Project Structure">
+    <desc>Code quality and adherence to standards</desc>
+    <llm>Code quality matters for maintainability - check each item carefully</llm>
+
+    <subsection name="2.1 Standards Compliance">
+      <i>All new/modified code strictly adheres to Operational Guidelines</i>
+      <i>All new/modified code aligns with Project Structure (file locations, naming, etc.)</i>
+      <i>Adherence to Tech Stack for technologies/versions used (if story introduces or modifies tech usage)</i>
+      <i>Adherence to API Reference and Data Models (if story involves API or data model changes)</i>
+      <i>Basic security best practices (e.g., input validation, proper error handling, no hardcoded secrets) applied for new/modified code</i>
+      <i>No new linter errors or warnings introduced</i>
+      <i>Code is well-commented where necessary (clarifying complex logic, not obvious statements)</i>
+    </subsection>
+  </section>
+
+  <section id="testing" name="3. Testing">
+    <desc>Test coverage and validation</desc>
+    <llm>Testing proves your code works - be honest about test coverage</llm>
+
+    <subsection name="3.1 Test Implementation">
+      <i>All required unit tests as per the story and Operational Guidelines Testing Strategy are implemented</i>
+      <i>All required integration tests (if applicable) as per the story and Operational Guidelines Testing Strategy are implemented</i>
+      <i>All tests (unit, integration, E2E if applicable) pass successfully</i>
+      <i>Test coverage meets project standards (if defined)</i>
+    </subsection>
+  </section>
+
+  <section id="functionality" name="4. Functionality and Verification">
+    <desc>Manual verification and edge cases</desc>
+    <llm>Did you actually run and test your code? Be specific about what you tested</llm>
+
+    <subsection name="4.1 Manual Verification">
+      <i>Functionality has been manually verified by the developer (e.g., running the app locally, checking UI, testing API endpoints)</i>
+      <i>Edge cases and potential error conditions considered and handled gracefully</i>
+    </subsection>
+  </section>
+
+  <section id="administration" name="5. Story Administration">
+    <desc>Documentation and story completion</desc>
+    <llm>Documentation helps the next developer - what should they know?</llm>
+
+    <subsection name="5.1 Story Documentation">
+      <i>All tasks within the story file are marked as complete</i>
+      <i>Any clarifications or decisions made during development are documented in the story file or linked appropriately</i>
+      <i>The story wrap up section has been completed with notes of changes or information relevant to the next story or overall project, the agent model that was primarily used during development, and the changelog of any changes is properly updated</i>
+    </subsection>
+  </section>
+
+  <section id="build" name="6. Dependencies, Build and Configuration">
+    <desc>Build health and dependency management</desc>
+    <llm>Build issues block everyone - ensure everything compiles and runs cleanly</llm>
+
+    <subsection name="6.1 Build Success">
+      <i>Project builds successfully without errors</i>
+      <i>Project linting passes</i>
+    </subsection>
+
+    <subsection name="6.2 Dependency Management">
+      <i>Any new dependencies added were either pre-approved in the story requirements OR explicitly approved by the user during development (approval documented in story file)</i>
+      <i>If new dependencies were added, they are recorded in the appropriate project files (e.g., package.json, requirements.txt) with justification</i>
+      <i>No known security vulnerabilities introduced by newly added and approved dependencies</i>
+      <i>If new environment variables or configurations were introduced by the story, they are documented and handled securely</i>
+    </subsection>
+  </section>
+
+  <section id="documentation" name="7. Documentation (If Applicable)">
+    <desc>Code and user documentation</desc>
+    <llm>Good documentation prevents future confusion - what needs explaining?</llm>
+
+    <subsection name="7.1 Documentation Updates">
+      <i>Relevant inline code documentation (e.g., JSDoc, TSDoc, Python docstrings) for new public APIs or complex logic is complete</i>
+      <i>User-facing documentation updated, if changes impact users</i>
+      <i>Technical documentation (e.g., READMEs, system diagrams) updated if significant architectural changes were made</i>
+    </subsection>
+  </section>
+
+  <section id="final" name="8. Final Confirmation">
+    <desc>Developer confirmation of completion</desc>
+    <llm>Be honest - it's better to flag issues now than have them discovered later</llm>
+
+    <subsection name="8.1 Developer Confirmation">
+      <i>I, the Developer Agent, confirm that all applicable items above have been addressed</i>
+    </subsection>
+  </section>
+
+  <summary>
+    <title>DoD Final Summary</title>
+    <report>
+      <overall-status>Summarize what was accomplished in this story</overall-status>
+      <incomplete>List any items marked as Not Done with explanations</incomplete>
+      <tech-debt>Identify any technical debt or follow-up work needed</tech-debt>
+      <learnings>Note any challenges or learnings for future stories</learnings>
+      <ready>Confirm whether the story is truly ready for review</ready>
+    </report>
+  </summary>
+</checklist>
+```

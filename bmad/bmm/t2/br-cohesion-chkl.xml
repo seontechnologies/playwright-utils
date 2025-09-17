@@ -1,0 +1,305 @@
+<checklist id="bmad/bmm/templates/br-cohesion-chkl.md" name="Brownfield Project Cohesion Validation">
+
+  <llm critical="true">
+    <i>CRITICAL: Cannot proceed without access to existing codebase</i>
+    <i>Validate integration plans won't break existing functionality</i>
+    <i>Mark items as ✅ PASS, ❌ FAIL, ⚠️ PARTIAL, or N/A</i>
+    <i>Pay special attention to integration risks and rollback strategies</i>
+  </llm>
+
+  <!-- Section 1: Existing System Analysis -->
+  <section id="existing-system" name="1. Existing System Integration">
+    <desc>Understanding and preserving what exists</desc>
+    <llm critical="true">Existing system must be preserved while enhancing</llm>
+
+    <subsection name="1.1 System Analysis">
+      <i>Existing project analysis completed and documented</i>
+      <i>Current architecture understood and mapped</i>
+      <i>Database schema and relationships documented</i>
+      <i>API contracts and integrations catalogued</i>
+      <i>User workflows and dependencies identified</i>
+    </subsection>
+
+    <subsection name="1.2 Integration Points">
+      <i>Integration points with current system identified</i>
+      <i>Development environment preserves existing functionality</i>
+      <i>Local testing approach validated for existing features</i>
+      <i>Rollback procedures defined for each integration point</i>
+      <i>Version compatibility with existing stack verified</i>
+    </subsection>
+
+    <subsection name="1.3 Backward Compatibility">
+      <i>Database migrations maintain backward compatibility</i>
+      <i>API changes don't break existing consumers</i>
+      <i>Authentication system compatibility maintained</i>
+      <i>Configuration changes non-breaking</i>
+      <i>Existing monitoring and logging preserved</i>
+    </subsection>
+  </section>
+
+  <!-- Section 2: Risk Management -->
+  <section id="risk-management" name="2. Risk Management">
+    <desc>Critical for brownfield - what could break?</desc>
+    <llm critical="true">Think pessimistically about integration risks</llm>
+
+    <subsection name="2.1 Breaking Change Risks">
+      <i>Risk of breaking existing functionality assessed</i>
+      <i>Database migration risks identified and mitigated</i>
+      <i>API breaking change risks evaluated</i>
+      <i>Performance degradation risks identified</i>
+      <i>Security vulnerability risks evaluated</i>
+    </subsection>
+
+    <subsection name="2.2 Rollback Strategy">
+      <i>Rollback procedures clearly defined per story</i>
+      <i>Feature flag strategy implemented</i>
+      <i>Backup and recovery procedures updated</i>
+      <i>Monitoring enhanced for new components</i>
+      <i>Rollback triggers and thresholds defined</i>
+    </subsection>
+
+    <subsection name="2.3 User Impact Mitigation">
+      <i>Existing user workflows analyzed for impact</i>
+      <i>User communication plan developed</i>
+      <i>Training materials updated</i>
+      <i>Support documentation comprehensive</i>
+      <i>Migration path for user data validated</i>
+    </subsection>
+  </section>
+
+  <!-- Section 3: Infrastructure Integration -->
+  <section id="infrastructure" name="3. Infrastructure and Deployment">
+    <desc>New infrastructure must coexist with existing</desc>
+    <llm>Ensure zero downtime deployment strategies</llm>
+
+    <subsection name="3.1 Database Integration">
+      <i>Database migration risks identified and mitigated</i>
+      <i>Schema changes backward compatible</i>
+      <i>Data integrity during migration ensured</i>
+      <i>Rollback scripts for database changes prepared</i>
+      <i>Performance impact of schema changes assessed</i>
+    </subsection>
+
+    <subsection name="3.2 Service Integration">
+      <i>API compatibility with existing system maintained</i>
+      <i>Service mesh or gateway integration planned</i>
+      <i>Authentication/authorization preserved</i>
+      <i>Existing middleware compatibility verified</i>
+      <i>Service discovery mechanisms updated</i>
+    </subsection>
+
+    <subsection name="3.3 Deployment Strategy">
+      <i>Deployment minimizes downtime</i>
+      <i>Blue-green or canary deployment implemented</i>
+      <i>Load balancer configuration updated</i>
+      <i>Health checks for new components defined</i>
+      <i>Rollback automation configured</i>
+    </subsection>
+
+    <subsection name="3.4 Testing Coverage">
+      <i>Regression testing covers existing functionality</i>
+      <i>Integration testing validates new-to-existing connections</i>
+      <i>Performance testing includes existing workflows</i>
+      <i>Security testing covers integration points</i>
+      <i>User acceptance testing includes existing users</i>
+    </subsection>
+  </section>
+
+  <!-- Section 4: Dependency Management -->
+  <section id="dependencies" name="4. Dependency and Integration Management">
+    <desc>New dependencies mustn't conflict with existing</desc>
+    <llm>Version conflicts can break entire system</llm>
+
+    <subsection name="4.1 Package Compatibility">
+      <i>New dependencies compatible with existing versions</i>
+      <i>No version conflicts introduced</i>
+      <i>Security vulnerabilities not introduced</i>
+      <i>License compatibility verified</i>
+      <i>Bundle size impact assessed</i>
+    </subsection>
+
+    <subsection name="4.2 External Service Integration">
+      <i>Existing service integrations maintained</i>
+      <i>New services don't conflict with existing</i>
+      <i>API rate limits considered cumulatively</i>
+      <i>Authentication tokens properly scoped</i>
+      <i>Service degradation strategies defined</i>
+    </subsection>
+
+    <subsection name="4.3 Infrastructure Dependencies">
+      <i>Cloud resource changes non-disruptive</i>
+      <i>Network configuration changes safe</i>
+      <i>DNS changes properly managed</i>
+      <i>Certificate updates coordinated</i>
+      <i>CDN cache invalidation planned</i>
+    </subsection>
+  </section>
+
+  <!-- Section 5: UI/UX Consistency (if applicable) -->
+  <section id="ui-consistency" name="5. UI/UX Consistency">
+    <desc>New UI must blend with existing interface</desc>
+    <llm>Skip if backend-only enhancement</llm>
+
+    <subsection name="5.1 Design Consistency">
+      <i>UI consistency with existing system maintained</i>
+      <i>Design system extensions compatible</i>
+      <i>Component library updates non-breaking</i>
+      <i>Styling approach consistent</i>
+      <i>Accessibility standards maintained</i>
+    </subsection>
+
+    <subsection name="5.2 User Workflow Preservation">
+      <i>Existing user workflows preserved or migrated</i>
+      <i>Navigation patterns consistent</i>
+      <i>Keyboard shortcuts maintained</i>
+      <i>User preferences migrated</i>
+      <i>Session handling unchanged</i>
+    </subsection>
+  </section>
+
+  <!-- Section 6: Feature Integration -->
+  <section id="feature-integration" name="6. Feature Integration and Dependencies">
+    <desc>New features must enhance, not disrupt</desc>
+    <llm critical="true">Each integration point is a potential failure</llm>
+
+    <subsection name="6.1 Feature Coexistence">
+      <i>New features don't break existing ones</i>
+      <i>Shared components safely modified</i>
+      <i>Event handlers don't conflict</i>
+      <i>State management compatible</i>
+      <i>Cache strategies coordinated</i>
+    </subsection>
+
+    <subsection name="6.2 Data Flow Integration">
+      <i>Data pipelines maintain integrity</i>
+      <i>Message queue compatibility ensured</i>
+      <i>Event sourcing patterns consistent</i>
+      <i>Transaction boundaries respected</i>
+      <i>Audit trails preserved</i>
+    </subsection>
+
+    <subsection name="6.3 Progressive Enhancement">
+      <i>Each story maintains system integrity</i>
+      <i>Features can be toggled independently</i>
+      <i>Gradual rollout strategy defined</i>
+      <i>A/B testing infrastructure ready</i>
+      <i>Metrics collection enhanced</i>
+    </subsection>
+  </section>
+
+  <!-- Section 7: Architecture-PRD-Existing Alignment -->
+  <section id="alignment" name="7. Architecture-PRD-Existing System Alignment">
+    <desc>Three-way alignment critical for success</desc>
+    <llm critical="true">Enhancement must solve problems without creating new ones</llm>
+
+    <subsection name="7.1 Requirement Feasibility">
+      <i>PRD requirements achievable within existing constraints</i>
+      <i>Architecture respects existing patterns</i>
+      <i>Performance requirements achievable with current stack</i>
+      <i>Scalability approach compatible</i>
+      <i>Security model consistent</i>
+    </subsection>
+
+    <subsection name="7.2 Integration Architecture">
+      <i>Integration patterns clearly defined</i>
+      <i>API gateway strategy updated</i>
+      <i>Service boundaries respected</i>
+      <i>Domain model extensions clean</i>
+      <i>Event flow documented</i>
+    </subsection>
+
+    <subsection name="7.3 Technical Debt Management">
+      <i>Existing technical debt not worsened</i>
+      <i>Refactoring opportunities identified</i>
+      <i>Code quality standards maintained</i>
+      <i>Documentation debt addressed</i>
+      <i>Test coverage improved</i>
+    </subsection>
+  </section>
+
+  <!-- Section 8: Migration and Transition -->
+  <section id="migration" name="8. Migration and Transition Planning">
+    <desc>Smooth transition from old to new</desc>
+    <llm>Zero data loss, zero downtime goal</llm>
+
+    <subsection name="8.1 Data Migration">
+      <i>Data migration scripts tested</i>
+      <i>Rollback scripts prepared</i>
+      <i>Data validation procedures defined</i>
+      <i>Migration timing planned</i>
+      <i>Backup strategy comprehensive</i>
+    </subsection>
+
+    <subsection name="8.2 User Migration">
+      <i>User transition plan defined</i>
+      <i>Training materials prepared</i>
+      <i>Communication timeline established</i>
+      <i>Support escalation ready</i>
+      <i>Feedback channels open</i>
+    </subsection>
+  </section>
+
+  <!-- Section 9: Operations and Monitoring -->
+  <section id="operations" name="9. Operations and Monitoring">
+    <desc>Enhanced observability for integration points</desc>
+    <llm critical="true">Can't fix what you can't see</llm>
+
+    <subsection name="9.1 Monitoring Enhancement">
+      <i>Existing monitoring preserved/enhanced</i>
+      <i>New component monitoring added</i>
+      <i>Integration point monitoring comprehensive</i>
+      <i>Alert thresholds properly configured</i>
+      <i>Dashboard updates planned</i>
+    </subsection>
+
+    <subsection name="9.2 Operational Readiness">
+      <i>Runbooks updated for new components</i>
+      <i>Incident response procedures updated</i>
+      <i>On-call rotation informed</i>
+      <i>Deployment procedures documented</i>
+      <i>Rollback procedures tested</i>
+    </subsection>
+
+    <subsection name="9.3 Documentation Updates">
+      <i>System documentation updated</i>
+      <i>API documentation current</i>
+      <i>Integration guides complete</i>
+      <i>Troubleshooting guides enhanced</i>
+      <i>Architecture diagrams updated</i>
+    </subsection>
+  </section>
+
+  <!-- Section 10: Success Criteria -->
+  <section id="success" name="10. Enhancement Success Criteria">
+    <desc>Define what success looks like</desc>
+    <llm>Success = enhancement works + nothing breaks</llm>
+
+    <subsection name="10.1 Functional Success">
+      <i>Enhancement complexity justified by value</i>
+      <i>User problems actually solved</i>
+      <i>Performance improvements measurable</i>
+      <i>User satisfaction metrics defined</i>
+      <i>Business goals achievable</i>
+    </subsection>
+
+    <subsection name="10.2 Technical Success">
+      <i>Zero regression policy enforced</i>
+      <i>Performance baselines maintained</i>
+      <i>Security posture improved</i>
+      <i>Technical debt reduced</i>
+      <i>System stability enhanced</i>
+    </subsection>
+  </section>
+
+  <summary>
+    <title>Brownfield Cohesion Validation Summary</title>
+    <report>
+      <overall-status>Calculate percentage complete</overall-status>
+      <integration-risk>High | Medium | Low</integration-risk>
+      <readiness>Ready for Development | Too Risky | Needs Alignment</readiness>
+      <critical-gaps>List blocking issues or unacceptable risks</critical-gaps>
+      <rollback-confidence>Confidence in rollback procedures</rollback-confidence>
+      <recommendations>Risk mitigation strategies</recommendations>
+    </report>
+  </summary>
+</checklist>

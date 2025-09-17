@@ -1,0 +1,793 @@
+<!-- Powered by BMAD-CORE™ -->
+
+# architecture
+
+```xml
+<template id="bmad/bmm/templates/architecture.md" name="Architecture" filename="{project-root}{output-directory}/architecture.md">
+  <title>{{project_name}} Architecture Document</title>
+
+  <sections>
+    <section id="introduction" title="Introduction" status="required"
+            requires-vars="project_name,prdFile" debug-note="Sets up initial context from PRD">
+      <instruction>
+        If available, review any provided relevant documents to gather all relevant context before beginning. If at a minimum you cannot locate {project-root}{output-directory}/prd.md ask the user what docs will provide the basis for the architecture.
+      </instruction>
+
+      <sections>
+        <section id="intro-content" title="Introduction Content" status="required">
+          <content>
+            This document outlines the overall project architecture for {{project_name}}, including backend systems, shared services, and non-UI specific concerns. Its primary goal is to serve as the guiding architectural blueprint for AI-driven development, ensuring consistency and adherence to chosen patterns and technologies.
+
+            **Relationship to Frontend Architecture:**
+            If the project includes a significant user interface, a separate Frontend Architecture Document will detail the frontend-specific design and MUST be used in conjunction with this document. Core technology stack choices documented herein (see "Tech Stack") are definitive for the entire project, including any frontend components.
+          </content>
+        </section>
+
+        <section id="starter-template" title="Starter Template or Existing Project" status="required" elicit="true"
+                debug-note="Critical decision point for project setup approach">
+          <instruction>
+            Before proceeding further with architecture design, check if the project is based on a starter template or existing codebase:
+
+            1. Review the PRD and brainstorming brief for any mentions of:
+            - Starter templates (e.g., Create React App, Next.js, Vue CLI, Angular CLI, etc.)
+            - Existing projects or codebases being used as a foundation
+            - Boilerplate projects or scaffolding tools
+            - Previous projects to be cloned or adapted
+
+            2. If a starter template or existing project is mentioned:
+            - Ask the user to provide access via one of these methods:
+              - Link to the starter template documentation
+              - Upload/attach the project files (for small projects)
+              - Share a link to the project repository (GitHub, GitLab, etc.)
+            - Analyze the starter/existing project to understand:
+              - Pre-configured technology stack and versions
+              - Project structure and organization patterns
+              - Built-in scripts and tooling
+              - Existing architectural patterns and conventions
+              - Any limitations or constraints imposed by the starter
+            - Use this analysis to inform and align your architecture decisions
+
+            3. If no starter template is mentioned but this is a greenfield project:
+            - Suggest appropriate starter templates based on the tech stack preferences
+            - Explain the benefits (faster setup, best practices, community support)
+            - Let the user decide whether to use one
+
+            4. If the user confirms no starter template will be used:
+            - Proceed with architecture design from scratch
+            - Note that manual setup will be required for all tooling and configuration
+
+            Document the decision here before proceeding with the architecture design. If none, just say N/A
+          </instruction>
+        </section>
+
+        <section id="changelog" title="Change Log" status="required">
+          <instruction>
+            Track document versions and changes
+          </instruction>
+          <type>table</type>
+          <columns>[Date, Version, Description, Author]</columns>
+        </section>
+      </sections>
+    </section>
+
+    <section id="high-level-architecture" title="High Level Architecture" status="required" elicit="true"
+            creates-vars="tech_stack,deployment_model"
+            debug-note="Core architecture decisions - foundation for entire system">
+      <instruction>
+        This section contains multiple subsections that establish the foundation of the architecture. Present all subsections together at once.
+      </instruction>
+
+      <sections>
+        <section id="technical-summary" title="Technical Summary" status="required">
+          <instruction>
+            Provide a brief paragraph (3-5 sentences) overview of:
+            - The system's overall architecture style
+            - Key components and their relationships
+            - Primary technology choices
+            - Core architectural patterns being used
+            - Reference back to the PRD goals and how this architecture supports them
+          </instruction>
+        </section>
+
+        <section id="high-level-overview" title="High Level Overview" status="required">
+          <instruction>
+            Based on the PRD's Technical Assumptions section, describe:
+
+            1. The main architectural style (e.g., Monolith, Microservices, Serverless, Event-Driven)
+            2. Repository structure decision from PRD (Monorepo/Polyrepo)
+            3. Service architecture decision from PRD
+            4. Primary user interaction flow or data flow at a conceptual level
+            5. Key architectural decisions and their rationale
+          </instruction>
+        </section>
+
+        <section id="project-diagram" title="High Level Project Diagram" status="required">
+          <instruction>
+            Create a Mermaid diagram that visualizes the high-level architecture. Consider:
+            - System boundaries
+            - Major components/services
+            - Data flow directions
+            - External integrations
+            - User entry points
+          </instruction>
+          <type>mermaid</type>
+          <mermaid_type>graph</mermaid_type>
+        </section>
+
+        <section id="architectural-patterns" title="Architectural and Design Patterns" status="required">
+          <instruction>
+            List the key high-level patterns that will guide the architecture. For each pattern:
+
+            1. Present 2-3 viable options if multiple exist
+            2. Provide your recommendation with clear rationale
+            3. Get user confirmation before finalizing
+            4. These patterns should align with the PRD's technical assumptions and project goals
+
+            Common patterns to consider:
+            - Architectural style patterns (Serverless, Event-Driven, Microservices, CQRS, Hexagonal)
+            - Code organization patterns (Dependency Injection, Repository, Module, Factory)
+            - Data patterns (Event Sourcing, Saga, Database per Service)
+            - Communication patterns (REST, GraphQL, Message Queue, Pub/Sub)
+          </instruction>
+          <template id="modules/bmm/templates/architecture">- **{{pattern_name}}:** {{pattern_description}} - _Rationale:_ {{rationale}}</template>
+          <examples>
+            - "**Serverless Architecture:** Using AWS Lambda for compute - _Rationale:_ Aligns with PRD requirement for cost optimization and automatic scaling"
+            - "**Repository Pattern:** Abstract data access logic - _Rationale:_ Enables testing and future database migration flexibility"
+            - "**Event-Driven Communication:** Using SNS/SQS for service decoupling - _Rationale:_ Supports async processing and system resilience"
+          </examples>
+        </section>
+      </sections>
+    </section>
+
+    <section id="tech-stack" title="Tech Stack" status="required" elicit="true"
+            requires-vars="project_name" creates-vars="tech_stack,frontend_framework"
+            debug-note="Critical tech decisions - affects entire implementation">
+      <instruction>
+        This is the DEFINITIVE technology selection section. Work with the user to make specific choices:
+
+        1. Review PRD technical assumptions and any preferences from {project-root}/data/technical-preferences.yaml or an attached technical-preferences
+        2. For each category, present 2-3 viable options with pros/cons
+        3. Make a clear recommendation based on project needs
+        4. Get explicit user approval for each selection
+        5. Document exact versions (avoid "latest" - pin specific versions)
+        6. This table is the single source of truth - all other docs must reference these choices
+
+        Key decisions to finalize - before displaying the table, ensure you are aware of or ask the user about - let the user know if they are not sure on any that you can also provide suggestions with rationale:
+
+        - Starter templates (if any)
+        - Languages and runtimes with exact versions
+        - Frameworks and libraries / packages
+        - Cloud provider and key services choices
+        - Database and storage solutions - if unclear suggest sql or nosql or other types depending on the project and depending on cloud provider offer a suggestion
+        - Development tools
+
+        Upon render of the table, ensure the user is aware of the importance of this sections choices, should also look for gaps or disagreements with anything, ask for any clarifications if something is unclear why its in the list, and also right away elicit feedback - this statement and the options should be rendered and then prompt right all before allowing user input.
+      </instruction>
+
+      <sections>
+        <section id="cloud-infrastructure" title="Cloud Infrastructure" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Provider:** {{cloud_provider}}
+            - **Key Services:** {{core_services_list}}
+            - **Deployment Regions:** {{regions}}
+          </template>
+        </section>
+
+        <section id="technology-stack-table" title="Technology Stack Table" status="required">
+          <instruction>
+            Populate the technology stack table with all relevant technologies
+          </instruction>
+          <type>table</type>
+          <columns>[Category, Technology, Version, Purpose, Rationale]</columns>
+          <examples>
+            - "| **Language** | TypeScript | 5.3.3 | Primary development language | Strong typing, excellent tooling, team expertise |"
+            - "| **Runtime** | Node.js | 20.11.0 | JavaScript runtime | LTS version, stable performance, wide ecosystem |"
+            - "| **Framework** | NestJS | 10.3.2 | Backend framework | Enterprise-ready, good DI, matches team patterns |"
+          </examples>
+        </section>
+      </sections>
+    </section>
+
+    <section id="data-models" title="Data Models" status="required" elicit="true" repeatable="true"
+            requires-vars="tech_stack" creates-vars="data_storage_solution"
+            debug-note="Core data structures - foundation for database schema">
+      <instruction>
+        Define the core data models/entities:
+
+        1. Review PRD requirements and identify key business entities
+        2. For each model, explain its purpose and relationships
+        3. Include key attributes and data types
+        4. Show relationships between models
+        5. Discuss design decisions with user
+
+        Create a clear conceptual model before moving to database schema.
+      </instruction>
+
+      <sections>
+        <section id="model" title="{{model_name}}" status="required" repeatable="true">
+          <template id="modules/bmm/templates/architecture">
+            **Purpose:** {{model_purpose}}
+
+            **Key Attributes:**
+            - {{attribute_1}}: {{type_1}} - {{description_1}}
+            - {{attribute_2}}: {{type_2}} - {{description_2}}
+
+            **Relationships:**
+            - {{relationship_1}}
+            - {{relationship_2}}
+          </template>
+        </section>
+      </sections>
+    </section>
+
+    <section id="components" title="Components" status="required" elicit="true">
+      <instruction>
+        Based on the architectural patterns, tech stack, and data models from above:
+
+        1. Identify major logical components/services and their responsibilities
+        2. Consider the repository structure (monorepo/polyrepo) from PRD
+        3. Define clear boundaries and interfaces between components
+        4. For each component, specify:
+        - Primary responsibility
+        - Key interfaces/APIs exposed
+        - Dependencies on other components
+        - Technology specifics based on tech stack choices
+
+        5. Create component diagrams where helpful
+      </instruction>
+
+      <sections>
+        <section id="component-list" title="{{component_name}}" status="required" repeatable="true">
+          <template id="modules/bmm/templates/architecture">
+            **Responsibility:** {{component_description}}
+
+            **Key Interfaces:**
+            - {{interface_1}}
+            - {{interface_2}}
+
+            **Dependencies:** {{dependencies}}
+
+            **Technology Stack:** {{component_tech_details}}
+          </template>
+        </section>
+
+        <section id="component-diagrams" title="Component Diagrams" status="optional">
+          <instruction>
+            Create Mermaid diagrams to visualize component relationships. Options:
+            - C4 Container diagram for high-level view
+            - Component diagram for detailed internal structure
+            - Sequence diagrams for complex interactions
+            Choose the most appropriate for clarity
+          </instruction>
+          <type>mermaid</type>
+        </section>
+      </sections>
+    </section>
+
+    <section id="external-apis" title="External APIs" status="optional" elicit="true" repeatable="true">
+      <condition>Project requires external API integrations</condition>
+      <instruction>
+        For each external service integration:
+
+        1. Identify APIs needed based on PRD requirements and component design
+        2. If documentation URLs are unknown, ask user for specifics
+        3. Document authentication methods and security considerations
+        4. List specific endpoints that will be used
+        5. Note any rate limits or usage constraints
+
+        If no external APIs are needed, state this explicitly and skip to next section.
+      </instruction>
+
+      <sections>
+        <section id="api" title="{{api_name}} API" status="required" repeatable="true">
+          <template id="modules/bmm/templates/architecture">
+            - **Purpose:** {{api_purpose}}
+            - **Documentation:** {{api_docs_url}}
+            - **Base URL(s):** {{api_base_url}}
+            - **Authentication:** {{auth_method}}
+            - **Rate Limits:** {{rate_limits}}
+
+            **Key Endpoints Used:**
+            - `{{method}} {{endpoint_path}}` - {{endpoint_purpose}}
+
+            **Integration Notes:** {{integration_considerations}}
+          </template>
+        </section>
+      </sections>
+    </section>
+
+    <section id="core-workflows" title="Core Workflows" status="required" elicit="true">
+      <instruction>
+        Illustrate key system workflows using sequence diagrams:
+
+        1. Identify critical user journeys from PRD
+        2. Show component interactions including external APIs
+        3. Include error handling paths
+        4. Document async operations
+        5. Create both high-level and detailed diagrams as needed
+
+        Focus on workflows that clarify architecture decisions or complex interactions.
+      </instruction>
+      <type>mermaid</type>
+      <mermaid_type>sequence</mermaid_type>
+    </section>
+
+    <section id="rest-api-spec" title="REST API Spec" status="optional" elicit="true">
+      <condition>Project includes REST API</condition>
+      <instruction>
+        If the project includes a REST API:
+
+        1. Create an OpenAPI 3.0 specification
+        2. Include all endpoints from epics/stories
+        3. Define request/response schemas based on data models
+        4. Document authentication requirements
+        5. Include example requests/responses
+
+        Use YAML format for better readability. If no REST API, skip this section.
+      </instruction>
+      <type>code</type>
+      <language>yaml</language>
+      <template id="modules/bmm/templates/architecture">
+        openapi: 3.0.0
+        info:
+          title: {{api_title}}
+          version: {{api_version}}
+          description: {{api_description}}
+        servers:
+          - url: {{server_url}}
+            description: {{server_description}}
+      </template>
+    </section>
+
+    <section id="database-schema" title="Database Schema" status="required" elicit="true">
+      <instruction>
+        Transform the conceptual data models into concrete database schemas:
+
+        1. Use the database type(s) selected in Tech Stack
+        2. Create schema definitions using appropriate notation
+        3. Include indexes, constraints, and relationships
+        4. Consider performance and scalability
+        5. For NoSQL, show document structures
+
+        Present schema in format appropriate to database type (SQL DDL, JSON schema, etc.)
+      </instruction>
+    </section>
+
+    <section id="source-tree" title="Source Tree" status="required" elicit="true">
+      <instruction>
+        Create a project folder structure that reflects:
+
+        1. The chosen repository structure (monorepo/polyrepo)
+        2. The service architecture (monolith/microservices/serverless)
+        3. The selected tech stack and languages
+        4. Component organization from above
+        5. Best practices for the chosen frameworks
+        6. Clear separation of concerns
+
+        Adapt the structure based on project needs. For monorepos, show service separation. For serverless, show function organization. Include language-specific conventions.
+      </instruction>
+      <type>code</type>
+      <language>plaintext</language>
+      <examples>
+        - |
+          project-root/
+          ├── packages/
+          │   ├── api/                    # Backend API service
+          │   ├── web/                    # Frontend application
+          │   ├── shared/                 # Shared utilities/types
+          │   └── infrastructure/         # IaC definitions
+          ├── scripts/                    # Monorepo management scripts
+          └── package.json                # Root package.json with workspaces
+      </examples>
+    </section>
+
+    <section id="infrastructure-deployment" title="Infrastructure and Deployment" status="required" elicit="true"
+            requires-vars="tech_stack,deployment_model" creates-vars="deployment_model"
+            debug-note="Deployment architecture - critical for production readiness">
+      <instruction>
+        Define the deployment architecture and practices:
+
+        1. Use IaC tool selected in Tech Stack
+        2. Choose deployment strategy appropriate for the architecture
+        3. Define environments and promotion flow
+        4. Establish rollback procedures
+        5. Consider security, monitoring, and cost optimization
+
+        Get user input on deployment preferences and CI/CD tool choices.
+      </instruction>
+
+      <sections>
+        <section id="infrastructure-as-code" title="Infrastructure as Code" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Tool:** {{iac_tool}} {{version}}
+            - **Location:** `{{iac_directory}}`
+            - **Approach:** {{iac_approach}}
+          </template>
+        </section>
+
+        <section id="deployment-strategy" title="Deployment Strategy" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Strategy:** {{deployment_strategy}}
+            - **CI/CD Platform:** {{cicd_platform}}
+            - **Pipeline Configuration:** `{{pipeline_config_location}}`
+          </template>
+        </section>
+
+        <section id="environments" title="Environments" status="required" repeatable="true">
+          <template id="modules/bmm/templates/architecture">- **{{env_name}}:** {{env_purpose}} - {{env_details}}</template>
+        </section>
+
+        <section id="promotion-flow" title="Environment Promotion Flow" status="required">
+          <type>code</type>
+          <language>text</language>
+          <template id="modules/bmm/templates/architecture">{{promotion_flow_diagram}}</template>
+        </section>
+
+        <section id="rollback-strategy" title="Rollback Strategy" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Primary Method:** {{rollback_method}}
+            - **Trigger Conditions:** {{rollback_triggers}}
+            - **Recovery Time Objective:** {{rto}}
+          </template>
+        </section>
+      </sections>
+    </section>
+
+    <section id="error-handling-strategy" title="Error Handling Strategy" status="required" elicit="true">
+      <instruction>
+        Define comprehensive error handling approach:
+
+        1. Choose appropriate patterns for the language/framework from Tech Stack
+        2. Define logging standards and tools
+        3. Establish error categories and handling rules
+        4. Consider observability and debugging needs
+        5. Ensure security (no sensitive data in logs)
+
+        This section guides both AI and human developers in consistent error handling.
+      </instruction>
+
+      <sections>
+        <section id="general-approach" title="General Approach" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Error Model:** {{error_model}}
+            - **Exception Hierarchy:** {{exception_structure}}
+            - **Error Propagation:** {{propagation_rules}}
+          </template>
+        </section>
+
+        <section id="logging-standards" title="Logging Standards" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Library:** {{logging_library}} {{version}}
+            - **Format:** {{log_format}}
+            - **Levels:** {{log_levels_definition}}
+            - **Required Context:**
+              - Correlation ID: {{correlation_id_format}}
+              - Service Context: {{service_context}}
+              - User Context: {{user_context_rules}}
+          </template>
+        </section>
+
+        <section id="error-patterns" title="Error Handling Patterns" status="required">
+          <sections>
+            <section id="external-api-errors" title="External API Errors" status="required">
+              <template id="modules/bmm/templates/architecture">
+                - **Retry Policy:** {{retry_strategy}}
+                - **Circuit Breaker:** {{circuit_breaker_config}}
+                - **Timeout Configuration:** {{timeout_settings}}
+                - **Error Translation:** {{error_mapping_rules}}
+              </template>
+            </section>
+
+            <section id="business-logic-errors" title="Business Logic Errors" status="required">
+              <template id="modules/bmm/templates/architecture">
+                - **Custom Exceptions:** {{business_exception_types}}
+                - **User-Facing Errors:** {{user_error_format}}
+                - **Error Codes:** {{error_code_system}}
+              </template>
+            </section>
+
+            <section id="data-consistency" title="Data Consistency" status="required">
+              <template id="modules/bmm/templates/architecture">
+                - **Transaction Strategy:** {{transaction_approach}}
+                - **Compensation Logic:** {{compensation_patterns}}
+                - **Idempotency:** {{idempotency_approach}}
+              </template>
+            </section>
+          </sections>
+        </section>
+      </sections>
+    </section>
+
+    <section id="coding-standards" title="Coding Standards" status="required" elicit="true">
+      <instruction>
+        These standards are MANDATORY for AI agents. Work with user to define ONLY the critical rules needed to prevent bad code. Explain that:
+
+        1. This section directly controls AI developer behavior
+        2. Keep it minimal - assume AI knows general best practices
+        3. Focus on project-specific conventions and gotchas
+        4. Overly detailed standards bloat context and slow development
+        5. Standards will be extracted to separate file for dev agent use
+
+        For each standard, get explicit user confirmation it's necessary.
+      </instruction>
+
+      <sections>
+        <section id="core-standards" title="Core Standards" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Languages &amp; Runtimes:** {{languages_and_versions}}
+            - **Style &amp; Linting:** {{linter_config}}
+            - **Test Organization:** {{test_file_convention}}
+          </template>
+        </section>
+
+        <section id="naming-conventions" title="Naming Conventions" status="optional">
+          <instruction>
+            Only include if deviating from language defaults
+          </instruction>
+          <type>table</type>
+          <columns>[Element, Convention, Example]</columns>
+        </section>
+
+        <section id="critical-rules" title="Critical Rules" status="required" repeatable="true">
+          <instruction>
+            List ONLY rules that AI might violate or project-specific requirements. Examples:
+            - "Never use console.log in production code - use logger"
+            - "All API responses must use ApiResponse wrapper type"
+            - "Database queries must use repository pattern, never direct ORM"
+
+            Avoid obvious rules like "use SOLID principles" or "write clean code"
+          </instruction>
+          <template id="modules/bmm/templates/architecture">- **{{rule_name}}:** {{rule_description}}</template>
+        </section>
+
+        <section id="language-specifics" title="Language-Specific Guidelines" status="optional">
+          <condition>Critical language-specific rules needed</condition>
+          <instruction>
+            Add ONLY if critical for preventing AI mistakes. Most teams don't need this section.
+          </instruction>
+          <sections>
+            <section id="language-rules" title="{{language_name}} Specifics" status="optional" repeatable="true">
+              <template id="modules/bmm/templates/architecture">- **{{rule_topic}}:** {{rule_detail}}</template>
+            </section>
+          </sections>
+        </section>
+      </sections>
+    </section>
+
+    <section id="test-strategy" title="Test Strategy and Standards" status="required" elicit="true">
+      <instruction>
+        Work with user to define comprehensive test strategy:
+
+        1. Use test frameworks from Tech Stack
+        2. Decide on TDD vs test-after approach
+        3. Define test organization and naming
+        4. Establish coverage goals
+        5. Determine integration test infrastructure
+        6. Plan for test data and external dependencies
+
+        Note: Basic info goes in Coding Standards for dev agent. This detailed section is for QA agent and team reference.
+      </instruction>
+
+      <sections>
+        <section id="testing-philosophy" title="Testing Philosophy" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Approach:** {{test_approach}}
+            - **Coverage Goals:** {{coverage_targets}}
+            - **Test Pyramid:** {{test_distribution}}
+          </template>
+        </section>
+
+        <section id="test-types" title="Test Types and Organization" status="required">
+          <sections>
+            <section id="unit-tests" title="Unit Tests" status="required">
+              <template id="modules/bmm/templates/architecture">
+                - **Framework:** {{unit_test_framework}} {{version}}
+                - **File Convention:** {{unit_test_naming}}
+                - **Location:** {{unit_test_location}}
+                - **Mocking Library:** {{mocking_library}}
+                - **Coverage Requirement:** {{unit_coverage}}
+
+                **AI Agent Requirements:**
+                - Generate tests for all public methods
+                - Cover edge cases and error conditions
+                - Follow AAA pattern (Arrange, Act, Assert)
+                - Mock all external dependencies
+              </template>
+            </section>
+
+            <section id="integration-tests" title="Integration Tests" status="required">
+              <template id="modules/bmm/templates/architecture">
+                - **Scope:** {{integration_scope}}
+                - **Location:** {{integration_test_location}}
+                - **Test Infrastructure:**
+                  - **{{dependency_name}}:** {{test_approach}} ({{test_tool}})
+              </template>
+              <examples>
+                - "**Database:** In-memory H2 for unit tests, Testcontainers PostgreSQL for integration"
+                - "**Message Queue:** Embedded Kafka for tests"
+                - "**External APIs:** WireMock for stubbing"
+              </examples>
+            </section>
+
+            <section id="e2e-tests" title="End-to-End Tests" status="optional">
+              <template id="modules/bmm/templates/architecture">
+                - **Framework:** {{e2e_framework}} {{version}}
+                - **Scope:** {{e2e_scope}}
+                - **Environment:** {{e2e_environment}}
+                - **Test Data:** {{e2e_data_strategy}}
+              </template>
+            </section>
+          </sections>
+        </section>
+
+        <section id="test-data-management" title="Test Data Management" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Strategy:** {{test_data_approach}}
+            - **Fixtures:** {{fixture_location}}
+            - **Factories:** {{factory_pattern}}
+            - **Cleanup:** {{cleanup_strategy}}
+          </template>
+        </section>
+
+        <section id="continuous-testing" title="Continuous Testing" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **CI Integration:** {{ci_test_stages}}
+            - **Performance Tests:** {{perf_test_approach}}
+            - **Security Tests:** {{security_test_approach}}
+          </template>
+        </section>
+      </sections>
+    </section>
+
+    <section id="security" title="Security" status="required" elicit="true"
+            requires-vars="tech_stack,api_strategy"
+            debug-note="Security implementation - essential for production systems">
+      <instruction>
+        Define MANDATORY security requirements for AI and human developers:
+
+        1. Focus on implementation-specific rules
+        2. Reference security tools from Tech Stack
+        3. Define clear patterns for common scenarios
+        4. These rules directly impact code generation
+        5. Work with user to ensure completeness without redundancy
+      </instruction>
+
+      <sections>
+        <section id="input-validation" title="Input Validation" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Validation Library:** {{validation_library}}
+            - **Validation Location:** {{where_to_validate}}
+            - **Required Rules:**
+              - All external inputs MUST be validated
+              - Validation at API boundary before processing
+              - Whitelist approach preferred over blacklist
+          </template>
+        </section>
+
+        <section id="auth-authorization" title="Authentication &amp; Authorization" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Auth Method:** {{auth_implementation}}
+            - **Session Management:** {{session_approach}}
+            - **Required Patterns:**
+              - {{auth_pattern_1}}
+              - {{auth_pattern_2}}
+          </template>
+        </section>
+
+        <section id="secrets-management" title="Secrets Management" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Development:** {{dev_secrets_approach}}
+            - **Production:** {{prod_secrets_service}}
+            - **Code Requirements:**
+              - NEVER hardcode secrets
+              - Access via configuration service only
+              - No secrets in logs or error messages
+          </template>
+        </section>
+
+        <section id="api-security" title="API Security" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Rate Limiting:** {{rate_limit_implementation}}
+            - **CORS Policy:** {{cors_configuration}}
+            - **Security Headers:** {{required_headers}}
+            - **HTTPS Enforcement:** {{https_approach}}
+          </template>
+        </section>
+
+        <section id="data-protection" title="Data Protection" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Encryption at Rest:** {{encryption_at_rest}}
+            - **Encryption in Transit:** {{encryption_in_transit}}
+            - **PII Handling:** {{pii_rules}}
+            - **Logging Restrictions:** {{what_not_to_log}}
+          </template>
+        </section>
+
+        <section id="dependency-security" title="Dependency Security" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **Scanning Tool:** {{dependency_scanner}}
+            - **Update Policy:** {{update_frequency}}
+            - **Approval Process:** {{new_dep_process}}
+          </template>
+        </section>
+
+        <section id="security-testing" title="Security Testing" status="required">
+          <template id="modules/bmm/templates/architecture">
+            - **SAST Tool:** {{static_analysis}}
+            - **DAST Tool:** {{dynamic_analysis}}
+            - **Penetration Testing:** {{pentest_schedule}}
+          </template>
+        </section>
+      </sections>
+    </section>
+
+    <section id="checklist-results" title="Checklist Results Report" status="required">
+      <instruction>
+        Before running the checklist, offer to output the full architecture document. Once user confirms, execute the architect-checklist and populate results here.
+      </instruction>
+    </section>
+
+    <section id="next-steps" title="Next Steps" status="required">
+      <instruction>
+        After completing the architecture:
+
+        1. If project has UI components:
+        - Use "Frontend Architecture Mode"
+        - Provide this document as input
+
+        2. For all projects:
+        - Review with Product Owner
+        - Begin story implementation with Dev agent
+        - Set up infrastructure with DevOps agent
+
+        3. Include specific prompts for next agents if needed
+      </instruction>
+
+      <sections>
+        <section id="architect-prompt" title="Architect Prompt" status="optional">
+          <condition>Project has UI components</condition>
+          <instruction>
+            Create a brief prompt to hand off to Architect for Frontend Architecture creation. Include:
+            - Reference to this architecture document
+            - Key UI requirements from PRD
+            - Any frontend-specific decisions made here
+            - Request for detailed frontend architecture
+          </instruction>
+        </section>
+      </sections>
+    </section>
+  </sections>
+  <variables>
+    <variable name="project_name" type="static" source="user" required="true">
+      <desc>The name of the project being architected</desc>
+    </variable>
+    <variable name="architectureFile" type="static" source="core-config" required="false">
+      <desc>Path to architecture document from core-config.yaml</desc>
+      <default>{project-root}{output-directory}/architecture.md</default>
+    </variable>
+    <variable name="prdFile" type="static" source="core-config" required="false">
+      <desc>Path to PRD document for reference</desc>
+      <default>{project-root}{output-directory}/prd.md</default>
+    </variable>
+
+    <variable name="tech_stack" type="dynamic" source="section:tech-stack">
+      <desc>Selected technology stack from Tech Stack section</desc>
+    </variable>
+    <variable name="deployment_model" type="dynamic" source="section:deployment">
+      <desc>Chosen deployment architecture</desc>
+    </variable>
+    <variable name="data_storage_solution" type="dynamic" source="section:data-architecture">
+      <desc>Primary data storage approach</desc>
+    </variable>
+
+    <variable name="frontend_framework" type="conditional" source="section:tech-stack">
+      <desc>Frontend framework if UI is needed</desc>
+      <depends-on>has_frontend</depends-on>
+    </variable>
+    <variable name="api_strategy" type="conditional" source="section:api-design">
+      <desc>API design pattern if APIs are needed</desc>
+      <depends-on>requires_api</depends-on>
+    </variable>
+  </variables>
+</template>
+```
