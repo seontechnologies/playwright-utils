@@ -9,6 +9,11 @@ import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi'
 // extends Zod with OpenAPI support
 extendZodWithOpenApi(z)
 
+// Dynamic year validation to avoid annual updates
+// Allows movies from 1900 to current year + 1 (for upcoming releases)
+const CURRENT_YEAR = new Date().getFullYear()
+const MAX_MOVIE_YEAR = CURRENT_YEAR + 1
+
 export const CreateMovieSchema = z
   .object({
     id: z
@@ -24,7 +29,7 @@ export const CreateMovieSchema = z
       .number()
       .int()
       .min(1900)
-      .max(2025)
+      .max(MAX_MOVIE_YEAR)
       .openapi({ example: 2010, description: 'Release year' }),
     rating: z.number().openapi({ example: 7.5, description: 'Rating' }),
     director: z.string().min(1).openapi({
@@ -148,7 +153,7 @@ export const UpdateMovieSchema = z
       .number()
       .int()
       .min(1900)
-      .max(2025)
+      .max(MAX_MOVIE_YEAR)
       .optional()
       .openapi({ example: 2010, description: 'Release year' }),
     rating: z

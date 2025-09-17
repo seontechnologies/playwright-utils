@@ -1,31 +1,35 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-dist
-# dependencies
+
+# Dependencies
+node_modules/
 /node_modules
 
-# testing
+# Build outputs
+dist/
+/dist
+/build
 /coverage
 
-# production
-/build
-
-# misc
-.DS_Store
+# Environment and config
 .env
-!sample-app/*/.env
 .vscode
+.DS_Store
+
+# Logs
+*.log
 npm-debug.log*
 
 # Playwright
-node_modules/
 /test-results/
 /playwright-report/
 /playwright-logs/
 /playwright/playwright-logs
 /blob-report/
 /playwright/.cache/
-downloads
-sample-app/backend/test-events/movie-events.log
 .auth
 **/__screenshots__/
-es/checkly-pw-examples
+downloads/
+
+# Project specific
+!sample-app/*/.env
+sample-app/backend/test-events/movie-events.log

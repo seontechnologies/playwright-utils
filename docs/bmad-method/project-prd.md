@@ -8,7 +8,7 @@ This PRD covers the overall playwright-utils project as a comprehensive utility 
 
 **playwright-utils** is a comprehensive TypeScript utility library that transforms Playwright testing from imperative complexity to declarative simplicity. By providing modular utilities as both standalone functions and Playwright fixtures, it addresses the fundamental DX gap between Cypress's ease-of-use and Playwright's powerful but verbose API.
 
-**Target Market**: The 50,000+ developers in the Playwright ecosystem who currently struggle with boilerplate code, authentication persistence, flaky tests, and complex validation patterns. Initial focus on enterprise teams at companies like SEON, with open-source community adoption as the primary growth vector.
+**Target Market**: The 50,000+ developers in the Playwright ecosystem who currently struggle with boilerplate code, authentication persistence, flaky tests, and complex validation patterns. Initial focus on enterprise teams at companies like SEON, with open-source community adoption possibility as the primary growth vector.
 
 **Key Value Proposition**: Transform Playwright testing from imperative complexity to Cypress-level DX while maintaining Playwright's superior browser automation capabilities and solving problems that neither framework addresses natively.
 
