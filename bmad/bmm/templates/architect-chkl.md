@@ -1,0 +1,398 @@
+<!-- Powered by BMAD-CORE™ -->
+
+# 1. Requirements Alignment
+
+```xml
+<checklist id="bmad/bmm/templates/architect-chkl.md" name="Architecture Solution Validation Checklist">
+  <llm>
+    <i>Work through each section systematically</i>
+    <i>Mark items as ✅ PASS, ❌ FAIL, ⚠️ PARTIAL, or N/A</i>
+    <i>Provide specific evidence and line numbers for failures</i>
+    <i>Skip FRONTEND sections if backend-only project</i>
+  </llm>
+
+  <!-- Section 1: Requirements Alignment -->
+  <section id="requirements" name="1. Requirements Alignment">
+    <desc>Verify architecture addresses all PRD requirements</desc>
+    <llm>Don't just check if mentioned - verify concrete technical solutions</llm>
+
+    <subsection name="1.1 Functional Requirements Coverage">
+      <i>Architecture supports all functional requirements in the PRD</i>
+      <i>Technical approaches for all epics and stories are addressed</i>
+      <i>Edge cases and performance scenarios are considered</i>
+      <i>All required integrations are accounted for</i>
+      <i>User journeys are supported by the technical architecture</i>
+    </subsection>
+
+    <subsection name="1.2 Non-Functional Requirements Alignment">
+      <i>Performance requirements are addressed with specific solutions</i>
+      <i>Scalability considerations are documented with approach</i>
+      <i>Security requirements have corresponding technical controls</i>
+      <i>Reliability and resilience approaches are defined</i>
+      <i>Compliance requirements have technical implementations</i>
+    </subsection>
+
+    <subsection name="1.3 Technical Constraints Adherence">
+      <i>All technical constraints from PRD are satisfied</i>
+      <i>Platform/language requirements are followed</i>
+      <i>Infrastructure constraints are accommodated</i>
+      <i>Third-party service constraints are addressed</i>
+      <i>Organizational technical standards are followed</i>
+    </subsection>
+  </section>
+
+  <!-- Section 2: Architecture Fundamentals -->
+  <section id="fundamentals" name="2. Architecture Fundamentals">
+    <desc>Core architectural clarity and design principles</desc>
+    <llm>Visualize explaining to new developer - any ambiguities?</llm>
+
+    <subsection name="2.1 Architecture Clarity">
+      <i>Architecture is documented with clear diagrams</i>
+      <i>Major components and their responsibilities are defined</i>
+      <i>Component interactions and dependencies are mapped</i>
+      <i>Data flows are clearly illustrated</i>
+      <i>Technology choices for each component are specified</i>
+    </subsection>
+
+    <subsection name="2.2 Separation of Concerns">
+      <i>Clear boundaries between UI, business logic, and data layers</i>
+      <i>Responsibilities are cleanly divided between components</i>
+      <i>Interfaces between components are well-defined</i>
+      <i>Components adhere to single responsibility principle</i>
+      <i>Cross-cutting concerns (logging, auth, etc.) are properly addressed</i>
+    </subsection>
+
+    <subsection name="2.3 Design Patterns and Best Practices">
+      <i>Appropriate design patterns are employed</i>
+      <i>Industry best practices are followed</i>
+      <i>Anti-patterns are avoided</i>
+      <i>Consistent architectural style throughout</i>
+      <i>Pattern usage is documented and explained</i>
+    </subsection>
+
+    <subsection name="2.4 Modularity and Maintainability">
+      <i>System is divided into cohesive, loosely-coupled modules</i>
+      <i>Components can be developed and tested independently</i>
+      <i>Changes can be localized to specific components</i>
+      <i>Code organization promotes discoverability</i>
+      <i>Architecture specifically designed for AI agent implementation</i>
+    </subsection>
+  </section>
+
+  <!-- Section 3: Technical Stack -->
+  <section id="tech-stack" name="3. Technical Stack and Decisions">
+    <desc>Technology choices and implementation decisions</desc>
+    <llm>Consider: simplest solution? over-engineering? maintenance implications?</llm>
+
+    <subsection name="3.1 Technology Selection">
+      <i>Selected technologies meet all requirements</i>
+      <i>Technology versions are specifically defined (not ranges)</i>
+      <i>Technology choices are justified with clear rationale</i>
+      <i>Alternatives considered are documented with pros/cons</i>
+      <i>Selected stack components work well together</i>
+    </subsection>
+
+    <subsection name="3.2 Frontend Architecture [FRONTEND ONLY]">
+      <i>UI framework and libraries are specifically selected</i>
+      <i>State management approach is defined</i>
+      <i>Component structure and organization is specified</i>
+      <i>Responsive/adaptive design approach is outlined</i>
+      <i>Build and bundling strategy is determined</i>
+    </subsection>
+
+    <subsection name="3.3 Backend Architecture">
+      <i>API design and standards are defined</i>
+      <i>Service organization and boundaries are clear</i>
+      <i>Authentication and authorization approach is specified</i>
+      <i>Error handling strategy is outlined</i>
+      <i>Backend scaling approach is defined</i>
+    </subsection>
+
+    <subsection name="3.4 Data Architecture">
+      <i>Data models are fully defined</i>
+      <i>Database technologies are selected with justification</i>
+      <i>Data access patterns are documented</i>
+      <i>Data migration/seeding approach is specified</i>
+      <i>Data backup and recovery strategies are outlined</i>
+    </subsection>
+  </section>
+
+  <!-- Section 4: Frontend Design [FRONTEND ONLY] -->
+  <section id="frontend" name="4. Frontend Design and Implementation [FRONTEND ONLY]">
+    <desc>Frontend-specific architecture and patterns</desc>
+    <llm>Skip entire section for backend-only projects</llm>
+
+    <subsection name="4.1 Frontend Philosophy and Patterns">
+      <i>Framework and Core Libraries align with main architecture</i>
+      <i>Component Architecture (e.g., Atomic Design) is clearly described</i>
+      <i>State Management Strategy is appropriate for application complexity</i>
+      <i>Data Flow patterns are consistent and clear</i>
+      <i>Styling Approach is defined and tooling specified</i>
+    </subsection>
+
+    <subsection name="4.2 Frontend Structure and Organization">
+      <i>Directory structure is clearly documented with ASCII diagram</i>
+      <i>Component organization follows stated patterns</i>
+      <i>File naming conventions are explicit</i>
+      <i>Structure supports chosen framework's best practices</i>
+      <i>Clear guidance on where new components should be placed</i>
+    </subsection>
+
+    <subsection name="4.3 Component Design">
+      <i>Component template/specification format is defined</i>
+      <i>Component props, state, and events are well-documented</i>
+      <i>Shared/foundational components are identified</i>
+      <i>Component reusability patterns are established</i>
+      <i>Accessibility requirements are built into component design</i>
+    </subsection>
+
+    <subsection name="4.4 Frontend-Backend Integration">
+      <i>API interaction layer is clearly defined</i>
+      <i>HTTP client setup and configuration documented</i>
+      <i>Error handling for API calls is comprehensive</i>
+      <i>Service definitions follow consistent patterns</i>
+      <i>Authentication integration with backend is clear</i>
+    </subsection>
+
+    <subsection name="4.5 Routing and Navigation">
+      <i>Routing strategy and library are specified</i>
+      <i>Route definitions table is comprehensive</i>
+      <i>Route protection mechanisms are defined</i>
+      <i>Deep linking considerations addressed</i>
+      <i>Navigation patterns are consistent</i>
+    </subsection>
+
+    <subsection name="4.6 Frontend Performance">
+      <i>Image optimization strategies defined</i>
+      <i>Code splitting approach documented</i>
+      <i>Lazy loading patterns established</i>
+      <i>Re-render optimization techniques specified</i>
+      <i>Performance monitoring approach defined</i>
+    </subsection>
+  </section>
+
+  <!-- Section 5: Resilience and Operations -->
+  <section id="resilience" name="5. Resilience and Operational Readiness">
+    <desc>Production readiness and failure handling</desc>
+    <llm>Think Murphy's Law - what could go wrong? Peak load? Service down?</llm>
+
+    <subsection name="5.1 Error Handling and Resilience">
+      <i>Error handling strategy is comprehensive</i>
+      <i>Retry policies are defined where appropriate</i>
+      <i>Circuit breakers or fallbacks specified for critical services</i>
+      <i>Graceful degradation approaches are defined</i>
+      <i>System can recover from partial failures</i>
+    </subsection>
+
+    <subsection name="5.2 Monitoring and Observability">
+      <i>Logging strategy is defined</i>
+      <i>Monitoring approach is specified</i>
+      <i>Key metrics for system health are identified</i>
+      <i>Alerting thresholds and strategies are outlined</i>
+      <i>Debugging and troubleshooting capabilities are built in</i>
+    </subsection>
+
+    <subsection name="5.3 Performance and Scaling">
+      <i>Performance bottlenecks are identified and addressed</i>
+      <i>Caching strategy is defined where appropriate</i>
+      <i>Load balancing approach is specified</i>
+      <i>Horizontal and vertical scaling strategies are outlined</i>
+      <i>Resource sizing recommendations are provided</i>
+    </subsection>
+
+    <subsection name="5.4 Deployment and DevOps">
+      <i>Deployment strategy is defined</i>
+      <i>CI/CD pipeline approach is outlined</i>
+      <i>Environment strategy (dev, staging, prod) is specified</i>
+      <i>Infrastructure as Code approach is defined</i>
+      <i>Rollback and recovery procedures are outlined</i>
+    </subsection>
+  </section>
+
+  <!-- Section 6: Security and Compliance -->
+  <section id="security" name="6. Security and Compliance">
+    <desc>Security controls and regulatory compliance</desc>
+    <llm>Review with hacker mindset - how could someone exploit this?</llm>
+
+    <subsection name="6.1 Authentication and Authorization">
+      <i>Authentication mechanism is clearly defined</i>
+      <i>Authorization model is specified</i>
+      <i>Role-based access control is outlined if required</i>
+      <i>Session management approach is defined</i>
+      <i>Credential management is addressed</i>
+    </subsection>
+
+    <subsection name="6.2 Data Security">
+      <i>Data encryption approach (at rest and in transit) is specified</i>
+      <i>Sensitive data handling procedures are defined</i>
+      <i>Data retention and purging policies are outlined</i>
+      <i>Backup encryption is addressed if required</i>
+      <i>Data access audit trails are specified if required</i>
+    </subsection>
+
+    <subsection name="6.3 API and Service Security">
+      <i>API security controls are defined</i>
+      <i>Rate limiting and throttling approaches are specified</i>
+      <i>Input validation strategy is outlined</i>
+      <i>CSRF/XSS prevention measures are addressed</i>
+      <i>Secure communication protocols are specified</i>
+    </subsection>
+
+    <subsection name="6.4 Infrastructure Security">
+      <i>Network security design is outlined</i>
+      <i>Firewall and security group configurations are specified</i>
+      <i>Service isolation approach is defined</i>
+      <i>Least privilege principle is applied</i>
+      <i>Security monitoring strategy is outlined</i>
+    </subsection>
+  </section>
+
+  <!-- Section 7: Implementation Guidance -->
+  <section id="implementation" name="7. Implementation Guidance">
+    <desc>Clear guidance for development teams</desc>
+    <llm>Imagine developer starting day one - do they have everything needed?</llm>
+
+    <subsection name="7.1 Coding Standards and Practices">
+      <i>Coding standards are defined</i>
+      <i>Documentation requirements are specified</i>
+      <i>Testing expectations are outlined</i>
+      <i>Code organization principles are defined</i>
+      <i>Naming conventions are specified</i>
+    </subsection>
+
+    <subsection name="7.2 Testing Strategy">
+      <i>Unit testing approach is defined</i>
+      <i>Integration testing strategy is outlined</i>
+      <i>E2E testing approach is specified</i>
+      <i>Performance testing requirements are outlined</i>
+      <i>Security testing approach is defined</i>
+    </subsection>
+
+    <subsection name="7.3 Frontend Testing [FRONTEND ONLY]">
+      <i>Component testing scope and tools defined</i>
+      <i>UI integration testing approach specified</i>
+      <i>Visual regression testing considered</i>
+      <i>Accessibility testing tools identified</i>
+      <i>Frontend-specific test data management addressed</i>
+    </subsection>
+
+    <subsection name="7.4 Development Environment">
+      <i>Local development environment setup is documented</i>
+      <i>Required tools and configurations are specified</i>
+      <i>Development workflows are outlined</i>
+      <i>Source control practices are defined</i>
+      <i>Dependency management approach is specified</i>
+    </subsection>
+
+    <subsection name="7.5 Technical Documentation">
+      <i>API documentation standards are defined</i>
+      <i>Architecture documentation requirements are specified</i>
+      <i>Code documentation expectations are outlined</i>
+      <i>System diagrams and visualizations are included</i>
+      <i>Decision records for key choices are included</i>
+    </subsection>
+  </section>
+
+  <!-- Section 8: Dependencies and Integration -->
+  <section id="dependencies" name="8. Dependency and Integration Management">
+    <desc>External and internal dependency management</desc>
+    <llm>What if dependency unavailable? Security patches? Vendor lock-in?</llm>
+
+    <subsection name="8.1 External Dependencies">
+      <i>All external dependencies are identified</i>
+      <i>Versioning strategy for dependencies is defined</i>
+      <i>Fallback approaches for critical dependencies are specified</i>
+      <i>Licensing implications are addressed</i>
+      <i>Update and patching strategy is outlined</i>
+    </subsection>
+
+    <subsection name="8.2 Internal Dependencies">
+      <i>Component dependencies are clearly mapped</i>
+      <i>Build order dependencies are addressed</i>
+      <i>Shared services and utilities are identified</i>
+      <i>Circular dependencies are eliminated</i>
+      <i>Versioning strategy for internal components is defined</i>
+    </subsection>
+
+    <subsection name="8.3 Third-Party Integrations">
+      <i>All third-party integrations are identified</i>
+      <i>Integration approaches are defined</i>
+      <i>Authentication with third parties is addressed</i>
+      <i>Error handling for integration failures is specified</i>
+      <i>Rate limits and quotas are considered</i>
+    </subsection>
+  </section>
+
+  <!-- Section 9: AI Agent Suitability -->
+  <section id="ai-agent" name="9. AI Agent Implementation Suitability">
+    <desc>Architecture clarity for AI agent implementation</desc>
+    <llm>Are patterns consistent? Complexity minimized? Explicit over implicit?</llm>
+
+    <subsection name="9.1 Modularity for AI Agents">
+      <i>Components are sized appropriately for AI agent implementation</i>
+      <i>Dependencies between components are minimized</i>
+      <i>Clear interfaces between components are defined</i>
+      <i>Components have singular, well-defined responsibilities</i>
+      <i>File and code organization optimized for AI agent understanding</i>
+    </subsection>
+
+    <subsection name="9.2 Clarity and Predictability">
+      <i>Patterns are consistent and predictable</i>
+      <i>Complex logic is broken down into simpler steps</i>
+      <i>Architecture avoids overly clever or obscure approaches</i>
+      <i>Examples are provided for unfamiliar patterns</i>
+      <i>Component responsibilities are explicit and clear</i>
+    </subsection>
+
+    <subsection name="9.3 Implementation Guidance">
+      <i>Detailed implementation guidance is provided</i>
+      <i>Code structure templates are defined</i>
+      <i>Specific implementation patterns are documented</i>
+      <i>Common pitfalls are identified with solutions</i>
+      <i>References to similar implementations provided when helpful</i>
+    </subsection>
+
+    <subsection name="9.4 Error Prevention and Handling">
+      <i>Design reduces opportunities for implementation errors</i>
+      <i>Validation and error checking approaches are defined</i>
+      <i>Self-healing mechanisms are incorporated where possible</i>
+      <i>Testing patterns are clearly defined</i>
+      <i>Debugging guidance is provided</i>
+    </subsection>
+  </section>
+
+  <!-- Section 10: Accessibility [FRONTEND ONLY] -->
+  <section id="accessibility" name="10. Accessibility Implementation [FRONTEND ONLY]">
+    <desc>Accessibility standards and testing</desc>
+    <llm>Skip for backend-only projects</llm>
+
+    <subsection name="10.1 Accessibility Standards">
+      <i>Semantic HTML usage is emphasized</i>
+      <i>ARIA implementation guidelines provided</i>
+      <i>Keyboard navigation requirements defined</i>
+      <i>Focus management approach specified</i>
+      <i>Screen reader compatibility addressed</i>
+    </subsection>
+
+    <subsection name="10.2 Accessibility Testing">
+      <i>Accessibility testing tools identified</i>
+      <i>Testing process integrated into workflow</i>
+      <i>Compliance targets (WCAG level) specified</i>
+      <i>Manual testing procedures defined</i>
+      <i>Automated testing approach outlined</i>
+    </subsection>
+  </section>
+
+  <!-- Validation Summary -->
+  <summary>
+    <title>Architecture Validation Summary</title>
+    <report>
+      <overall-status>Calculate percentage complete</overall-status>
+      <readiness>Ready for Development | Needs Refinement</readiness>
+      <critical-gaps>List any blocking issues</critical-gaps>
+      <recommendations>Specific actions to improve</recommendations>
+      <ai-readiness>Assessment of AI agent implementation suitability</ai-readiness>
+    </report>
+  </summary>
+</checklist>
+```

@@ -1,0 +1,41 @@
+category,method_name,file_name,description,best_for
+core,Expand or Contract for Audience,expand-contract.md,Adjust detail level for target audience,audience mismatch | clarity issues | technical depth variance
+core,Critique and Refine,critique-refine.md,Review and improve content quality,draft review | quality check | final polish
+core,Explain Reasoning,explain-reasoning.md,Walk through step-by-step thinking process,complex logic | transparency needs | decision rationale
+core,First Principles Analysis,first-principles.md,Break down to fundamental truths and rebuild,over complexity | hidden assumptions | innovation needs
+core,5 Whys Deep Dive,five-whys.md,Ask why repeatedly to find root causes,single failure | linear causation | process breakdown
+core,Socratic Questioning,socratic.md,Use targeted questions to reveal assumptions,hidden assumptions | belief examination | guided discovery
+structural,Analyze Logical Flow,analyze-flow.md,Examine structure and dependencies,document review | architecture analysis | sequencing issues
+structural,Assess Alignment with Goals,assess-alignment.md,Evaluate contribution to objectives,strategy check | priority validation | ROI analysis
+structural,Dependency Mapping,dependency-map.md,Visualize interconnections and requirements,complex systems | integration planning | impact analysis
+structural,Information Architecture Review,info-architecture.md,Optimize content organization and hierarchy,navigation issues | findability problems | user experience
+structural,Skeleton of Thought,skeleton-thought.md,Create structure then expand in parallel,long content | speed requirements | structured breakdown
+risk,Identify Potential Risks,identify-risks.md,Brainstorm risks and edge cases,project planning | deployment prep | safety critical systems
+risk,Challenge from Critical Perspective,challenge-critical.md,Play devil's advocate and find weaknesses,overconfidence | groupthink | stress testing
+risk,Failure Mode Analysis,failure-modes.md,Systematically explore what could go wrong,reliability engineering | safety systems | contingency planning
+risk,Pre-mortem Analysis,pre-mortem.md,Imagine future failure and work backwards,project launch | major decisions | risk mitigation
+advanced,Tree of Thoughts,tree-of-thoughts.md,Explore multiple reasoning paths simultaneously,math problems | puzzles | optimal path finding
+advanced,Graph of Thoughts,graph-of-thoughts.md,Model thoughts as interconnected graph network,complex reasoning | multi factor analysis | system thinking
+advanced,Thread of Thought,thread-of-thought.md,Maintain coherent reasoning across long context,long documents | RAG systems | context heavy tasks
+advanced,Self-Consistency Validation,self-consistency.md,Generate multiple approaches and compare,high stakes decisions | verification needs | consensus building
+advanced,Meta-Prompting Analysis,meta-prompting.md,Analyze approach structure and methodology,prompt optimization | methodology review | meta analysis
+advanced,Reasoning via Planning,reasoning-planning.md,Build reasoning tree with world model guidance,planning tasks | sequential decisions | strategy development
+retrospective,Hindsight Reflection,hindsight.md,Imagine retrospective insights and learnings,project completion | milestone review | learning extraction
+retrospective,Lessons Learned Extraction,lessons-learned.md,Identify key takeaways and improvements,project end | failure analysis | knowledge transfer
+collaboration,Stakeholder Round Table,stakeholder-roundtable.md,Multiple personas contribute perspectives,requirements gathering | impact assessment | stakeholder buy in
+collaboration,Expert Panel Review,expert-panel.md,Assemble domain experts for deep analysis,technical depth | specialized knowledge | peer review
+competitive,Red Team vs Blue Team,red-blue-team.md,Attack vs defend competitive analysis,security testing | robustness check | adversarial thinking
+creative,Reverse Engineering,reverse-engineer.md,Work backwards from desired outcome,goal achievement | problem solving | design process
+creative,What If Scenarios,what-if.md,Explore alternative realities and possibilities,contingency planning | exploration | creative ideation
+creative,SCAMPER Method,scamper.md,Substitute Combine Adapt Modify Put Eliminate Reverse,product innovation | improvement cycles | ideation sessions
+optimization,Speedrun Optimization,speedrun.md,Find fastest most efficient path,time pressure | efficiency gains | optimization needs
+optimization,New Game Plus,new-game-plus.md,Revisit with enhanced capabilities,iterative improvement | capability enhancement | mastery building
+optimization,Roguelike Permadeath,roguelike.md,High stakes one-shot analysis,critical decisions | irreversible actions | high pressure situations
+philosophical,Occam's Razor Application,occams-razor.md,Find simplest sufficient explanation,simplification needs | debugging | theory selection
+philosophical,Trolley Problem Variations,trolley-problem.md,Explore ethical dilemmas and trade-offs,ethical dilemmas | decision making | moral reasoning
+scientific,Peer Review Simulation,peer-review.md,Critical academic-style evaluation,quality assurance | validation needs | academic rigor
+scientific,Reproducibility Check,reproducibility.md,Verify results can be replicated,reliability testing | documentation | scientific method
+learning,Feynman Technique,feynman.md,Explain simply as if teaching a child,understanding check | documentation | knowledge transfer
+learning,Active Recall Testing,active-recall.md,Test understanding without references,knowledge validation | assessment | mastery verification
+quantum,Observer Effect Consideration,observer-effect.md,How measurement changes outcome,metrics impact | monitoring effects | self awareness
+narrative,Unreliable Narrator Mode,unreliable-narrator.md,Question assumptions and biases,bias detection | perspective analysis | critical thinking

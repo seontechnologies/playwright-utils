@@ -88,3 +88,9 @@ Tests use `TEST_ENV` environment variable (defaults to 'local'). The sample app 
 1. Start sample app with `npm run start:sample-app`
 2. Run tests with `npm run test:pw` or `npm run test:pw-ui`
 3. Use `npm run validate` before committing changes
+
+## BMAD Installation
+
+### Available Modules
+- **core**: .claude/commands/bmad/core/
+- **bmm**: .claude/commands/bmad/bmm/
