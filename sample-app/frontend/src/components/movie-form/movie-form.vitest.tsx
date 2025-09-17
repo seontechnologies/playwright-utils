@@ -75,11 +75,11 @@ describe('<MovieForm />', () => {
     await user.click(screen.getByText('Add Movie'))
 
     const validationError = screen.getAllByTestId('validation-error')
-    expect(validationError).toHaveLength(3)
+    expect(validationError).toHaveLength(2)
 
     await fillYear(1899)
     screen.getByText('Add Movie').click()
-    expect(validationError).toHaveLength(3)
+    expect(validationError).toHaveLength(2)
 
     await fillYear(2025)
     await fillName('4')

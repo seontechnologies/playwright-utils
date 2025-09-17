@@ -33,6 +33,8 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
+            IMPORTANT: Skip reviewing any files in the bmad/ directory - these are BMAD-METHOD™ framework files for AI-assisted development planning and should not be reviewed for code quality.
+
             Perform a comprehensive code review for this Playwright utilities library with focus on:
 
             1. **TypeScript & Code Quality**
