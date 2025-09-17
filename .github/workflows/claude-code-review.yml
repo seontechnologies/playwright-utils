@@ -1,0 +1,74 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Using API key for per-token billing plan
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Track progress creates a comment showing review progress
+          track_progress: true
+
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Perform a comprehensive code review for this Playwright utilities library with focus on:
+
+            1. **TypeScript & Code Quality**
+               - Type safety and proper TypeScript usage
+               - Clean code principles and best practices
+               - Module exports and subpath exports correctness
+               - Proper error handling and edge cases
+
+            2. **Playwright Testing Best Practices**
+               - Adherence to Playwright best practices (no hard waits, proper async handling)
+               - Test reliability and flakiness prevention
+               - Proper use of fixtures vs direct functions
+               - Parallel test safety
+
+            3. **Library Design**
+               - API consistency across modules
+               - Proper fixture pattern implementation
+               - Documentation completeness
+               - Breaking changes identification
+
+            4. **Testing Coverage**
+               - Verify adequate test coverage for new utilities
+               - Review test quality and edge cases
+               - Check sample-app integration tests
+
+            5. **Performance & Security**
+               - Identify potential performance issues
+               - Check for security vulnerabilities
+               - Validate input sanitization in utilities
+               - Review network recording/mocking safety
+
+            Use the repository's CLAUDE.md for guidance on project-specific conventions.
+            Follow the testing best practices defined in the global CLAUDE.md.
+            Be constructive and specific in feedback.
+
+            Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
+
+          # Using claude-opus-4-1 model with GitHub CLI tools for PR interaction
+          claude_args: '--model claude-opus-4-1-20250805 --allowed-tools "mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
