@@ -37,38 +37,52 @@ jobs:
 
             Perform a comprehensive code review for this Playwright utilities library with focus on:
 
-            1. **TypeScript & Code Quality**
-               - Type safety and proper TypeScript usage
-               - Clean code principles and best practices
-               - Module exports and subpath exports correctness
-               - Proper error handling and edge cases
+            ## TypeScript & Code Quality
+            - **Type safety and proper TypeScript usage** - Strict typing, explicit return types, modern JS features
+            - **Clean code principles and best practices** - Follow established "functional core, fixture shell" patterns
+            - **Module exports and subpath exports correctness** - Dual CommonJS/ESM support, proper package.json exports
+            - **Proper error handling and edge cases** - Integration with Playwright assertions, comprehensive error scenarios
+            - **Performance considerations** - No significant test execution overhead
 
-            2. **Playwright Testing Best Practices**
-               - Adherence to Playwright best practices (no hard waits, proper async handling)
-               - Test reliability and flakiness prevention
-               - Proper use of fixtures vs direct functions
-               - Parallel test safety
+            ## Playwright Testing Best Practices
+            - **Adherence to Playwright best practices** - No hard waits, proper async handling, dynamic waiting
+            - **Test reliability and flakiness prevention** - Atomic test design, stateless execution
+            - **Proper use of fixtures vs direct functions** - Follow "functional core, fixture shell" pattern
+            - **Parallel test safety** - Tests run independently without shared state
 
-            3. **Library Design**
-               - API consistency across modules
-               - Proper fixture pattern implementation
-               - Documentation completeness
-               - Breaking changes identification
+            ## Library Design & Architecture
+            - **API consistency across modules** - Uniform patterns across all utility modules
+            - **Proper fixture pattern implementation** - Dual interface support (direct function + fixture)
+            - **Documentation completeness** - Comprehensive docs with real-world examples
+            - **Breaking changes identification** - Backward compatibility with existing repositories
+            - **Separation of concerns** - Clean utility boundaries and responsibilities
 
-            4. **Testing Coverage**
-               - Verify adequate test coverage for new utilities
-               - Review test quality and edge cases
-               - Check sample-app integration tests
+            ## Testing Coverage
+            - **Test accompaniment** - When adding new source code, check for tests being updated or added; hopefully unit and/or e2e - preferably both
+            - **Coverage adequacy** - Sufficient test coverage for new utilities
+            - **Test quality** - Edge cases, error scenarios, integration patterns
+            - **Sample-app validation** - End-to-end testing with real applications
 
-            5. **Performance & Security**
-               - Identify potential performance issues
-               - Check for security vulnerabilities
-               - Validate input sanitization in utilities
-               - Review network recording/mocking safety
+            ## Performance & Security
+            - **Identify potential performance issues** - Memory leaks, inefficient patterns, test execution overhead
+            - **Check for security vulnerabilities** - Hardcoded secrets, unsafe dependencies, exposure risks
+            - **Validate input sanitization in utilities** - Proper validation, safe data handling, injection prevention
+            - **Review network recording/mocking safety** - HAR file security, mock data handling, credential exposure
+            - **Dependencies** - Minimal external dependencies, appropriate and secure versions
 
-            Use the repository's CLAUDE.md for guidance on project-specific conventions.
-            Follow the testing best practices defined in the global CLAUDE.md.
-            Be constructive and specific in feedback.
+            ## Review Guidelines
+            - Use the repository's CLAUDE.md for guidance on project-specific conventions
+            - Follow the testing best practices defined in the global CLAUDE.md
+            - Provide specific, actionable feedback with code examples where helpful
+            - Prioritize issues by severity: **Critical** → **High** → **Medium** → **Low**
+            - Be constructive and focus on maintainability and reliability
+
+            ## Specific Playwright-Utils Checks
+            - Validate "functional core, fixture shell" pattern implementation
+            - Check dual interface support (direct function + fixture)
+            - Ensure utilities integrate cleanly with Playwright reports
+            - Verify subpath exports are correctly configured
+            - Review sample-app integration and real-world usage patterns
 
             Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
 
