@@ -1,0 +1,63 @@
+# Codeium ignore file for Windsurf PR reviews
+# This file uses the same syntax as .gitignore but allows ignoring files that can't be in .gitignore
+# Purpose: Exclude files from PR reviews that don't need human review or cause performance issues
+
+# =============================================================================
+# SECTION 1: COPIED FROM .gitignore (same patterns needed for PR review exclusion)
+# =============================================================================
+
+# Dependencies
+node_modules/
+/node_modules
+
+# Build outputs
+dist/
+/dist
+/build
+/coverage
+
+# Environment and config
+.env
+.vscode
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright-logs/
+/playwright/playwright-logs
+/blob-report/
+/playwright/.cache/
+.auth
+**/__screenshots__/
+downloads/
+
+# =============================================================================
+# SECTION 2: ADDED (unique to .codeiumignore - can't or shouldn't be in .gitignore)
+# =============================================================================
+
+# Lock files (needed in git but not useful for PR reviews)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.lock
+
+# HAR files (large binary-like files, not useful for code review)
+har-files/
+*.har
+*.har.lock
+
+# Large documentation (causes PR review performance issues)
+docs/bmad-method/
+CLAUDE.md
+
+# =============================================================================
+# SECTION 3: PROJECT SPECIFIC (customize per repository)
+# =============================================================================
+
+# Project specific ignores
+sample-app/backend/test-events

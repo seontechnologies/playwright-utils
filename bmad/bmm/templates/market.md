@@ -15,7 +15,7 @@
         Provide a high-level overview of key findings, market opportunity assessment, and strategic recommendations. Write this section LAST after completing all other sections.
 
         <llm><i>Synthesize key findings from all sections into a concise executive summary</i></llm>
-        
+
 <llm critical="true">
   <i>MANDATORY: Before finalizing the executive summary, use the 'bmm-document-reviewer' subagent to validate all market research findings and ensure data accuracy.</i>
 </llm>
@@ -80,7 +80,7 @@
                 Calculate and explain the total market opportunity.
 
                 <llm><i>Provide TAM calculation with clear methodology and assumptions</i></llm>
-                
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-data-analyst' subagent to perform all TAM, SAM, and SOM calculations.</i>
   <i>The subagent will apply proper methodologies, validate assumptions, and provide defensible market sizing.</i>
@@ -110,7 +110,7 @@
         <section id="market-trends" title="Market Trends &amp; Drivers" status="required">
           <instruction>
             Analyze key trends shaping the market using appropriate frameworks like PESTEL.
-            
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-trend-spotter' subagent to identify and analyze emerging market trends.</i>
   <i>The subagent will detect disruption signals, technology shifts, and future opportunities.</i>
@@ -163,7 +163,7 @@
             - **Needs &amp; Pain Points:** Primary problems
             - **Buying Process:** Purchasing decisions
             - **Willingness to Pay:** Price sensitivity
-            
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-user-researcher' subagent to develop detailed customer segment profiles and personas.</i>
   <i>The subagent will analyze behavior patterns, needs, and journey maps for each segment.</i>

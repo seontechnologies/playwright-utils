@@ -16,7 +16,7 @@
         Provide high-level competitive insights, main threats and opportunities, and recommended strategic actions. Write this section LAST after completing all analysis.
 
         <llm><i>Synthesize all competitive findings into actionable executive summary</i></llm>
-        
+
 <llm critical="true">
   <i>MANDATORY: Before finalizing, use the 'bmm-document-reviewer' subagent to validate competitive analysis completeness and strategic recommendations.</i>
 </llm>
@@ -100,7 +100,7 @@
         Create detailed profiles for each Priority 1 and Priority 2 competitor. For Priority 3 and 4, create condensed profiles.
 
         <llm><i>Gather comprehensive information about each key competitor</i></llm>
-        
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-market-researcher' subagent to gather comprehensive competitive intelligence for each competitor profile.</i>
   <i>The subagent will analyze positioning, strategy, and market dynamics.</i>
@@ -141,7 +141,7 @@
                 - **Key Features:** [Standout capabilities]
                 - **User Experience:** [UX assessment]
                 - **Technology Stack:** [Tech used]
-                
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-technical-evaluator' subagent to analyze and compare competitor technology stacks.</i>
   <i>The subagent will identify technical differentiators and architectural advantages.</i>
@@ -171,7 +171,7 @@
                 - **Customer Base:** [Size and notable customers]
                 - **Growth Trajectory:** [Growth trend]
                 - **Recent Developments:** [Key news/updates]
-                
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-data-analyst' subagent to analyze competitor performance metrics and market share data.</i>
 </llm>

@@ -51,7 +51,7 @@
         <llm>
           <i>Reference goals and background to ensure alignment</i>
         </llm>
-        
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-requirements-analyst' subagent to extract, validate, and refine all requirements BEFORE finalizing this section.</i>
   <i>The subagent will ensure requirements are specific, testable, achievable, and properly categorized.</i>
@@ -194,7 +194,7 @@
           TR-5: TypeScript with NextJS + React
           TR-6: Tailwind + ShadCN
         </example>
-        
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-technical-evaluator' subagent to assess technology choices and validate technical feasibility.</i>
   <i>The subagent will analyze architecture decisions, identify risks, and recommend optimal tech stack.</i>
@@ -228,7 +228,7 @@
           <i>For UI products: Include discovery, signup, core workflows, return usage patterns</i>
           <i>Reference existing functional requirements (FR numbers) when mapping journey steps</i>
         </llm>
-        
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-user-researcher' subagent to map comprehensive user journeys and identify critical touchpoints.</i>
   <i>The subagent will analyze user flows, pain points, and opportunities for optimization.</i>
@@ -333,7 +333,7 @@
         - "Epic 3: User Workflows &amp; Interactions: Enable key user journeys and business processes"
         - "Epic 4: Reporting &amp; Analytics: Provide insights and data visualization for users"
 
-        
+
 <llm critical="true">
   <i>CRITICAL: BEFORE presenting the epic list to the user, use the 'bmm-epic-optimizer' subagent to:</i>
   <i>1. Optimize epic sequencing for maximum value delivery</i>
@@ -440,7 +440,7 @@
               - Total number of stories
               - Key risks or dependencies
               - Success metrics for epic
-              
+
 <llm critical="true">
   <i>CRITICAL: AFTER generating all stories for this epic but BEFORE presenting them to the user, use the 'bmm-epic-stories-optimizer' subagent to:</i>
   <i>1. Validate story sequencing within the epic - ensure logical build order</i>
@@ -463,7 +463,7 @@
       <instruction>
         Before running the checklist and drafting the prompts, offer to output the full updated PRD.
         If outputting it, confirm with the user that you will be proceeding to run the checklist and produce the report. Once the user confirms, execute the {project-root}/bmad/bmm/templates/prd-chkl.md and populate the results in this section.
-        
+
 <llm critical="true">
   <i>MANDATORY: Use the 'bmm-document-reviewer' subagent to validate the complete PRD before running the checklist.</i>
   <i>The subagent will ensure completeness, consistency, and alignment with best practices.</i>
