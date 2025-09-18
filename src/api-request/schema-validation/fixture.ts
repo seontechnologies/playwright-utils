@@ -30,7 +30,7 @@ export const test = base.extend<{
       data: unknown,
       options?: ValidateSchemaOptions
     ): Promise<T> => {
-      return validateSchemaFunction(schema, data, options) as T
+      return validateSchemaFunction(data, schema, options) as T
     }
 
     await use(validateSchema)

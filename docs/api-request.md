@@ -365,7 +365,7 @@ async function fetchToken() {
 Reduce 5-10 lines of manual validation to a single line with built-in schema validation:
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/fixtures'
+import { test, expect } from '@seontechnologies/playwright-utils/fixtures'
 import { CreateMovieResponseSchema } from '../../../sample-app/shared/types/schema'
 
 test('schema validation basics', async ({ apiRequest, authToken }) => {
@@ -398,8 +398,16 @@ test('schema validation basics', async ({ apiRequest, authToken }) => {
     shape: { status: 200, data: { name: 'Test Movie' } }
   })
 
-  // Response is guaranteed valid and type-safe - TypeScript inference works!
-  expect(validatedResponse.body.data.id).toBeDefined()
+  // Type assertion needed for accessing response data
+  const responseBody = validatedResponse.body as {
+    status: number
+    data: { id: string; name: string }
+  }
+
+  // Response is guaranteed valid with proper typing
+  expect(responseBody.data.id).toBeDefined()
+  expect(responseBody.data.name).toBe('Test Movie')
+
 })
 ```
 
@@ -416,7 +424,7 @@ test('JSON Schema validation basics', async ({ apiRequest, authToken }) => {
     director: 'Test Director'
   }
 
-  // Define JSON schema directly - real example from tests
+  // Define JSON schema directly
   const jsonSchema = {
     type: 'object',
     properties: {
@@ -424,7 +432,7 @@ test('JSON Schema validation basics', async ({ apiRequest, authToken }) => {
       data: {
         type: 'object',
         properties: {
-          id: { type: 'number' }, // Note: API returns number IDs
+          id: { type: 'number' },
           name: { type: 'string' },
           year: { type: 'number' },
           rating: { type: 'number' },
@@ -439,9 +447,8 @@ test('JSON Schema validation basics', async ({ apiRequest, authToken }) => {
   const response = await apiRequest({
     method: 'POST',
     path: '/movies',
-    baseUrl: API_URL,
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` } // Real auth pattern
+    headers: { Cookie: `seon-jwt=${authToken}` }
   }).validateSchema(jsonSchema, {
     shape: {
       status: 200,
@@ -454,9 +461,15 @@ test('JSON Schema validation basics', async ({ apiRequest, authToken }) => {
     }
   })
 
+  // Type assertion for accessing response data
+  const responseBody = response.body as {
+    status: number
+    data: { id: string; name: string }
+  }
+
   // Response is guaranteed valid and type-safe
-  expect(response.body.data.id).toBeDefined()
-  expect(response.body.data.name).toBe(movieData.name)
+  expect(responseBody.data.id).toBeDefined()
+  expect(responseBody.data.name).toBe(movieData.name)
 })
 ```
 
@@ -476,55 +489,42 @@ test('Zod schema validation with TypeScript inference', async ({
     director: 'Test Director'
   }
 
-  // Real Zod schema from sample-app
   const response = await apiRequest({
     method: 'POST',
     path: '/movies',
-    baseUrl: API_URL,
     body: movieData,
     headers: { Cookie: `seon-jwt=${authToken}` }
   }).validateSchema(CreateMovieResponseSchema)
 
-  // TypeScript automatically infers the correct type from Zod schema!
-  expect(response.body.data.id).toBeDefined()
-  expect(response.body.data.name).toBe(movieData.name)
-  expect(response.body.status).toBe(200)
+  // Type assertion needed for accessing response data
+  const responseBody = response.body as {
+    status: number
+    data: { id: string; name: string }
+  }
 
-  // Clean up - delete the created movie
-  await apiRequest({
-    method: 'DELETE',
-    path: `/movies/${response.body.data.id}`,
-    baseUrl: API_URL,
-    headers: { Cookie: `seon-jwt=${authToken}` }
-  })
+  expect(responseBody.data.id).toBeDefined()
+  expect(responseBody.data.name).toBe(movieData.name)
+  expect(responseBody.status).toBe(200)
+
 })
 ```
 
 #### OpenAPI Specification Support
 
 ```typescript
-import * as path from 'path'
 import openApiJson from '../../../sample-app/backend/src/api-docs/openapi.json'
 
-// Safe import pattern - path resolution at module level
-const openApiYamlPath = path.join(
-  __dirname,
-  '../../../sample-app/backend/src/api-docs/openapi.yml'
-)
-
-test('OpenAPI specification validation with endpoint parameter', async ({
+test('OpenAPI JSON specification validation', async ({
   apiRequest,
   authToken
 }) => {
-  // Test OpenAPI schema validation using 'endpoint' parameter
   const response = await apiRequest({
     method: 'POST',
     path: '/movies',
-    baseUrl: API_URL,
     body: movieData,
     headers: { Cookie: `seon-jwt=${authToken}` }
   }).validateSchema(openApiJson, {
-    endpoint: '/movies', // Using 'endpoint' parameter
+    endpoint: '/movies',
     method: 'POST',
     status: 200,
     shape: {
@@ -536,90 +536,112 @@ test('OpenAPI specification validation with endpoint parameter', async ({
     }
   })
 
-  // Guaranteed to match OpenAPI specification
-  expect(response.body.data.id).toBeDefined()
-  expect(response.body.data.name).toBe(movieData.name)
+  // Type assertion for accessing response data
+  const responseBody = response.body as {
+    status: number
+    data: { id: string; name: string }
+  }
+
+  expect(responseBody.data.id).toBeDefined()
+  expect(responseBody.data.name).toBe(movieData.name)
 })
 
-test('YAML OpenAPI schema validation with path parameter', async ({
+test('OpenAPI YAML file validation', async ({
   apiRequest,
   authToken
 }) => {
-  // Interchangeable: 'path' parameter works same as 'endpoint'
   const response = await apiRequest({
     method: 'POST',
     path: '/movies',
-    baseUrl: API_URL,
     body: movieData,
     headers: { Cookie: `seon-jwt=${authToken}` }
-  }).validateSchema(openApiYamlPath, {
-    path: '/movies', // Using 'path' parameter (interchangeable with 'endpoint')
+  }).validateSchema('./api-docs/openapi.yml', {
+    path: '/movies', // 'path' and 'endpoint' are interchangeable
     method: 'POST',
     status: 200
   })
 
-  expect(response.body.data.id).toBeDefined()
+  const responseBody = response.body as {
+    status: number
+    data: { id: string }
+  }
+
+  expect(responseBody.data.id).toBeDefined()
 })
 ```
 
 #### Schema-Only Validation (No Shape Assertions)
 
 ```typescript
+import { GetMovieResponseUnionSchema } from '../../../sample-app/shared/types/schema'
+
 test('schema validation without shape assertions', async ({
   apiRequest,
   authToken
 }) => {
-  // Schema-only validation - second parameter is optional
+  // Schema-only validation - options parameter is optional
   const response = await apiRequest({
     method: 'GET',
-    path: `/movies/${movieId}`,
+    path: `/movies/123`,
     headers: { Cookie: `seon-jwt=${authToken}` }
-  }).validateSchema(GetMovieResponseUnionSchema) // No second parameter
+  }).validateSchema(GetMovieResponseUnionSchema)
+
+  // Type assertion for accessing response data
+  const responseBody = response.body as {
+    status: number
+    data: unknown
+  }
 
   // Only schema compliance is validated, no additional shape assertions
-  expect(response.body.status).toBe(200)
-  expect(response.body.data).toBeDefined()
+  expect(responseBody.status).toBe(200)
+  expect(responseBody.data).toBeDefined()
 })
 ```
 
 #### Return Mode (Non-Throwing Validation)
 
 ```typescript
+import { z } from 'zod'
+
 test('return mode validation - does not throw on failure', async ({
   apiRequest,
   authToken
 }) => {
-  // Test return mode where validation doesn't throw
   const response = await apiRequest({
     method: 'POST',
     path: '/movies',
-    baseUrl: API_URL,
-    body: validMovieData,
+    body: movieData,
     headers: { Cookie: `seon-jwt=${authToken}` }
   }).validateSchema(
     z.object({
-      status: z.literal(999), // This will fail
+      status: z.literal(999), // This will fail - API returns 200
       data: z.any()
     }),
     {
-      mode: 'return' // Don't throw on failure - returns validation results
+      mode: 'return' // Don't throw on failure
     }
   )
 
-  // Response should indicate validation failure but not throw
+  // Response indicates validation failure but doesn't throw
   expect(response.validationResult.success).toBe(false)
   expect(response.validationResult.errors).toBeDefined()
   expect(response.validationResult.errors.length).toBeGreaterThan(0)
 
   // Original response data is still accessible
-  expect(response.body.status).toBe(200)
-  expect(response.body.data).toBeDefined()
+  const responseBody = response.body as {
+    status: number
+    data: unknown
+  }
+  expect(responseBody.status).toBe(200)
+  expect(responseBody.data).toBeDefined()
 })
 ```
 
 #### Advanced Shape Validation with Functions
 
 ```typescript
+import { CreateMovieResponseSchema } from '../../../sample-app/shared/types/schema'
+
 test('combined schema + shape validation with functions', async ({
   apiRequest,
   authToken
@@ -627,7 +649,6 @@ test('combined schema + shape validation with functions', async ({
   const response = await apiRequest({
     method: 'POST',
     path: '/movies',
-    baseUrl: API_URL,
     body: movieData,
     headers: { Cookie: `seon-jwt=${authToken}` }
   }).validateSchema(CreateMovieResponseSchema, {
@@ -638,81 +659,23 @@ test('combined schema + shape validation with functions', async ({
         year: (year: number) =>
           year >= 1900 && year <= new Date().getFullYear(),
         rating: (rating: number) => rating >= 0 && rating <= 10,
-        id: (id: string) => typeof id === 'number' // Custom validation logic
+        id: (id: string) => typeof id === 'number'
       }
     }
   })
 
-  // Both schema compliance AND shape assertions pass
-  expect(response.body.data.name).toBe(movieData.name)
-  expect(response.body.data.year).toBe(movieData.year)
-})
-```
-
-#### Error Handling and Validation Context
-
-```typescript
-test('validation error handling with detailed context', async ({
-  apiRequest,
-  authToken
-}) => {
-  let validationError: any = null
-
-  try {
-    await apiRequest({
-      method: 'POST',
-      path: '/movies',
-      baseUrl: API_URL,
-      body: {
-        name: '', // Invalid: empty string
-        year: 'invalid-year', // Invalid: should be number
-        rating: -1, // Invalid: negative rating
-        director: null // Invalid: null director
-      },
-      headers: { Cookie: `seon-jwt=${authToken}` }
-    }).validateSchema(strictSchema, {
-      shape: {
-        status: 201, // This will also fail since API returns 200
-        data: {
-          name: (name: string) => name.startsWith('Epic:') // Shape validation will fail
-        }
-      }
-    })
-
-    // Should not reach here
-    expect(true).toBe(false)
-  } catch (error) {
-    validationError = error
-
-    // Validate error structure and context - real error structure from tests
-    expect(error.message).toContain('Schema validation failed')
-    expect(error.name).toBe('ValidationError')
-
-    // Check validation result details
-    expect(error.validationResult).toBeDefined()
-    expect(error.validationResult.success).toBe(false)
-    expect(error.validationResult.errors).toBeDefined()
-    expect(Array.isArray(error.validationResult.errors)).toBe(true)
-
-    // Check request context preservation
-    expect(error.requestContext).toBeDefined()
-    expect(error.requestContext.method).toBe('POST')
-    expect(error.requestContext.path).toBe('/movies')
-
-    // Check response context preservation
-    expect(error.responseContext).toBeDefined()
-    expect(error.responseContext.status).toBe(200)
-    expect(error.responseContext.body).toBeDefined()
-
-    // UI integration for error display
-    expect(error.validationResult.uiData).toBeDefined()
-    expect(error.validationResult.uiData.statusIcon).toBe('❌')
-    expect(error.validationResult.uiData.validationSummary).toContain('FAILED')
+  // Type assertion for accessing response data
+  const responseBody = response.body as {
+    status: number
+    data: { name: string; year: number }
   }
 
-  expect(validationError).toBeTruthy()
+  // Both schema compliance AND shape assertions pass
+  expect(responseBody.data.name).toBe(movieData.name)
+  expect(responseBody.data.year).toBe(movieData.year)
 })
 ```
+
 
 ### URL Resolution Strategy
 

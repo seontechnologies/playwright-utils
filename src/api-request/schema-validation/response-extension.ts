@@ -88,9 +88,9 @@ function handleValidationFailure(
       responseContext
     )
 
-    // Preserve the Playwright error stack for debugging
+    // Preserve both stacks for debugging
     if (playwrightError instanceof Error) {
-      validationError.stack = playwrightError.stack
+      validationError.stack = `${validationError.stack}\n\nCaused by:\n${playwrightError.stack}`
     }
 
     throw validationError

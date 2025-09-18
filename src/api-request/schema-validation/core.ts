@@ -20,6 +20,31 @@ const ajv = new Ajv({
   strict: false // Allow unknown formats for OpenAPI compatibility
 })
 
+/** Cache for AJV instances with component schemas */
+const ajvCache = new Map<string, Ajv>()
+
+/** Get or create cached AJV instance for specs with components */
+function getAjvInstance(fullSpec?: Record<string, unknown>): Ajv {
+  if (!fullSpec?.components) {
+    return ajv
+  }
+
+  // Create a stable cache key from components
+  const cacheKey = JSON.stringify(fullSpec.components)
+
+  if (!ajvCache.has(cacheKey)) {
+    ajvCache.set(
+      cacheKey,
+      new Ajv({
+        strict: false,
+        schemas: [fullSpec]
+      })
+    )
+  }
+
+  return ajvCache.get(cacheKey)!
+}
+
 /** Detect schema format based on input */
 export function detectSchemaFormat(
   schema: SupportedSchema
@@ -215,13 +240,7 @@ function validateWithJsonSchema(
   }
 
   // Standard validation for schemas without anyOf/oneOf
-  const ajvInstance =
-    fullSpec && fullSpec.components
-      ? new Ajv({
-          strict: false,
-          schemas: [fullSpec] // Add the full spec for reference resolution
-        })
-      : ajv
+  const ajvInstance = getAjvInstance(fullSpec)
 
   const validate = ajvInstance.compile(schema)
   const valid = validate(data)
@@ -238,8 +257,99 @@ function validateWithJsonSchema(
   }))
 }
 
+/** Validate anyOf property */
+function validateAnyOfProperty(
+  value: unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prop: any,
+  key: string,
+  fullSpec?: Record<string, unknown>
+): ValidationErrorDetail | null {
+  if (!prop.anyOf || value === undefined) return null
+
+  const anyOfErrors: string[] = []
+
+  for (const option of prop.anyOf) {
+    const ajvInstance = getAjvInstance(fullSpec)
+
+    try {
+      const validate = ajvInstance.compile(option)
+      if (validate(value)) {
+        return null // Validation passed
+      }
+      anyOfErrors.push(
+        `Option failed: ${JSON.stringify(validate.errors?.[0]?.message || 'unknown')}`
+      )
+    } catch (e) {
+      anyOfErrors.push(`Schema error: ${e}`)
+    }
+  }
+
+  return {
+    path: `/${key}`,
+    message: 'Value does not match any of the allowed schemas',
+    expected: 'one of anyOf schemas',
+    actual: typeof value === 'object' ? JSON.stringify(value).substring(0, 50) : value
+  }
+}
+
+/** Validate oneOf property */
+function validateOneOfProperty(
+  value: unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prop: any,
+  key: string,
+  fullSpec?: Record<string, unknown>
+): ValidationErrorDetail | null {
+  if (!prop.oneOf || value === undefined) return null
+
+  let matchCount = 0
+
+  for (const option of prop.oneOf) {
+    const ajvInstance = getAjvInstance(fullSpec)
+    const validate = ajvInstance.compile(option)
+    if (validate(value)) {
+      matchCount++
+    }
+  }
+
+  if (matchCount === 1) return null
+
+  return {
+    path: `/${key}`,
+    message:
+      matchCount === 0
+        ? 'Value does not match any of the oneOf schemas'
+        : `Value matches ${matchCount} schemas, but should match exactly one`,
+    expected: 'exactly one of oneOf schemas',
+    actual: value
+  }
+}
+
+/** Validate standard property */
+function validateStandardProperty(
+  value: unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prop: any,
+  key: string,
+  fullSpec?: Record<string, unknown>
+): ValidationErrorDetail | null {
+  if (!prop.type || value === undefined) return null
+
+  const ajvInstance = getAjvInstance(fullSpec)
+  const validate = ajvInstance.compile(prop)
+
+  if (validate(value)) return null
+
+  return {
+    path: `/${key}`,
+    message: validate.errors?.[0]?.message || 'Validation failed',
+    expected: prop.type,
+    actual: typeof value
+  }
+}
+
 /** Validate schema with anyOf/oneOf support */
-// eslint-disable-next-line complexity
 function validateWithAnyOfSupport(
   data: unknown,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -283,88 +393,22 @@ function validateWithAnyOfSupport(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const prop = propSchema as any
 
-      // Handle anyOf
-      if (prop.anyOf && value !== undefined) {
-        let anyMatched = false
-        const anyOfErrors: string[] = []
-
-        for (const option of prop.anyOf) {
-          const ajvInstance =
-            fullSpec && fullSpec.components
-              ? new Ajv({ strict: false, schemas: [fullSpec] })
-              : ajv
-
-          try {
-            const validate = ajvInstance.compile(option)
-            if (validate(value)) {
-              anyMatched = true
-              break
-            } else {
-              anyOfErrors.push(
-                `Option failed: ${JSON.stringify(validate.errors?.[0]?.message || 'unknown')}`
-              )
-            }
-          } catch (e) {
-            anyOfErrors.push(`Schema error: ${e}`)
-          }
-        }
-
-        if (!anyMatched) {
-          errors.push({
-            path: `/${key}`,
-            message: 'Value does not match any of the allowed schemas',
-            expected: 'one of anyOf schemas',
-            actual:
-              typeof value === 'object'
-                ? JSON.stringify(value).substring(0, 50)
-                : value
-          })
-        }
+      // Try each validation type
+      const anyOfError = validateAnyOfProperty(value, prop, key, fullSpec)
+      if (anyOfError) {
+        errors.push(anyOfError)
+        continue
       }
-      // Handle oneOf similarly
-      else if (prop.oneOf && value !== undefined) {
-        let matchCount = 0
 
-        for (const option of prop.oneOf) {
-          const ajvInstance =
-            fullSpec && fullSpec.components
-              ? new Ajv({ strict: false, schemas: [fullSpec] })
-              : ajv
-
-          const validate = ajvInstance.compile(option)
-          if (validate(value)) {
-            matchCount++
-          }
-        }
-
-        if (matchCount !== 1) {
-          errors.push({
-            path: `/${key}`,
-            message:
-              matchCount === 0
-                ? 'Value does not match any of the oneOf schemas'
-                : `Value matches ${matchCount} schemas, but should match exactly one`,
-            expected: 'exactly one of oneOf schemas',
-            actual: value
-          })
-        }
+      const oneOfError = validateOneOfProperty(value, prop, key, fullSpec)
+      if (oneOfError) {
+        errors.push(oneOfError)
+        continue
       }
-      // Standard property validation
-      else if (prop.type && value !== undefined) {
-        const ajvInstance =
-          fullSpec && fullSpec.components
-            ? new Ajv({ strict: false, schemas: [fullSpec] })
-            : ajv
 
-        const validate = ajvInstance.compile(prop)
-        if (!validate(value)) {
-          errors.push({
-            path: `/${key}`,
-            message: validate.errors?.[0]?.message || 'Validation failed',
-            expected: prop.type,
-            actual: typeof value
-          })
-        }
+      const standardError = validateStandardProperty(value, prop, key, fullSpec)
+      if (standardError) {
+        errors.push(standardError)
       }
     }
   }
@@ -382,7 +426,9 @@ function validateWithZodSchema(
     return []
   } catch (error) {
     if (error instanceof ZodError) {
-      return error.errors.map((zodError) => ({
+      // Handle both Zod v3 and v4 compatibility
+      const issues = (error as ZodError).issues
+      return issues.map((zodError) => ({
         path: zodError.path.join('.') || 'root',
         message: zodError.message,
         expected: zodError.code,

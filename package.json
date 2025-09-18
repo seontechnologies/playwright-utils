@@ -29,6 +29,12 @@
       "import": "./dist/esm/api-request/fixtures.js",
       "default": "./dist/cjs/api-request/fixtures.js"
     },
+    "./api-request/schema-validation": {
+      "types": "./dist/types/api-request/schema-validation/index.d.ts",
+      "require": "./dist/cjs/api-request/schema-validation/index.js",
+      "import": "./dist/esm/api-request/schema-validation/index.js",
+      "default": "./dist/cjs/api-request/schema-validation/index.js"
+    },
     "./intercept-network-call": {
       "types": "./dist/types/intercept-network-call/index.d.ts",
       "require": "./dist/cjs/intercept-network-call/index.js",
@@ -203,6 +209,7 @@
     "picomatch": "4.0.3",
     "proper-lockfile": "4.1.2",
     "unpdf": "1.2.2",
-    "uuid": "11.1.0"
+    "uuid": "11.1.0",
+    "zod": "^4.1.9"
   }
 }
