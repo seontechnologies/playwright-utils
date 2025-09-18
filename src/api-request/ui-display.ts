@@ -15,6 +15,12 @@ export interface RequestDataInterface {
   data?: any
   params?: object
   otherOptions?: object
+  validationInfo?: {
+    schemaFormat: string
+    validationTime: number
+    success: boolean
+    errorCount: number
+  }
 }
 
 /** Response data interface for UI display */
@@ -25,6 +31,13 @@ export interface ResponseDataInterface {
   headers?: object
   body?: any
   duration?: number
+  validationResult?: {
+    icon: '✅' | '❌'
+    summary: string
+    schemaInfo: string
+    errors?: string[]
+    schema?: object
+  }
 }
 
 /**
@@ -45,7 +58,19 @@ export const addApiCardToUI = async (
   try {
     const apiCallHtml = await createApiCallHtml(requestData, responseData)
     const html = await createPageHtml(apiCallHtml)
-    await page.setContent(html)
+
+    // Open validation results in a new tab if this is a validation request
+    if (requestData.validationInfo) {
+      // Create a new page/tab for validation results
+      const newPage = await page.context().newPage()
+      await newPage.setContent(html)
+
+      // Optional: Bring the new tab to front
+      await newPage.bringToFront()
+    } else {
+      // For non-validation requests, use the original behavior
+      await page.setContent(html)
+    }
 
     // Also attach as test report since UI mode is enabled
     const method = requestData.method.toUpperCase()
@@ -80,10 +105,62 @@ const createApiCallHtml = async (
 ): Promise<string> => {
   const callId = Math.floor(10000000 + Math.random() * 90000000)
 
+  // Add validation results section if present
+  const validationSection = responseData.validationResult
+    ? `
+        <hr>
+        <div class="pw-api-validation">
+            <label class="title">${responseData.validationResult.icon} SCHEMA VALIDATION - </label>
+            <label class="title-property">${responseData.validationResult.summary}</label>
+            <br>
+            <label class="property">Schema Info:</label> ${responseData.validationResult.schemaInfo}
+            ${
+              responseData.validationResult.schema
+                ? `
+                    <div class="pw-val-data-tabs-${callId} pw-data-tabs">
+                        ${await createValidationTab(
+                          responseData.validationResult.errors &&
+                            responseData.validationResult.errors.length > 0
+                            ? `<div style="color: #d00;">
+                                <strong>❌ Validation Failed - ${responseData.validationResult.errors.length} error(s):</strong>
+                                <ul style="margin: 10px 0; padding-left: 20px;">
+                                    ${responseData.validationResult.errors.map((err) => `<li>${err}</li>`).join('')}
+                                </ul>
+                              </div>`
+                            : '<span style="color: #0d0; font-weight: bold;">✅ All validations passed successfully</span>',
+                          'VALIDATION RESULT',
+                          callId,
+                          true
+                        )}
+                        ${await createValidationTab(
+                          formatJson(responseData.validationResult.schema),
+                          'SCHEMA',
+                          callId
+                        )}
+                    </div>
+                  `
+                : responseData.validationResult.errors &&
+                    responseData.validationResult.errors.length > 0
+                  ? `
+                      <br><br>
+                      <label class="property">Validation Errors:</label>
+                      <div class="pw-validation-errors" style="background: #ffe6e6; border-left: 4px solid #ff0000; padding: 10px; margin-top: 10px;">
+                          <ul style="margin: 0; padding-left: 20px;">
+                              ${responseData.validationResult.errors.map((err) => `<li style="color: #d00;">${err}</li>`).join('')}
+                          </ul>
+                      </div>
+                    `
+                  : '<br><span style="color: #0d0;">✓ All validations passed</span>'
+            }
+        </div>
+      `
+    : ''
+
   return `<div class="pw-api-call pw-card">
         ${await createApiCallHtmlRequest(requestData, callId)}
         <hr>
         ${await createApiCallHtmlResponse(responseData, callId)}
+        ${validationSection}
     </div>`
 }
 
@@ -187,6 +264,27 @@ const createResponseTab = async (
         <label for="pw-res-${tabLabelForId}-${callId}" class="property pw-tab-label">${tabLabel.toUpperCase()}</label>
         <div class="pw-tab-content">
             <pre class="hljs" id="res-${tabLabelForId}-${callId}" data-tab-type="res-${tabLabelForId}">${data}</pre>
+        </div>`
+}
+
+/**
+ * Creates HTML for a validation tab
+ */
+const createValidationTab = async (
+  data: any,
+  tabLabel: string,
+  callId: number,
+  checked?: boolean
+): Promise<string> => {
+  if (data === undefined) return ''
+
+  const tabLabelForId = tabLabel.toLowerCase().replace(/[^a-z0-9]/g, '-')
+  return `<input type="radio" name="pw-val-data-tabs-${callId}" id="pw-val-${tabLabelForId}-${callId}" ${
+    checked ? 'checked="checked"' : ''
+  }>
+        <label for="pw-val-${tabLabelForId}-${callId}" class="property pw-tab-label">${tabLabel.toUpperCase()}</label>
+        <div class="pw-tab-content">
+            <pre class="hljs" id="val-${tabLabelForId}-${callId}" data-tab-type="val-${tabLabelForId}">${data}</pre>
         </div>`
 }
 
