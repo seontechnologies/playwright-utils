@@ -70,7 +70,7 @@ export class MovieService {
     // Zod Key feature 3: safeParse
     // Zod note: if you have a frontend, you can use the schema + safeParse there
     // in order to perform form validation before sending the data to the server
-    const validationResult = validateSchema(CreateMovieSchema, data)
+    const validationResult = validateSchema(data, CreateMovieSchema)
     if (!validationResult.success)
       return { status: 400, error: validationResult.error }
 
@@ -86,7 +86,7 @@ export class MovieService {
     // Zod Key feature 3: safeParse
     // Zod note: if you have a frontend, you can use the schema + safeParse there
     // in order to perform form validation before sending the data to the server
-    const validationResult = validateSchema(UpdateMovieSchema, data)
+    const validationResult = validateSchema(data, UpdateMovieSchema)
     if (!validationResult.success)
       return { status: 400, error: validationResult.error }
 
@@ -95,9 +95,9 @@ export class MovieService {
 }
 
 // helper function for schema validation
-function validateSchema<T>(
-  schema: z.ZodType<T>,
-  data: unknown
+function validateSchema<T = any>(
+  data: unknown,
+  schema: z.ZodType<T, any, any>
 ): { success: true; data: T } | { success: false; error: string } {
   const result = schema.safeParse(data)
   if (result.success) {

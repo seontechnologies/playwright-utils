@@ -23,6 +23,9 @@ const ajv = new Ajv({
 /** Cache for AJV instances with component schemas */
 const ajvCache = new Map<string, Ajv>()
 
+/** Maximum cache size to prevent unbounded memory growth */
+const MAX_AJV_CACHE_SIZE = 100
+
 /** Get or create cached AJV instance for specs with components */
 function getAjvInstance(fullSpec?: Record<string, unknown>): Ajv {
   if (!fullSpec?.components) {
@@ -33,6 +36,15 @@ function getAjvInstance(fullSpec?: Record<string, unknown>): Ajv {
   const cacheKey = JSON.stringify(fullSpec.components)
 
   if (!ajvCache.has(cacheKey)) {
+    // Implement LRU-style eviction if cache is too large
+    if (ajvCache.size >= MAX_AJV_CACHE_SIZE) {
+      // Remove the oldest entry (first key in the Map)
+      const firstKey = ajvCache.keys().next().value
+      if (firstKey) {
+        ajvCache.delete(firstKey)
+      }
+    }
+
     ajvCache.set(
       cacheKey,
       new Ajv({
@@ -289,7 +301,8 @@ function validateAnyOfProperty(
     path: `/${key}`,
     message: 'Value does not match any of the allowed schemas',
     expected: 'one of anyOf schemas',
-    actual: typeof value === 'object' ? JSON.stringify(value).substring(0, 50) : value
+    actual:
+      typeof value === 'object' ? JSON.stringify(value).substring(0, 50) : value
   }
 }
 
@@ -535,7 +548,7 @@ export async function validateSchema(
   try {
     const schemaFormat = detectSchemaFormat(schema)
     let validationErrors: ValidationErrorDetail[] = []
-    let processedSchema: object | ZodSchema
+    let processedSchema: object | z.ZodType
     let schemaForResult: object | undefined
 
     // Use path if provided, fallback to endpoint for backward compatibility
@@ -566,7 +579,7 @@ export async function validateSchema(
       }
     } else if (schemaFormat === 'Zod Schema') {
       // Zod schema
-      const zodSchema = schema as ZodSchema
+      const zodSchema = schema as z.ZodType
       processedSchema = zodSchema
       // For Zod, store the shape info as best we can
       schemaForResult = { type: 'ZodSchema', shape: 'See Zod definition' }
