@@ -9,7 +9,7 @@ import type {
   UpdateMovieRequest,
   UpdateMovieResponse
 } from '../../shared/types'
-import type { ZodSchema } from 'zod'
+import type { z } from 'zod'
 import { CreateMovieSchema, UpdateMovieSchema } from '../../shared/types/schema'
 
 // In the context of the MovieService, what you care about is the contract/interface
@@ -96,14 +96,14 @@ export class MovieService {
 
 // helper function for schema validation
 function validateSchema<T>(
-  schema: ZodSchema<T>,
+  schema: z.ZodType<T>,
   data: unknown
 ): { success: true; data: T } | { success: false; error: string } {
   const result = schema.safeParse(data)
   if (result.success) {
     return { success: true, data: result.data }
   } else {
-    const errorMessages = result.error.errors
+    const errorMessages = result.error.issues
       .map((err) => `${err.path.join('.')} - ${err.message}`)
       .join(', ')
     return { success: false, error: errorMessages }

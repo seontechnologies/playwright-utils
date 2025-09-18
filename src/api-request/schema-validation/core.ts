@@ -1,7 +1,7 @@
 /** Core schema validation engine */
 
 import Ajv from 'ajv'
-import { type ZodSchema, ZodError } from 'zod'
+import { type z, ZodError } from 'zod'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as yaml from 'js-yaml'
@@ -419,7 +419,7 @@ function validateWithAnyOfSupport(
 /** Validate data against Zod Schema */
 function validateWithZodSchema(
   data: unknown,
-  schema: ZodSchema
+  schema: z.ZodType
 ): ValidationErrorDetail[] {
   try {
     schema.parse(data)
