@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { MovieRepository } from './movie-repository'
 import type {
   GetMovieResponse,
@@ -9,7 +10,7 @@ import type {
   UpdateMovieRequest,
   UpdateMovieResponse
 } from '../../shared/types'
-import type { ZodSchema } from 'zod'
+import type { z } from 'zod'
 import { CreateMovieSchema, UpdateMovieSchema } from '../../shared/types/schema'
 
 // In the context of the MovieService, what you care about is the contract/interface
@@ -70,7 +71,7 @@ export class MovieService {
     // Zod Key feature 3: safeParse
     // Zod note: if you have a frontend, you can use the schema + safeParse there
     // in order to perform form validation before sending the data to the server
-    const validationResult = validateSchema(CreateMovieSchema, data)
+    const validationResult = validateSchema(data, CreateMovieSchema as any)
     if (!validationResult.success)
       return { status: 400, error: validationResult.error }
 
@@ -86,7 +87,7 @@ export class MovieService {
     // Zod Key feature 3: safeParse
     // Zod note: if you have a frontend, you can use the schema + safeParse there
     // in order to perform form validation before sending the data to the server
-    const validationResult = validateSchema(UpdateMovieSchema, data)
+    const validationResult = validateSchema(data, UpdateMovieSchema as any)
     if (!validationResult.success)
       return { status: 400, error: validationResult.error }
 
@@ -95,15 +96,15 @@ export class MovieService {
 }
 
 // helper function for schema validation
-function validateSchema<T>(
-  schema: ZodSchema<T>,
-  data: unknown
+function validateSchema<T = any>(
+  data: unknown,
+  schema: z.ZodType<T, any, any>
 ): { success: true; data: T } | { success: false; error: string } {
   const result = schema.safeParse(data)
   if (result.success) {
     return { success: true, data: result.data }
   } else {
-    const errorMessages = result.error.errors
+    const errorMessages = result.error.issues
       .map((err) => `${err.path.join('.')} - ${err.message}`)
       .join(', ')
     return { success: false, error: errorMessages }

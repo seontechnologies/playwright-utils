@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   describe,
   expect,
@@ -21,16 +22,14 @@ describe('<ValidationErrorDisplay />', () => {
         path: ['name'],
         message: 'Name is required',
         code: 'invalid_type',
-        expected: 'string',
-        received: 'undefined'
-      },
+        expected: 'string'
+      } as any,
       {
         path: ['year'],
         message: 'Year must be a number',
         code: 'invalid_type',
-        expected: 'number',
-        received: 'string'
-      }
+        expected: 'number'
+      } as any
     ])
 
     wrappedRender(<ValidationErrorDisplay validationError={mockError} />)

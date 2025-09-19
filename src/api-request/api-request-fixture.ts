@@ -1,6 +1,7 @@
 import { test as base } from '@playwright/test'
 import { apiRequest as apiRequestFunction } from './api-request'
-import type { ApiRequestParams, ApiRequestResponse } from './api-request'
+import type { ApiRequestParams } from './api-request'
+import type { EnhancedApiPromise } from './schema-validation/internal/promise-extension'
 
 /**
  * Type for the apiRequest fixture parameters - exactly like ApiRequestParams but without the 'request' property
@@ -47,10 +48,10 @@ export const test = base.extend<{
    */
   apiRequest: <T = unknown>(
     params: ApiRequestFixtureParams
-  ) => Promise<ApiRequestResponse<T>>
+  ) => EnhancedApiPromise<T>
 }>({
   apiRequest: async ({ request, baseURL, page }, use) => {
-    const apiRequest = async <T = unknown>({
+    const apiRequest = <T = unknown>({
       method,
       path,
       baseUrl,
@@ -60,8 +61,8 @@ export const test = base.extend<{
       params,
       uiMode = false,
       testStep
-    }: ApiRequestFixtureParams): Promise<ApiRequestResponse<T>> => {
-      const response = await apiRequestFunction({
+    }: ApiRequestFixtureParams): EnhancedApiPromise<T> => {
+      return apiRequestFunction<T>({
         request,
         method,
         path,
@@ -74,11 +75,6 @@ export const test = base.extend<{
         testStep,
         page // Pass page context for UI mode
       })
-
-      return {
-        status: response.status,
-        body: response.body as T
-      }
     }
 
     await use(apiRequest)

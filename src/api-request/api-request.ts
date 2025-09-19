@@ -6,6 +6,14 @@ import {
   type RequestDataInterface,
   type ResponseDataInterface
 } from './ui-display'
+import {
+  createEnhancedResponse,
+  type EnhancedApiResponse
+} from './schema-validation/internal/response-extension'
+import {
+  createEnhancedPromise,
+  type EnhancedApiPromise
+} from './schema-validation/internal/promise-extension'
 
 /** Retry configuration for API requests (like Cypress - only retries 5xx server errors, never 4xx client errors) */
 export type ApiRetryConfig = {
@@ -414,20 +422,37 @@ const displayApiUI = async (params: {
  *   expect(status).toBe(500);
  * });
  */
-export const apiRequest = async <T = unknown>(
+export const apiRequest = <T = unknown>(
   options: ApiRequestParams
-): Promise<ApiRequestResponse<T>> => {
+): EnhancedApiPromise<T> => {
   // By default, wrap in test.step unless explicitly disabled
   const useTestStep = options.testStep !== false
 
-  if (useTestStep) {
-    return test.step(createStepName(options), async () =>
-      apiRequestBase<T>(options)
-    )
-  } else {
-    // When used outside of test context (e.g., global setup)
-    return apiRequestBase<T>(options)
-  }
+  const promise = (async (): Promise<EnhancedApiResponse<T>> => {
+    let baseResponse: ApiRequestResponse<T>
+
+    if (useTestStep) {
+      baseResponse = await test.step(createStepName(options), async () =>
+        apiRequestBase<T>(options)
+      )
+    } else {
+      // When used outside of test context (e.g., global setup)
+      baseResponse = await apiRequestBase<T>(options)
+    }
+
+    // Create enhanced response with validateSchema method
+    return createEnhancedResponse(baseResponse, {
+      method: options.method,
+      path: options.path,
+      body: options.body,
+      headers: options.headers,
+      page: options.page,
+      uiMode: options.uiMode
+    })
+  })()
+
+  // Return enhanced promise with validateSchema method
+  return createEnhancedPromise(promise)
 }
 
 /** URL normalization to handle edge cases with slashes */
