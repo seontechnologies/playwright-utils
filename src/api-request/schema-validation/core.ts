@@ -1,7 +1,6 @@
 /** Core schema validation engine */
 
-import Ajv from 'ajv'
-import { type z, ZodError } from 'zod'
+// Zod types - will be loaded dynamically
 import * as fs from 'fs'
 import * as path from 'path'
 import * as yaml from 'js-yaml'
@@ -13,23 +12,43 @@ import type {
   ShapeAssertion
 } from './types'
 
-/** AJV instance for JSON Schema validation */
-const ajv = new Ajv({
-  allErrors: true,
-  verbose: true,
-  strict: false // Allow unknown formats for OpenAPI compatibility
-})
+/** Lazy-loaded AJV instance for JSON Schema validation */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let defaultAjvInstance: any | null = null
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDefaultAjv(): any {
+  if (!defaultAjvInstance) {
+    try {
+      // Lazy load AJV only when needed
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Ajv = require('ajv')
+      defaultAjvInstance = new Ajv({
+        allErrors: true,
+        verbose: true,
+        strict: false // Allow unknown formats for OpenAPI compatibility
+      })
+    } catch {
+      throw new Error(
+        'AJV is required for JSON Schema validation. Install with: npm install ajv'
+      )
+    }
+  }
+  return defaultAjvInstance
+}
 
 /** Cache for AJV instances with component schemas */
-const ajvCache = new Map<string, Ajv>()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ajvCache = new Map<string, any>()
 
 /** Maximum cache size to prevent unbounded memory growth */
 const MAX_AJV_CACHE_SIZE = 100
 
 /** Get or create cached AJV instance for specs with components */
-function getAjvInstance(fullSpec?: Record<string, unknown>): Ajv {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getAjvInstance(fullSpec?: Record<string, unknown>): any {
   if (!fullSpec?.components) {
-    return ajv
+    return getDefaultAjv()
   }
 
   // Create a stable cache key from components
@@ -45,13 +64,22 @@ function getAjvInstance(fullSpec?: Record<string, unknown>): Ajv {
       }
     }
 
-    ajvCache.set(
-      cacheKey,
-      new Ajv({
-        strict: false,
-        schemas: [fullSpec]
-      })
-    )
+    try {
+      // Lazy load AJV only when needed for cached instances
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Ajv = require('ajv')
+      ajvCache.set(
+        cacheKey,
+        new Ajv({
+          strict: false,
+          schemas: [fullSpec]
+        })
+      )
+    } catch {
+      throw new Error(
+        'AJV is required for JSON Schema validation. Install with: npm install ajv'
+      )
+    }
   }
 
   return ajvCache.get(cacheKey)!
@@ -261,7 +289,8 @@ function validateWithJsonSchema(
     return []
   }
 
-  return (validate.errors || []).map((error) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (validate.errors || []).map((error: any) => ({
     path: error.instancePath || error.schemaPath || 'root',
     message: error.message || 'Validation failed',
     expected: error.schema,
@@ -362,30 +391,32 @@ function validateStandardProperty(
   }
 }
 
-/** Validate schema with anyOf/oneOf support */
-function validateWithAnyOfSupport(
+/** Validate basic data structure against schema type */
+function validateBasicStructure(
   data: unknown,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: any,
-  fullSpec?: Record<string, unknown>
+  schema: any
+): ValidationErrorDetail | null {
+  if (schema.type === 'object' && typeof data !== 'object') {
+    return {
+      path: 'root',
+      message: 'Expected object',
+      expected: 'object',
+      actual: typeof data
+    }
+  }
+  return null
+}
+
+/** Validate required fields exist in data object */
+function validateRequiredFields(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dataObj: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any
 ): ValidationErrorDetail[] {
   const errors: ValidationErrorDetail[] = []
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dataObj = data as any
 
-  // Validate basic structure
-  if (schema.type === 'object' && typeof data !== 'object') {
-    return [
-      {
-        path: 'root',
-        message: 'Expected object',
-        expected: 'object',
-        actual: typeof data
-      }
-    ]
-  }
-
-  // Check required fields exist
   if (schema.required) {
     for (const field of schema.required) {
       if (!(field in dataObj)) {
@@ -399,7 +430,19 @@ function validateWithAnyOfSupport(
     }
   }
 
-  // Validate each property
+  return errors
+}
+
+/** Validate all properties in the schema */
+function validateSchemaProperties(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dataObj: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
+  fullSpec?: Record<string, unknown>
+): ValidationErrorDetail[] {
+  const errors: ValidationErrorDetail[] = []
+
   if (schema.properties) {
     for (const [key, propSchema] of Object.entries(schema.properties)) {
       const value = dataObj[key]
@@ -429,19 +472,71 @@ function validateWithAnyOfSupport(
   return errors
 }
 
+/** Validate schema with anyOf/oneOf support */
+function validateWithAnyOfSupport(
+  data: unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
+  fullSpec?: Record<string, unknown>
+): ValidationErrorDetail[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dataObj = data as any
+
+  // Validate basic structure
+  const structureError = validateBasicStructure(data, schema)
+  if (structureError) {
+    return [structureError]
+  }
+
+  // Collect all validation errors
+  const errors: ValidationErrorDetail[] = []
+
+  // Check required fields
+  errors.push(...validateRequiredFields(dataObj, schema))
+
+  // Validate properties
+  errors.push(...validateSchemaProperties(dataObj, schema, fullSpec))
+
+  return errors
+}
+
 /** Validate data against Zod Schema */
 function validateWithZodSchema(
   data: unknown,
-  schema: z.ZodType
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any
 ): ValidationErrorDetail[] {
   try {
+    // Lazy load Zod only when needed - validation happens in try block
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('zod')
+    } catch {
+      throw new Error(
+        'Zod is required for Zod schema validation. Install with: npm install zod'
+      )
+    }
+
     schema.parse(data)
     return []
   } catch (error) {
-    if (error instanceof ZodError) {
+    // Try to access ZodError for error handling
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let ZodError: any = null
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const zod = require('zod')
+      ZodError = zod.ZodError
+    } catch {
+      // Zod not available, handle gracefully
+    }
+
+    if (ZodError && error instanceof ZodError) {
       // Handle both Zod v3 and v4 compatibility
-      const issues = (error as ZodError).issues
-      return issues.map((zodError) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const issues = (error as any).issues
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return issues.map((zodError: any) => ({
         path: zodError.path.join('.') || 'root',
         message: zodError.message,
         expected: zodError.code,
@@ -548,7 +643,8 @@ export async function validateSchema(
   try {
     const schemaFormat = detectSchemaFormat(schema)
     let validationErrors: ValidationErrorDetail[] = []
-    let processedSchema: object | z.ZodType
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let processedSchema: object | any
     let schemaForResult: object | undefined
 
     // Use path if provided, fallback to endpoint for backward compatibility
@@ -579,7 +675,8 @@ export async function validateSchema(
       }
     } else if (schemaFormat === 'Zod Schema') {
       // Zod schema
-      const zodSchema = schema as z.ZodType
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const zodSchema = schema as any
       processedSchema = zodSchema
       // For Zod, store the shape info as best we can
       schemaForResult = { type: 'ZodSchema', shape: 'See Zod definition' }

@@ -360,6 +360,29 @@ async function fetchToken() {
 
 ## 🆕 Schema Validation
 
+### Peer Dependencies
+
+Schema validation requires additional dependencies based on your validation needs:
+
+```bash
+# For JSON Schema validation (using AJV)
+npm install ajv
+
+# For Zod schema validation
+npm install zod
+
+# Install both if you need both validation types
+npm install ajv zod
+```
+
+**Why peer dependencies?** These validation libraries are marked as optional peer dependencies to:
+
+- Give you control over which validation libraries to include in your bundle
+- Allow you to choose specific versions that work with your project
+- Avoid unnecessary bundle size if you only need one type of validation
+
+**Error handling:** If you attempt to use schema validation without the required dependency installed, you'll get a clear error message indicating which package to install.
+
 ### Quick Start - Schema Validation
 
 Reduce 5-10 lines of manual validation to a single line with built-in schema validation:
@@ -407,7 +430,6 @@ test('schema validation basics', async ({ apiRequest, authToken }) => {
   // Response is guaranteed valid with proper typing
   expect(responseBody.data.id).toBeDefined()
   expect(responseBody.data.name).toBe('Test Movie')
-
 })
 ```
 
@@ -505,7 +527,6 @@ test('Zod schema validation with TypeScript inference', async ({
   expect(responseBody.data.id).toBeDefined()
   expect(responseBody.data.name).toBe(movieData.name)
   expect(responseBody.status).toBe(200)
-
 })
 ```
 
@@ -546,10 +567,7 @@ test('OpenAPI JSON specification validation', async ({
   expect(responseBody.data.name).toBe(movieData.name)
 })
 
-test('OpenAPI YAML file validation', async ({
-  apiRequest,
-  authToken
-}) => {
+test('OpenAPI YAML file validation', async ({ apiRequest, authToken }) => {
   const response = await apiRequest({
     method: 'POST',
     path: '/movies',
@@ -675,7 +693,6 @@ test('combined schema + shape validation with functions', async ({
   expect(responseBody.data.year).toBe(movieData.year)
 })
 ```
-
 
 ### URL Resolution Strategy
 

@@ -1,4 +1,5 @@
-import { Prisma, type PrismaClient } from '@prisma/client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { PrismaClient } from '@prisma/client'
 import type {
   GetMovieResponse,
   CreateMovieRequest,
@@ -48,8 +49,13 @@ export class MovieAdapter implements MovieRepository {
   */
   // Centralized error handling method
   private handleError(error: unknown): void {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma error code:', error.code, 'Message:', error.message)
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error(
+        'Prisma error code:',
+        (error as any).code,
+        'Message:',
+        (error as any).message
+      )
     } else if (error instanceof Error) {
       console.error('Error:', error.message)
     } else {
@@ -158,8 +164,11 @@ export class MovieAdapter implements MovieRepository {
     } catch (error) {
       // Handle specific error codes (e.g., movie not found)
       if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (error as any).code === 'P2025'
       ) {
         return {
           status: 404,

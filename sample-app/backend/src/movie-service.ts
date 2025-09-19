@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { MovieRepository } from './movie-repository'
 import type {
   GetMovieResponse,

@@ -24,9 +24,30 @@ import type { Movie } from '@shared/types/movie-types'
 
 jest.mock('@prisma/client', () => {
   const actualPrisma = jest.requireActual('@prisma/client')
+
+  // Create a mock constructor for PrismaClientKnownRequestError that supports instanceof
+  class MockPrismaClientKnownRequestError extends Error {
+    code: string
+    clientVersion: string
+
+    constructor(
+      message: string,
+      options: { code: string; clientVersion: string }
+    ) {
+      super(message)
+      this.name = 'PrismaClientKnownRequestError'
+      this.code = options.code
+      this.clientVersion = options.clientVersion
+    }
+  }
+
   return {
     ...actualPrisma,
-    PrismaClient: jest.fn(() => mockDeep<PrismaClient>())
+    PrismaClient: jest.fn(() => mockDeep<PrismaClient>()),
+    Prisma: {
+      ...actualPrisma.Prisma,
+      PrismaClientKnownRequestError: MockPrismaClientKnownRequestError
+    }
   }
 })
 
@@ -155,7 +176,8 @@ describe('MovieAdapter', () => {
 
     it('should delete a movie and return false if the movie is not found', async () => {
       prismaMock.movie.delete.mockRejectedValue(
-        new Prisma.PrismaClientKnownRequestError('Movie not found', {
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        new (Prisma as any).PrismaClientKnownRequestError('Movie not found', {
           code: 'P2025',
           clientVersion: '1'
         })

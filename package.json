@@ -160,7 +160,17 @@
     "test:pw:burn-in-changed": "tsx playwright/scripts/burn-in-changed.ts"
   },
   "peerDependencies": {
-    "@playwright/test": ">=1.54.1"
+    "@playwright/test": ">=1.54.1",
+    "ajv": ">=8.0.0",
+    "zod": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ajv": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@faker-js/faker": "9.9.0",
@@ -169,9 +179,9 @@
     "@types/express": "4.17.21",
     "@types/express-serve-static-core": "5.0.7",
     "@types/jest": "29.5.14",
-    "@types/js-yaml": "^4.0.9",
+    "@types/js-yaml": "4.0.9",
     "@types/lodash": "4.17.20",
-    "@types/madge": "^5.0.3",
+    "@types/madge": "5.0.3",
     "@types/node": "22.18.4",
     "@types/papaparse": "5.3.16",
     "@types/picomatch": "4.0.2",
@@ -179,6 +189,7 @@
     "@types/uuid": "10.0.0",
     "@typescript-eslint/eslint-plugin": "8.44.0",
     "@typescript-eslint/parser": "8.44.0",
+    "ajv": "8.17.1",
     "dotenv": "16.6.1",
     "eslint": "8.57.1",
     "eslint-config-prettier": "10.1.8",
@@ -196,20 +207,19 @@
     "ts-jest": "29.4.2",
     "ts-node": "10.9.2",
     "tsx": "4.20.5",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "zod": "4.1.9"
   },
   "dependencies": {
     "adm-zip": "0.5.16",
-    "ajv": "^8.17.1",
     "deepmerge": "4.3.1",
     "exceljs": "4.4.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "4.1.0",
     "madge": "7.0.0",
     "papaparse": "5.5.3",
     "picomatch": "4.0.3",
     "proper-lockfile": "4.1.2",
     "unpdf": "1.2.2",
-    "uuid": "11.1.0",
-    "zod": "^4.1.9"
+    "uuid": "11.1.0"
   }
 }

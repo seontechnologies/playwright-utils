@@ -50,6 +50,6 @@ export const isTokenExpired = (rawToken: string): boolean => {
     return isExpired
   }
 
-  log.debugSync('Could not determine token expiration - assuming expired')
+  log.infoSync('Could not determine token expiration - assuming expired')
   return true
 }
