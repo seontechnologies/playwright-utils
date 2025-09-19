@@ -9,6 +9,7 @@
 
 import type { ValidationResult, ValidationErrorDetail } from '../types'
 import { getLogger } from '../../../internal'
+import { safeErrorDetails, safeStringify } from './safe-error-serializer'
 
 /**
  * Build a successful validation result
@@ -44,9 +45,7 @@ export function buildValidationResult(
       statusIcon: success ? '✅' : '❌',
       validationSummary: success ? 'PASSED' : 'FAILED',
       schemaInfo: `${schemaFormat} (${validationTime}ms)`,
-      errorDetails: success
-        ? undefined
-        : validationErrors.map((e) => `${e.path}: ${e.message}`)
+      errorDetails: success ? undefined : safeErrorDetails(validationErrors)
     }
   }
 }
@@ -64,7 +63,10 @@ export function buildErrorResult(
   schemaFormat: ValidationResult['schemaFormat'],
   validationTime: number
 ): ValidationResult {
-  const errorMessage = error instanceof Error ? error.message : String(error)
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : safeStringify(error, 'Unknown error')
 
   return {
     success: false,

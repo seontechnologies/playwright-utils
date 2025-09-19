@@ -162,10 +162,14 @@
   "peerDependencies": {
     "@playwright/test": ">=1.54.1",
     "ajv": ">=8.0.0",
+    "js-yaml": ">=4.0.0",
     "zod": ">=3.0.0"
   },
   "peerDependenciesMeta": {
     "ajv": {
+      "optional": true
+    },
+    "js-yaml": {
       "optional": true
     },
     "zod": {

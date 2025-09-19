@@ -1,6 +1,10 @@
 import { test as base } from '@playwright/test'
 import { validateSchema as validateSchemaFunction } from './core'
-import type { SupportedSchema, ValidateSchemaOptions } from './types'
+import type {
+  SupportedSchema,
+  ValidateSchemaOptions,
+  ValidationResult
+} from './types'
 
 /**
  * Fixture that provides the validateSchema function for schema validation
@@ -18,28 +22,19 @@ export const test = base.extend<{
    *   expect(validated.status).toBe(200)
    * })
    */
-  validateSchema: <T = unknown>(
+  validateSchema: (
     schema: SupportedSchema,
     data: unknown,
     options?: ValidateSchemaOptions
-  ) => Promise<T>
+  ) => Promise<ValidationResult>
 }>({
   validateSchema: async ({}, use) => {
-    const validateSchema = async <T = unknown>(
+    const validateSchema = async (
       schema: SupportedSchema,
       data: unknown,
       options?: ValidateSchemaOptions
-    ): Promise<T> => {
-      const result = await validateSchemaFunction(data, schema, options)
-
-      if (!result.success) {
-        throw new Error(
-          `Schema validation failed: ${result.errors.map((e) => e.message).join(', ')}`
-        )
-      }
-
-      // Return the validated data, not the validation result
-      return data as T
+    ): Promise<ValidationResult> => {
+      return await validateSchemaFunction(data, schema, options)
     }
 
     await use(validateSchema)

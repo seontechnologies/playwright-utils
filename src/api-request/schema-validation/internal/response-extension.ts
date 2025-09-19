@@ -4,6 +4,11 @@ import { expect } from '@playwright/test'
 import { getLogger } from '../../../internal'
 import { validateSchema as coreValidateSchema } from '../core'
 import { ValidationError } from '../types'
+import {
+  createValidationErrorMessage,
+  safeStringify
+} from './safe-error-serializer'
+
 import type {
   SupportedSchema,
   ValidateSchemaOptions,
@@ -88,8 +93,13 @@ function handleValidationFailure(
     body: unknown
   }
 ): never {
+  const errorMessage = createValidationErrorMessage(
+    validationResult.errors,
+    'Schema validation failed'
+  )
+
   const error = new ValidationError(
-    `Schema validation failed: ${validationResult.errors.length} error(s) found`,
+    errorMessage,
     validationResult,
     requestContext,
     responseContext
@@ -100,8 +110,13 @@ function handleValidationFailure(
     expect(validationResult.success, error.message).toBe(true)
   } catch (playwrightError) {
     // Create a proper ValidationError that wraps the Playwright error
+    const safeErrorMessage = createValidationErrorMessage(
+      validationResult.errors,
+      'Schema validation failed'
+    )
+
     const validationError = new ValidationError(
-      error.message,
+      safeErrorMessage,
       validationResult,
       requestContext,
       responseContext
@@ -137,7 +152,7 @@ function createFallbackValidationError(
     errors: [
       {
         path: 'validation',
-        message: `Validation process failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Validation process failed: ${error instanceof Error ? error.message : safeStringify(error, 'Unknown error')}`,
         expected: 'successful validation',
         actual: 'validation error'
       }
