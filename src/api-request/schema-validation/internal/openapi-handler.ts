@@ -83,10 +83,24 @@ export function extractOpenApiSchema(
   }
 
   try {
+    // Defensive programming: Check if paths object exists
+    if (!openApiSpec || typeof openApiSpec !== 'object') {
+      throw new Error(
+        'Invalid OpenAPI specification: must be a non-null object'
+      )
+    }
+
     const paths = (openApiSpec as Record<string, unknown>).paths as Record<
       string,
       unknown
     >
+
+    if (!paths || typeof paths !== 'object') {
+      throw new Error(
+        'Invalid OpenAPI specification: missing or invalid "paths" object'
+      )
+    }
+
     const pathDef =
       paths[endpoint] || paths[endpoint.replace(/\{[^}]+\}/g, '{id}')] // Handle parameterized paths
 

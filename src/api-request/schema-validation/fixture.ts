@@ -30,7 +30,16 @@ export const test = base.extend<{
       data: unknown,
       options?: ValidateSchemaOptions
     ): Promise<T> => {
-      return validateSchemaFunction(data, schema, options) as T
+      const result = await validateSchemaFunction(data, schema, options)
+
+      if (!result.success) {
+        throw new Error(
+          `Schema validation failed: ${result.errors.map((e) => e.message).join(', ')}`
+        )
+      }
+
+      // Return the validated data, not the validation result
+      return data as T
     }
 
     await use(validateSchema)

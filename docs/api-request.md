@@ -371,15 +371,24 @@ npm install ajv
 # For Zod schema validation
 npm install zod
 
-# Install both if you need both validation types
-npm install ajv zod
+# For YAML OpenAPI schema files (required for .yaml/.yml files)
+npm install js-yaml @types/js-yaml
+
+# Install all dependencies for complete schema support
+npm install ajv zod js-yaml @types/js-yaml
 ```
 
 **Why peer dependencies?** These validation libraries are marked as optional peer dependencies to:
 
 - Give you control over which validation libraries to include in your bundle
 - Allow you to choose specific versions that work with your project
-- Avoid unnecessary bundle size if you only need one type of validation
+- Avoid unnecessary bundle size if you only need specific validation types
+
+**When each dependency is needed:**
+
+- `ajv` - Required for JSON Schema validation
+- `zod` - Required for Zod schema validation
+- `js-yaml` - Required for YAML OpenAPI file loading (`.yaml`/`.yml` files)
 
 **Error handling:** If you attempt to use schema validation without the required dependency installed, you'll get a clear error message indicating which package to install.
 
