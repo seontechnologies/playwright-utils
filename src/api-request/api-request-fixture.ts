@@ -1,7 +1,7 @@
 import { test as base } from '@playwright/test'
 import { apiRequest as apiRequestFunction } from './api-request'
 import type { ApiRequestParams } from './api-request'
-import type { EnhancedApiPromise } from './schema-validation/promise-extension'
+import type { EnhancedApiPromise } from './schema-validation/internal/promise-extension'
 
 /**
  * Type for the apiRequest fixture parameters - exactly like ApiRequestParams but without the 'request' property

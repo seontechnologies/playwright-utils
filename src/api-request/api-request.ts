@@ -9,11 +9,11 @@ import {
 import {
   createEnhancedResponse,
   type EnhancedApiResponse
-} from './schema-validation/response-extension'
+} from './schema-validation/internal/response-extension'
 import {
   createEnhancedPromise,
   type EnhancedApiPromise
-} from './schema-validation/promise-extension'
+} from './schema-validation/internal/promise-extension'
 
 /** Retry configuration for API requests (like Cypress - only retries 5xx server errors, never 4xx client errors) */
 export type ApiRetryConfig = {

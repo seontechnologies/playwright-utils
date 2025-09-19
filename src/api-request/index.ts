@@ -12,9 +12,9 @@ export {
 export { type ApiRequestFixtureParams } from './api-request-fixture'
 
 // Export schema validation types and functionality
-export type { EnhancedApiResponse } from './schema-validation/response-extension'
+export type { EnhancedApiResponse } from './schema-validation/internal/response-extension'
 
-export type { EnhancedApiPromise } from './schema-validation/promise-extension'
+export type { EnhancedApiPromise } from './schema-validation/internal/promise-extension'
 
 export type {
   SupportedSchema,

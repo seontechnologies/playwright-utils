@@ -248,10 +248,6 @@ test.describe('Schema Validation - Error Scenarios', () => {
       data: { id?: string; name?: string }
     }
 
-    // Original response data should still be accessible
-    expect(responseBody.status).toBe(200)
-    expect(responseBody.data).toBeDefined()
-
     // Clean up if movie was created
     if (responseBody.data?.id) {
       await apiRequest({

@@ -1,22 +1,41 @@
 /** Response extension with validateSchema method */
 
 import { expect } from '@playwright/test'
-import { getLogger } from '../../internal'
-import { validateSchema as coreValidateSchema } from './core'
-import { ValidationError } from './types'
+import { getLogger } from '../../../internal'
+import { validateSchema as coreValidateSchema } from '../core'
+import { ValidationError } from '../types'
 import type {
   SupportedSchema,
   ValidateSchemaOptions,
   ValidatedApiResponse,
   ValidationResult
-} from './types'
-import type { ApiRequestResponse } from '../api-request'
+} from '../types'
+import type { ApiRequestResponse } from '../../api-request'
 import {
   addApiCardToUI,
   type RequestDataInterface,
   type ResponseDataInterface
-} from '../ui-display'
+} from '../../ui-display'
 import type { Page } from '@playwright/test'
+
+/**
+ * Maps request context to standardized format for UI display
+ */
+function mapRequestContext(context?: {
+  method: string
+  path: string
+  body?: unknown
+  headers?: Record<string, string>
+}) {
+  return context
+    ? {
+        method: context.method,
+        path: context.path,
+        body: context.body,
+        headers: context.headers
+      }
+    : undefined
+}
 
 /** Enhanced API response with validateSchema method */
 export interface EnhancedApiResponse<T = unknown>
@@ -188,14 +207,7 @@ export function createEnhancedResponse<T>(
         ) {
           await displayValidationUI({
             validationResult,
-            requestContext: requestContext
-              ? {
-                  method: requestContext.method,
-                  path: requestContext.path,
-                  body: requestContext.body,
-                  headers: requestContext.headers
-                }
-              : undefined,
+            requestContext: mapRequestContext(requestContext),
             responseContext: {
               status: originalResponse.status,
               body: originalResponse.body
@@ -214,14 +226,7 @@ export function createEnhancedResponse<T>(
           } else {
             handleValidationFailure(
               validationResult,
-              requestContext
-                ? {
-                    method: requestContext.method,
-                    path: requestContext.path,
-                    body: requestContext.body,
-                    headers: requestContext.headers
-                  }
-                : undefined,
+              mapRequestContext(requestContext),
               {
                 status: originalResponse.status,
                 body: originalResponse.body
@@ -247,14 +252,7 @@ export function createEnhancedResponse<T>(
         throw createFallbackValidationError(
           error,
           startTime,
-          requestContext
-            ? {
-                method: requestContext.method,
-                path: requestContext.path,
-                body: requestContext.body,
-                headers: requestContext.headers
-              }
-            : undefined,
+          mapRequestContext(requestContext),
           originalResponse
         )
       }

@@ -4,7 +4,7 @@ import type {
   SupportedSchema,
   ValidateSchemaOptions,
   ValidatedApiResponse
-} from './types'
+} from '../types'
 import type { EnhancedApiResponse } from './response-extension'
 
 /** Enhanced Promise with validateSchema method */
