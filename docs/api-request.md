@@ -11,6 +11,12 @@ The API Request utility provides a clean, typed interface for making HTTP reques
     - [apiRequest Function](#apirequest-function)
     - [Parameters](#parameters)
     - [Return Type](#return-type)
+  - [Examples](#examples)
+    - [GET Request with Authentication](#get-request-with-authentication)
+      - [POST Request with Body](#post-request-with-body)
+    - [Handling Query Parameters](#handling-query-parameters)
+    - [Handling Different Response Types](#handling-different-response-types)
+    - [Using in Non-Test Contexts (Global Setup, Helpers)](#using-in-non-test-contexts-global-setup-helpers)
   - [Retry Logic (Cypress-Style)](#retry-logic-cypress-style)
     - [Default Behavior](#default-behavior)
     - [Retry Configuration](#retry-configuration)
@@ -19,33 +25,24 @@ The API Request utility provides a clean, typed interface for making HTTP reques
       - [Disable Retry for Error Testing](#disable-retry-for-error-testing)
       - [Custom Retry Configuration](#custom-retry-configuration)
     - [Why Only 5xx Errors?](#why-only-5xx-errors)
-  - [Examples](#examples)
-    - [GET Request with Authentication](#get-request-with-authentication)
-      - [POST Request with Body](#post-request-with-body)
-    - [Handling Query Parameters](#handling-query-parameters)
-    - [Handling Different Response Types](#handling-different-response-types)
-    - [Using in Non-Test Contexts (Global Setup, Helpers)](#using-in-non-test-contexts-global-setup-helpers)
   - [🆕 Schema Validation](#-schema-validation)
+    - [Peer Dependencies](#peer-dependencies)
     - [Quick Start - Schema Validation](#quick-start---schema-validation)
     - [Multi-Format Schema Support](#multi-format-schema-support)
       - [JSON Schema](#json-schema)
+      - [Chained vs Awaited Schema Validation](#chained-vs-awaited-schema-validation)
       - [Zod Schema Integration](#zod-schema-integration)
+      - [OpenAPI Specification Support](#openapi-specification-support)
+      - [Schema-Only Validation (No Shape Assertions)](#schema-only-validation-no-shape-assertions)
+      - [Return Mode (Non-Throwing Validation)](#return-mode-non-throwing-validation)
+      - [Advanced Shape Validation with Functions](#advanced-shape-validation-with-functions)
     - [URL Resolution Strategy](#url-resolution-strategy)
   - [UI Mode for API E2E Testing](#ui-mode-for-api-e2e-testing)
-    - [Features](#features-1)
-    - [Enabling UI Mode](#enabling-ui-mode)
-      - [Method 1: Per-Request Basis](#method-1-per-request-basis)
-      - [Method 2: Environment Variable (Recommended for API E2E)](#method-2-environment-variable-recommended-for-api-e2e)
-      - [Method 3: In Test Hooks](#method-3-in-test-hooks)
-    - [UI Mode Examples](#ui-mode-examples)
-      - [Basic Usage with Environment Variable](#basic-usage-with-environment-variable)
-      - [Per-Request UI Mode](#per-request-ui-mode)
-      - [Combining with Other Utilities](#combining-with-other-utilities)
-    - [Best Practices](#best-practices)
-    - [What You'll See](#what-youll-see)
+    - [Enable UI Mode](#enable-ui-mode)
+    - [Example](#example)
   - [Real-World Examples](#real-world-examples)
     - [CRUD Operations with Typed Fixtures](#crud-operations-with-typed-fixtures)
-    - [Usage in Tests](#usage-in-tests)
+    - [Usage in Tests - Traditional vs Schema Validation](#usage-in-tests---traditional-vs-schema-validation)
     - [Benefits of this Pattern](#benefits-of-this-pattern)
     - [Integration with Auth Session](#integration-with-auth-session)
     - [Working with Async Operations and Polling](#working-with-async-operations-and-polling)
@@ -54,7 +51,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
 
 - **Automatic Retry Logic**: Cypress-style retry for server errors (5xx) enabled by default with exponential backoff
 - Strong TypeScript typing for request parameters and responses
-- Three-tier URL resolution strategy (explicit baseUrl, config baseURL, or direct path)
+- Four-tier URL resolution strategy (explicit baseUrl, config baseURL, Playwright baseURL, or direct path)
 - Proper handling of URL path normalization and slashes
 - Content-type based response parsing
 - Support for all common HTTP methods
@@ -143,6 +140,113 @@ async function apiRequest<T = unknown>({
 type ApiRequestResponse<T = unknown> = {
   status: number // HTTP status code
   body: T // Response body, typed as T
+}
+```
+
+## Examples
+
+### GET Request with Authentication
+
+```typescript
+import { test } from '@seontechnologies/playwright-utils/fixtures'
+
+test('fetch user profile', async ({ apiRequest }) => {
+  const { status, body } = await apiRequest<UserProfile>({
+    method: 'GET',
+    path: '/api/profile',
+    headers: {
+      Authorization: 'Bearer token123'
+    }
+  })
+
+  expect(status).toBe(200)
+  expect(body.email).toBeDefined()
+})
+```
+
+#### POST Request with Body
+
+```typescript
+import { test } from '@seontechnologies/playwright-utils/fixtures'
+
+test('create new item', async ({ apiRequest }) => {
+  const { status, body } = await apiRequest<CreateItemResponse>({
+    method: 'POST',
+    path: '/api/items',
+    baseUrl: 'https://api.example.com', // override default baseURL
+    body: {
+      name: 'New Item',
+      price: 19.99
+    },
+    headers: { 'Content-Type': 'application/json' }
+  })
+
+  expect(status).toBe(201)
+  expect(body.id).toBeDefined()
+})
+```
+
+### Handling Query Parameters
+
+```typescript
+test('demonstrates query parameters', async ({ apiRequest }) => {
+  // Query parameters are properly encoded
+  const { status, body } = await apiRequest({
+    method: 'GET',
+    path: '/search',
+    params: {
+      q: 'search term',
+      page: 1,
+      active: true
+    }
+  })
+  // Makes a request to /search?q=search%20term&page=1&active=true
+})
+```
+
+### Handling Different Response Types
+
+```typescript
+test('handles different response types', async ({ apiRequest }) => {
+  // JSON responses are automatically parsed
+  const jsonResponse = await apiRequest<UserData>({
+    method: 'GET',
+    path: '/api/users/1'
+  })
+  // jsonResponse.body is typed as UserData
+
+  // Text responses are returned as strings
+  const textResponse = await apiRequest<string>({
+    method: 'GET',
+    path: '/api/plain-text',
+    headers: {
+      Accept: 'text/plain'
+    }
+  })
+  // textResponse.body is a string
+})
+```
+
+### Using in Non-Test Contexts (Global Setup, Helpers)
+
+```typescript
+import { apiRequest } from '@seontechnologies/playwright-utils'
+import { request } from '@playwright/test'
+
+// For use in global setup or outside of test.step() contexts
+async function fetchToken() {
+  const requestContext = await request.newContext()
+
+  const { body } = await apiRequest({
+    request: requestContext,
+    method: 'GET',
+    path: '/auth/token',
+    baseUrl: 'https://api.example.com',
+    testStep: false // Disable test.step wrapping for non-test contexts
+  })
+
+  await requestContext.dispose()
+  return body.token
 }
 ```
 
@@ -249,113 +353,6 @@ test('demonstrates retry behavior', async ({ apiRequest }) => {
     path: '/api/sometimes-fails' // May return 503 - will retry with backoff
   })
 })
-```
-
-## Examples
-
-### GET Request with Authentication
-
-```typescript
-import { test } from '@seontechnologies/playwright-utils/api-request/fixtures'
-
-test('fetch user profile', async ({ apiRequest }) => {
-  const { status, body } = await apiRequest<UserProfile>({
-    method: 'GET',
-    path: '/api/profile',
-    headers: {
-      Authorization: 'Bearer token123'
-    }
-  })
-
-  expect(status).toBe(200)
-  expect(body.email).toBeDefined()
-})
-```
-
-#### POST Request with Body
-
-```typescript
-import { test } from '@seontechnologies/playwright-utils/api-request/fixtures'
-
-test('create new item', async ({ apiRequest }) => {
-  const { status, body } = await apiRequest<CreateItemResponse>({
-    method: 'POST',
-    path: '/api/items',
-    baseUrl: 'https://api.example.com', // override default baseURL
-    body: {
-      name: 'New Item',
-      price: 19.99
-    },
-    headers: { 'Content-Type': 'application/json' }
-  })
-
-  expect(status).toBe(201)
-  expect(body.id).toBeDefined()
-})
-```
-
-### Handling Query Parameters
-
-```typescript
-test('demonstrates query parameters', async ({ apiRequest }) => {
-  // Query parameters are properly encoded
-  const { status, body } = await apiRequest({
-    method: 'GET',
-    path: '/search',
-    params: {
-      q: 'search term',
-      page: 1,
-      active: true
-    }
-  })
-  // Makes a request to /search?q=search%20term&page=1&active=true
-})
-```
-
-### Handling Different Response Types
-
-```typescript
-test('handles different response types', async ({ apiRequest }) => {
-  // JSON responses are automatically parsed
-  const jsonResponse = await apiRequest<UserData>({
-    method: 'GET',
-    path: '/api/users/1'
-  })
-  // jsonResponse.body is typed as UserData
-
-  // Text responses are returned as strings
-  const textResponse = await apiRequest<string>({
-    method: 'GET',
-    path: '/api/plain-text',
-    headers: {
-      Accept: 'text/plain'
-    }
-  })
-  // textResponse.body is a string
-})
-```
-
-### Using in Non-Test Contexts (Global Setup, Helpers)
-
-```typescript
-import { apiRequest } from '@seontechnologies/playwright-utils'
-import { request } from '@playwright/test'
-
-// For use in global setup or outside of test.step() contexts
-async function fetchToken() {
-  const requestContext = await request.newContext()
-
-  const { body } = await apiRequest({
-    request: requestContext,
-    method: 'GET',
-    path: '/auth/token',
-    baseUrl: 'https://api.example.com',
-    testStep: false // Disable test.step wrapping for non-test contexts
-  })
-
-  await requestContext.dispose()
-  return body.token
-}
 ```
 
 ## 🆕 Schema Validation
@@ -504,6 +501,54 @@ test('JSON Schema validation basics', async ({ apiRequest, authToken }) => {
 })
 ```
 
+```typescript
+test('JSON Schema validation with awaited helper', async ({
+  addMovie,
+  authToken,
+  validateSchema
+}) => {
+  const { body } = await addMovie(authToken, movie)
+
+  await validateSchema(jsonSchema, body, {
+    shape: {
+      status: 200,
+      data: {
+        name: movie.name,
+        year: movie.year,
+        rating: movie.rating,
+        director: movie.director
+      }
+    }
+  })
+})
+```
+
+#### Chained vs Awaited Schema Validation
+
+Both `.validateSchema()` and the standalone `validateSchema()` helper share the same validation engine. Choose the style that fits how you obtain your response:
+
+- **Chained** — works great when you call `apiRequest()` directly and want a fluent API.
+- **Awaited** — ideal when a fixture wraps `apiRequest()` (for example with `functionTestStep`) or when you already have the `{ status, body }` pair from another helper.
+
+```typescript
+// Chained style (fluent)
+const { body } = await apiRequest({
+  method: 'GET',
+  path: '/movies/123'
+}).validateSchema(GetMovieResponseUnionSchema)
+
+// Awaited style (fixture-friendly)
+const { body } = await getMovieById(authToken, movieId)
+await validateSchema(GetMovieResponseUnionSchema, body, {
+  shape: {
+    status: 200,
+    data: expect.objectContaining({ id: movieId })
+  }
+})
+```
+
+> **Tip:** Both styles return the same object, support every `validateSchema` option, and can be mixed within the same test suite.
+
 #### Zod Schema Integration
 
 ```typescript
@@ -527,15 +572,27 @@ test('Zod schema validation with TypeScript inference', async ({
     headers: { Cookie: `seon-jwt=${authToken}` }
   }).validateSchema(CreateMovieResponseSchema)
 
-  // Type assertion needed for accessing response data
-  const responseBody = response.body as {
-    status: number
-    data: { id: string; name: string }
-  }
+  // Response is guaranteed valid with proper typing
+  expect(response.body.data.id).toBeDefined()
+  expect(response.body.data.name).toBe(movieData.name)
+  expect(response.body.status).toBe(200)
+})
+```
 
-  expect(responseBody.data.id).toBeDefined()
-  expect(responseBody.data.name).toBe(movieData.name)
-  expect(responseBody.status).toBe(200)
+```typescript
+test('Zod schema validation with awaited helper', async ({
+  getMovieById,
+  authToken,
+  validateSchema
+}) => {
+  const { body } = await getMovieById(authToken, movieId)
+
+  await validateSchema(CreateMovieResponseSchema, body, {
+    shape: {
+      status: 200,
+      data: expect.objectContaining({ id: movieId })
+    }
+  })
 })
 ```
 
@@ -574,6 +631,31 @@ test('OpenAPI JSON specification validation', async ({
 
   expect(responseBody.data.id).toBeDefined()
   expect(responseBody.data.name).toBe(movieData.name)
+})
+
+test('awaited OpenAPI JSON validation', async ({
+  apiRequest,
+  authToken,
+  validateSchema
+}) => {
+  const { body } = await apiRequest({
+    method: 'POST',
+    path: '/movies',
+    body: movieData,
+    headers: { Cookie: `seon-jwt=${authToken}` }
+  })
+
+  const result = await validateSchema(openApiJson, body, {
+    endpoint: '/movies',
+    method: 'POST',
+    status: 200,
+    shape: {
+      status: 200,
+      data: expect.objectContaining({ name: movieData.name })
+    }
+  })
+
+  expect(result.validationResult.success).toBe(true)
 })
 
 test('OpenAPI YAML file validation', async ({ apiRequest, authToken }) => {
@@ -622,6 +704,31 @@ test('schema validation without shape assertions', async ({
   // Only schema compliance is validated, no additional shape assertions
   expect(responseBody.status).toBe(200)
   expect(responseBody.data).toBeDefined()
+})
+```
+
+```typescript
+test('return mode validation with awaited helper', async ({
+  apiRequest,
+  authToken,
+  validateSchema
+}) => {
+  const { body } = await apiRequest({
+    method: 'POST',
+    path: '/movies',
+    body: movieData,
+    headers: { Cookie: `seon-jwt=${authToken}` }
+  })
+
+  const result = await validateSchema('./api-docs/openapi.yml', body, {
+    path: '/movies',
+    method: 'POST',
+    status: 200,
+    mode: 'return'
+  })
+
+  expect(result.validationResult.success).toBe(true)
+  expect(result.validationResult.errors).toBeUndefined()
 })
 ```
 
@@ -686,7 +793,7 @@ test('combined schema + shape validation with functions', async ({
         year: (year: number) =>
           year >= 1900 && year <= new Date().getFullYear(),
         rating: (rating: number) => rating >= 0 && rating <= 10,
-        id: (id: string) => typeof id === 'number'
+        id: (id: string) => typeof id === 'string'
       }
     }
   })
@@ -700,6 +807,26 @@ test('combined schema + shape validation with functions', async ({
   // Both schema compliance AND shape assertions pass
   expect(responseBody.data.name).toBe(movieData.name)
   expect(responseBody.data.year).toBe(movieData.year)
+})
+```
+
+```typescript
+test('awaited helper with shape functions', async ({
+  updateMovie,
+  authToken,
+  validateSchema
+}) => {
+  const { body } = await updateMovie(authToken, movieId, updatedMovie)
+
+  await validateSchema(CreateMovieResponseSchema, body, {
+    shape: {
+      status: 200,
+      data: {
+        name: (name: string) => name.length > 0,
+        rating: (rating: number) => rating >= 0 && rating <= 10
+      }
+    }
+  })
 })
 ```
 
