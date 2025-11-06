@@ -93,7 +93,7 @@ export async function readPDF(
         ...(isVectorBased !== undefined && { isVectorBased }), // Only include if calculated
         ...(extractionNotes && { extractionNotes }) // Only include if we have notes
       },
-      metadata: meta.metadata || {}
+      metadata: (meta.metadata || {}) as Record<string, unknown>
     }
   } catch (error) {
     if (error instanceof Error) {
