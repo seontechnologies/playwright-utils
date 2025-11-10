@@ -5,8 +5,8 @@
   - [Quick Start](#quick-start)
   - [Real-World Example](#real-world-example)
   - [Usage](#usage)
-    - [As a Fixture (Recommended)](#as-a-fixture-recommended)
-    - [Integration with Merged Fixtures](#integration-with-merged-fixtures)
+    - [As a Fixture](#as-a-fixture)
+    - [Integration with Merged Fixtures (Recommended)](#integration-with-merged-fixtures-recommended)
   - [Opt-Out for Validation Tests](#opt-out-for-validation-tests)
   - [Features](#features)
     - [1. Automatic Activation](#1-automatic-activation)
@@ -21,10 +21,9 @@
   - [Implementation Details](#implementation-details)
     - [How It Works](#how-it-works)
     - [Performance](#performance)
-    - [Type Safety](#type-safety)
   - [Comparison to Alternatives](#comparison-to-alternatives)
   - [Credit](#credit)
-  - [Future Enhancements](#future-enhancements)
+  - [Potential Future Enhancements](#potential-future-enhancements)
 
 **Built-in Sentry for Playwright Tests**
 
@@ -87,7 +86,7 @@ test('load dashboard', async ({ page }) => {
 
 ## Usage
 
-### As a Fixture (Recommended)
+### As a Fixture
 
 The simplest way to use network error monitoring is via the fixture:
 
@@ -100,7 +99,7 @@ test('my test', async ({ page }) => {
 })
 ```
 
-### Integration with Merged Fixtures
+### Integration with Merged Fixtures (Recommended)
 
 The recommended pattern is to merge the network error monitor into your project's main fixture:
 
@@ -290,48 +289,22 @@ The monitor has minimal performance impact:
 - Memory: ~200 bytes per unique error
 - No network delay (observes responses, doesn't intercept them)
 
-### Type Safety
-
-The fixture is fully typed with TypeScript:
-
-```typescript
-type ErrorRequest = {
-  url: string
-  status: number
-  method: string
-  timestamp: string
-}
-
-type NetworkErrorMonitorFixture = {
-  networkErrorMonitor: void
-}
-```
-
 ## Comparison to Alternatives
 
-| Approach                    | Network Error Monitor   | Manual afterEach         | No Monitoring |
-| --------------------------- | ----------------------- | ------------------------ | ------------- |
-| **Setup Required**          | Zero (auto-enabled)     | Every test file          | N/A           |
-| **Catches Silent Failures** | ✅ Yes                  | ✅ Yes (if configured)   | ❌ No         |
-| **Structured Artifacts**    | ✅ JSON attached        | ⚠️ Custom impl           | ❌ No         |
-| **Test Failure Safety**     | ✅ Try/finally          | ⚠️ afterEach may not run | ❌ No         |
-| **Opt-Out Mechanism**       | ✅ Annotation           | ⚠️ Custom logic          | N/A           |
-| **Status Aware**            | ✅ Respects skip/failed | ❌ No                    | N/A           |
+| Approach                    | Network Error Monitor   | Manual afterEach         |
+| --------------------------- | ----------------------- | ------------------------ |
+| **Setup Required**          | Zero (auto-enabled)     | Every test file          |
+| **Catches Silent Failures** | ✅ Yes                  | ✅ Yes (if configured)   |
+| **Structured Artifacts**    | ✅ JSON attached        | ⚠️ Custom impl           |
+| **Test Failure Safety**     | ✅ Try/finally          | ⚠️ afterEach may not run |
+| **Opt-Out Mechanism**       | ✅ Annotation           | ⚠️ Custom logic          |
+| **Status Aware**            | ✅ Respects skip/failed | ❌ No                    |
 
 ## Credit
 
 This implementation is inspired by [Checkly's network monitoring example](https://www.youtube.com/watch?v=sKpwE84K9fU), with enhancements including:
 
-- Try/finally for reliable error checking
-- Test status awareness (skip/interrupted/failed)
-- Structured JSON artifacts
-- Deduplication
-- Auto-enable pattern
-- Opt-out mechanism
-
-## Future Enhancements
-
-Potential improvements for future versions:
+## Potential Future Enhancements
 
 - Custom error handlers (e.g., send to Sentry)
 - Warn-only mode (log errors without failing tests)
