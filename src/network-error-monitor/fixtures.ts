@@ -11,6 +11,7 @@
  */
 
 import { test as base } from '@playwright/test'
+import type { Page, Response, TestInfo } from '@playwright/test'
 import { log } from '../log/log'
 
 type ErrorRequest = {
@@ -25,17 +26,16 @@ type NetworkErrorMonitorFixture = {
   networkErrorMonitor: void
 }
 
-/**
- * Patterns for endpoints that should be excluded from error checking.
- * Add new patterns here if specific endpoints legitimately return 4xx/5xx.
- */
-const EXCLUDE_PATTERNS: RegExp[] = []
+type NetworkErrorMonitorConfig = {
+  /** Regex patterns for URLs to exclude from error monitoring */
+  excludePatterns?: RegExp[]
+}
 
 /**
  * Check if a URL should be excluded from error monitoring
  */
-function shouldExcludeUrl(url: string): boolean {
-  return EXCLUDE_PATTERNS.some((pattern) => pattern.test(url))
+function shouldExcludeUrl(url: string, excludePatterns: RegExp[]): boolean {
+  return excludePatterns.some((pattern) => pattern.test(url))
 }
 
 /**
@@ -46,15 +46,16 @@ function handleErrorResponse(
   url: string,
   method: string,
   errorData: ErrorRequest[],
-  seenErrors: Set<string>
+  seenErrors: Set<string>,
+  excludePatterns: RegExp[]
 ): void {
   // Only capture client (4xx) and server (5xx) errors
-  if (status < 400 || shouldExcludeUrl(url)) {
+  if (status < 400 || shouldExcludeUrl(url, excludePatterns)) {
     return
   }
 
-  // Deduplicate errors by status + URL combination
-  const errorKey = `${status}:${url}`
+  // Deduplicate errors by method + status + URL combination
+  const errorKey = `${method}:${status}:${url}`
   if (seenErrors.has(errorKey)) {
     return
   }
@@ -73,10 +74,7 @@ function handleErrorResponse(
  */
 async function processNetworkErrors(
   errorData: ErrorRequest[],
-  testInfo: {
-    status?: string
-    attach: (name: string, options: any) => Promise<void>
-  }
+  testInfo: TestInfo
 ): Promise<Error | null> {
   if (errorData.length === 0) {
     return null
@@ -117,13 +115,100 @@ async function processNetworkErrors(
 }
 
 /**
- * Network error monitoring fixture.
+ * Creates a network error monitoring fixture with configurable exclusion patterns.
+ *
+ * @param config - Configuration options
+ * @param config.excludePatterns - Regex patterns for URLs to exclude from monitoring
+ * @returns Fixture configuration object
+ *
+ * @example
+ * ```typescript
+ * // With custom exclusions
+ * import { test as base } from '@playwright/test';
+ * import { createNetworkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+ *
+ * export const test = base.extend(
+ *   createNetworkErrorMonitorFixture({
+ *     excludePatterns: [
+ *       /sentry\.io\/api/,
+ *       /analytics/,
+ *     ]
+ *   })
+ * );
+ * ```
+ */
+export function createNetworkErrorMonitorFixture(
+  config: NetworkErrorMonitorConfig = {}
+) {
+  const { excludePatterns = [] } = config
+
+  return {
+    networkErrorMonitor: [
+      async (
+        { page }: { page: Page },
+        use: (r?: void) => Promise<void>,
+        testInfo: TestInfo
+      ) => {
+        // Check if this test opts out of network monitoring
+        const shouldSkip = testInfo.annotations.some(
+          (a) => a.type === 'skipNetworkMonitoring'
+        )
+
+        if (shouldSkip) {
+          await use()
+          return
+        }
+
+        const errorData: ErrorRequest[] = []
+        const seenErrors = new Set<string>()
+
+        page.on('response', async (response: Response) => {
+          try {
+            handleErrorResponse(
+              response.status(),
+              response.url(),
+              response.request().method(),
+              errorData,
+              seenErrors,
+              excludePatterns
+            )
+          } catch (error) {
+            // Log the error but don't fail the test for monitoring issues
+            log.errorSync(`Error in network monitor: ${String(error)}`)
+          }
+        })
+
+        // Run the test with try/finally to ensure error checking always runs
+        // even if the test fails early (regression fix from old afterEach behavior)
+        let networkError: Error | null = null
+
+        try {
+          await use()
+        } finally {
+          // Process network errors and determine if we should throw
+          networkError = await processNetworkErrors(errorData, testInfo)
+        }
+
+        // Throw network error outside finally block (ESLint no-unsafe-finally)
+        if (networkError) {
+          throw networkError
+        }
+      },
+      {
+        // Auto-enable this fixture for all tests
+        auto: true
+      }
+    ]
+  }
+}
+
+/**
+ * Default network error monitoring fixture with no exclusions.
  *
  * Features:
  * - Automatic activation (auto: true) - no test changes required
  * - Captures all HTTP 4xx/5xx responses during test execution
  * - Deduplicates errors (same status + URL reported once)
- * - Excludes known endpoints that legitimately return errors
  * - Attaches structured JSON artifact to test report on failure
  * - Fails test with clear error message if network errors detected
  * - Uses try/finally to ensure error checking runs even if test fails early
@@ -146,59 +231,10 @@ async function processNetworkErrors(
  * );
  * ```
  */
-export const test = base.extend<NetworkErrorMonitorFixture>({
-  networkErrorMonitor: [
-    async ({ page }, use, testInfo) => {
-      // Check if this test opts out of network monitoring
-      // Usage: test('my test', { annotation: { type: 'skipNetworkMonitoring' } }, async ({ page }) => {...})
-      const shouldSkip = testInfo.annotations.some(
-        (a) => a.type === 'skipNetworkMonitoring'
-      )
-
-      if (shouldSkip) {
-        await use()
-        return
-      }
-
-      const errorData: ErrorRequest[] = []
-      const seenErrors = new Set<string>()
-
-      page.on('response', async (response) => {
-        try {
-          handleErrorResponse(
-            response.status(),
-            response.url(),
-            response.request().method(),
-            errorData,
-            seenErrors
-          )
-        } catch (error) {
-          // Log the error but don't fail the test for monitoring issues
-          log.errorSync(`Error in network monitor: ${error}`)
-        }
-      })
-
-      // Run the test with try/finally to ensure error checking always runs
-      // even if the test fails early (regression fix from old afterEach behavior)
-      let networkError: Error | null = null
-
-      try {
-        await use()
-      } finally {
-        // Process network errors and determine if we should throw
-        networkError = await processNetworkErrors(errorData, testInfo)
-      }
-
-      // Throw network error outside finally block (ESLint no-unsafe-finally)
-      if (networkError) {
-        throw networkError
-      }
-    },
-    {
-      // Auto-enable this fixture for all tests
-      auto: true
-    }
-  ]
-})
+// Type cast required due to Playwright's complex fixture type inference with factory functions
+export const test = base.extend<NetworkErrorMonitorFixture>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createNetworkErrorMonitorFixture() as any
+)
 
 export { expect } from '@playwright/test'

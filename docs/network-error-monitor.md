@@ -11,6 +11,7 @@ Automatically detects and reports HTTP 4xx/5xx errors during test execution, ens
 Traditional Playwright tests focus on UI assertions and user interactions. But what about API errors happening in the background? A test might pass visually while critical backend services are returning 500 errors.
 
 **Network Error Monitor** acts like Sentry for your tests:
+
 - ✅ Catches HTTP 4xx/5xx responses automatically
 - ✅ Fails tests that pass UI checks but have backend errors
 - ✅ Provides structured JSON artifacts for debugging
@@ -21,13 +22,13 @@ Traditional Playwright tests focus on UI assertions and user interactions. But w
 ## Quick Start
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
 
 // That's it! Network monitoring is automatically enabled
 test('my test', async ({ page }) => {
-  await page.goto('/dashboard');
+  await page.goto('/dashboard')
   // If any HTTP 4xx/5xx errors occur, the test will fail
-});
+})
 ```
 
 ## Real-World Example
@@ -36,26 +37,26 @@ Before network error monitoring:
 
 ```typescript
 test('load dashboard', async ({ page }) => {
-  await page.goto('/dashboard');
-  await expect(page.locator('h1')).toContainText('Dashboard');
+  await page.goto('/dashboard')
+  await expect(page.locator('h1')).toContainText('Dashboard')
   // ✅ Test passes - but background API calls are returning 500 errors!
-});
+})
 ```
 
 After network error monitoring:
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
 
 test('load dashboard', async ({ page }) => {
-  await page.goto('/dashboard');
-  await expect(page.locator('h1')).toContainText('Dashboard');
+  await page.goto('/dashboard')
+  await expect(page.locator('h1')).toContainText('Dashboard')
   // ❌ Test fails with clear error:
   // Network errors detected: 2 request(s) failed.
   // Failed requests:
   //   GET 500 https://api.example.com/users
   //   POST 503 https://api.example.com/metrics
-});
+})
 ```
 
 ## Integration with Merged Fixtures
@@ -64,31 +65,31 @@ The recommended pattern is to merge the network error monitor into your project'
 
 ```typescript
 // support/fixtures/merged-fixtures.ts
-import { mergeTests } from '@playwright/test';
-import { test as networkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
-import { test as authFixture } from './auth-fixture';
+import { mergeTests } from '@playwright/test'
+import { test as networkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
+import { test as authFixture } from './auth-fixture'
 // ... other fixtures
 
 export const test = mergeTests(
   authFixture,
   apiRequestFixture,
-  networkErrorMonitorFixture, // Add here
+  networkErrorMonitorFixture // Add here
   // ... other fixtures
-);
+)
 
-export { expect } from '@playwright/test';
+export { expect } from '@playwright/test'
 ```
 
 Now all tests automatically get network monitoring:
 
 ```typescript
-import { test } from 'support/fixtures/merged-fixtures';
+import { test } from 'support/fixtures/merged-fixtures'
 
 test('my test', async ({ page, authUser, apiRequest }) => {
   // All fixtures work together
   // Network monitoring happens automatically
-  await page.goto('/protected-page');
-});
+  await page.goto('/protected-page')
+})
 ```
 
 ## Opt-Out for Validation Tests
@@ -96,14 +97,15 @@ test('my test', async ({ page, authUser, apiRequest }) => {
 Some tests intentionally trigger 4xx/5xx errors (e.g., validation testing). Use the `skipNetworkMonitoring` annotation:
 
 ```typescript
-test('validation returns 400',
+test(
+  'validation returns 400',
   { annotation: { type: 'skipNetworkMonitoring' } },
   async ({ page }) => {
-    await page.goto('/api/invalid-request');
+    await page.goto('/api/invalid-request')
     // Test expects 400 errors - network monitor is disabled
-    await expect(page.locator('.error')).toContainText('Bad Request');
+    await expect(page.locator('.error')).toContainText('Bad Request')
   }
-);
+)
 ```
 
 ## Features
@@ -118,7 +120,7 @@ Errors are deduplicated by status code + URL combination. If the same endpoint r
 
 ```typescript
 // Only 1 error reported, not 3
-await page.goto('/dashboard'); // triggers 3x GET 404 /api/missing
+await page.goto('/dashboard') // triggers 3x GET 404 /api/missing
 ```
 
 ### 3. Structured Artifacts
@@ -148,13 +150,14 @@ The monitor uses a try/finally pattern to ensure errors are checked even if the 
 
 ```typescript
 test('example', async ({ page }) => {
-  await page.goto('/dashboard');
-  throw new Error('Test failed for other reasons');
+  await page.goto('/dashboard')
+  throw new Error('Test failed for other reasons')
   // Network errors are still checked and logged as additional context
-});
+})
 ```
 
 Output:
+
 ```
 ❌ Test failed: Error: Test failed for other reasons
 ⚠️  Network errors also detected (1 request(s)):
@@ -175,11 +178,11 @@ This ensures tests that use `test.skip()` (e.g., feature flag checks) maintain t
 
 ```typescript
 test('feature gated test', async ({ page }) => {
-  const featureEnabled = await checkFeatureFlag();
-  test.skip(!featureEnabled, 'Feature not enabled');
+  const featureEnabled = await checkFeatureFlag()
+  test.skip(!featureEnabled, 'Feature not enabled')
   // If skipped, network errors won't turn this into a failure
-  await page.goto('/new-feature');
-});
+  await page.goto('/new-feature')
+})
 ```
 
 ## Excluding Legitimate Errors
@@ -190,9 +193,9 @@ Some endpoints legitimately return 4xx/5xx responses. Configure exclusions by mo
 // src/network-error-monitor/fixtures.ts
 const EXCLUDE_PATTERNS: RegExp[] = [
   /email-cluster\/ml-app\/has-active-run/, // ML service returns 404 when no active run
-  /idv\/session-templates\/list/,          // IDV service returns 404 when not configured
-  /sentry\.io\/api/,                       // External Sentry errors should not fail tests
-];
+  /idv\/session-templates\/list/, // IDV service returns 404 when not configured
+  /sentry\.io\/api/ // External Sentry errors should not fail tests
+]
 ```
 
 Future enhancement: Make this configurable per-project without modifying fixture source.
@@ -210,8 +213,8 @@ Add exclusion patterns for external domains:
 ```typescript
 const EXCLUDE_PATTERNS: RegExp[] = [
   /analytics\.google\.com/,
-  /cdn\.example\.com/,
-];
+  /cdn\.example\.com/
+]
 ```
 
 ### Network errors not being caught
@@ -220,10 +223,10 @@ Ensure you're importing the test from the correct fixture:
 
 ```typescript
 // ✅ Correct
-import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
 
 // ❌ Wrong - this won't have network monitoring
-import { test } from '@playwright/test';
+import { test } from '@playwright/test'
 ```
 
 ## Implementation Details
@@ -240,6 +243,7 @@ import { test } from '@playwright/test';
 ### Performance
 
 The monitor has minimal performance impact:
+
 - Event listener overhead: ~0.1ms per response
 - Memory: ~200 bytes per unique error
 - No network delay (observes responses, doesn't intercept them)
@@ -250,31 +254,32 @@ The fixture is fully typed with TypeScript:
 
 ```typescript
 type ErrorRequest = {
-  url: string;
-  status: number;
-  method: string;
-  timestamp: string;
-};
+  url: string
+  status: number
+  method: string
+  timestamp: string
+}
 
 type NetworkErrorMonitorFixture = {
-  networkErrorMonitor: void;
-};
+  networkErrorMonitor: void
+}
 ```
 
 ## Comparison to Alternatives
 
-| Approach | Network Error Monitor | Manual afterEach | No Monitoring |
-|----------|----------------------|------------------|---------------|
-| **Setup Required** | Zero (auto-enabled) | Every test file | N/A |
-| **Catches Silent Failures** | ✅ Yes | ✅ Yes (if configured) | ❌ No |
-| **Structured Artifacts** | ✅ JSON attached | ⚠️ Custom impl | ❌ No |
-| **Test Failure Safety** | ✅ Try/finally | ⚠️ afterEach may not run | ❌ No |
-| **Opt-Out Mechanism** | ✅ Annotation | ⚠️ Custom logic | N/A |
-| **Status Aware** | ✅ Respects skip/failed | ❌ No | N/A |
+| Approach                    | Network Error Monitor   | Manual afterEach         | No Monitoring |
+| --------------------------- | ----------------------- | ------------------------ | ------------- |
+| **Setup Required**          | Zero (auto-enabled)     | Every test file          | N/A           |
+| **Catches Silent Failures** | ✅ Yes                  | ✅ Yes (if configured)   | ❌ No         |
+| **Structured Artifacts**    | ✅ JSON attached        | ⚠️ Custom impl           | ❌ No         |
+| **Test Failure Safety**     | ✅ Try/finally          | ⚠️ afterEach may not run | ❌ No         |
+| **Opt-Out Mechanism**       | ✅ Annotation           | ⚠️ Custom logic          | N/A           |
+| **Status Aware**            | ✅ Respects skip/failed | ❌ No                    | N/A           |
 
 ## Credit
 
 This implementation is inspired by [Checkly's network monitoring example](https://github.com/checkly/checkly-playwright-examples/tree/main/network-monitoring), with enhancements including:
+
 - Try/finally for reliable error checking
 - Test status awareness (skip/interrupted/failed)
 - Structured JSON artifacts
@@ -285,6 +290,7 @@ This implementation is inspired by [Checkly's network monitoring example](https:
 ## Future Enhancements
 
 Potential improvements for future versions:
+
 - Configurable exclusion patterns (without modifying source)
 - Custom error handlers (e.g., send to Sentry)
 - Warn-only mode (log errors without failing tests)

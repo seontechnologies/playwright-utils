@@ -644,13 +644,13 @@ Result: Run 3 targeted tests instead of 147 with Playwright's `--only-changed`!
 **Built-in Sentry for Playwright Tests** - automatically detects and reports HTTP 4xx/5xx errors during test execution.
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
 
 // Network monitoring is automatically enabled
 test('my test', async ({ page }) => {
-  await page.goto('/dashboard');
+  await page.goto('/dashboard')
   // If any HTTP 4xx/5xx errors occur, the test will fail
-});
+})
 ```
 
 **Key Features**:
@@ -665,26 +665,27 @@ test('my test', async ({ page }) => {
 
 ```typescript
 // support/fixtures/merged-fixtures.ts
-import { mergeTests } from '@playwright/test';
-import { test as networkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+import { mergeTests } from '@playwright/test'
+import { test as networkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
 
 export const test = mergeTests(
   authFixture,
   apiRequestFixture,
-  networkErrorMonitorFixture, // Add here
+  networkErrorMonitorFixture // Add here
   // ... other fixtures
-);
+)
 ```
 
 **Opt-out for validation tests**:
 
 ```typescript
-test('validation returns 400',
+test(
+  'validation returns 400',
   { annotation: { type: 'skipNetworkMonitoring' } },
   async ({ page }) => {
     // Test expects 400 errors - monitoring disabled
   }
-);
+)
 ```
 
 > Inspired by [Checkly's network monitoring pattern](https://github.com/checkly/checkly-playwright-examples/tree/main/network-monitoring)
