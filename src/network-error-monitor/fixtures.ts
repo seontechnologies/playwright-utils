@@ -161,8 +161,9 @@ export function createNetworkErrorMonitorFixture(
 
         const errorData: ErrorRequest[] = []
         const seenErrors = new Set<string>()
+        const trackedPages = new Set<Page>()
 
-        page.on('response', async (response: Response) => {
+        const responseHandler = async (response: Response) => {
           try {
             handleErrorResponse(
               response.status(),
@@ -176,7 +177,26 @@ export function createNetworkErrorMonitorFixture(
             // Log the error but don't fail the test for monitoring issues
             log.errorSync(`Error in network monitor: ${String(error)}`)
           }
-        })
+        }
+
+        // Attach response handler to a page
+        const attachToPage = (pageInstance: Page) => {
+          if (trackedPages.has(pageInstance)) {
+            return
+          }
+          trackedPages.add(pageInstance)
+          pageInstance.on('response', responseHandler)
+        }
+
+        // Monitor the initial page
+        attachToPage(page)
+
+        // Monitor any new pages created in this context (popups, new tabs)
+        const context = page.context()
+        const pageHandler = (newPage: Page) => {
+          attachToPage(newPage)
+        }
+        context.on('page', pageHandler)
 
         // Run the test with try/finally to ensure error checking always runs
         // even if the test fails early (regression fix from old afterEach behavior)
@@ -185,6 +205,11 @@ export function createNetworkErrorMonitorFixture(
         try {
           await use()
         } finally {
+          // Remove listeners from all tracked pages to prevent memory leaks
+          for (const trackedPage of trackedPages) {
+            trackedPage.off('response', responseHandler)
+          }
+          context.off('page', pageHandler)
           // Process network errors and determine if we should throw
           networkError = await processNetworkErrors(errorData, testInfo)
         }
@@ -224,7 +249,7 @@ export function createNetworkErrorMonitorFixture(
  *
  * // Opt out for tests that expect 4xx/5xx errors (e.g., validation testing)
  * test('validation returns 400',
- *   { annotation: { type: 'skipNetworkMonitoring' } },
+ *   { annotation: [{ type: 'skipNetworkMonitoring' }] },
  *   async ({ page }) => {
  *     // Test can now expect 400/500 responses without failing
  *   }

@@ -10,6 +10,86 @@
 import { getLogger } from '../../../internal'
 
 /**
+ * Fallback schema when extraction fails or no endpoint specified
+ */
+const FALLBACK_SCHEMA = {
+  type: 'object',
+  properties: {
+    status: { type: 'number' },
+    data: { type: 'object' }
+  },
+  required: ['status']
+} as const
+
+/**
+ * Validate OpenAPI specification structure
+ *
+ * @param openApiSpec - OpenAPI specification object to validate
+ * @throws Error if specification is invalid
+ */
+function validateOpenApiSpec(openApiSpec: Record<string, unknown>): void {
+  if (!openApiSpec || typeof openApiSpec !== 'object') {
+    throw new Error('Invalid OpenAPI specification: must be a non-null object')
+  }
+
+  const paths = (openApiSpec as Record<string, unknown>).paths
+  if (!paths || typeof paths !== 'object') {
+    throw new Error(
+      'Invalid OpenAPI specification: missing or invalid "paths" object'
+    )
+  }
+}
+
+/**
+ * Find path definition in OpenAPI spec, handling parameterized paths
+ *
+ * @param paths - Paths object from OpenAPI spec
+ * @param endpoint - Endpoint path to find
+ * @returns Path definition object
+ * @throws Error if path not found
+ */
+function findPathDefinition(
+  paths: Record<string, unknown>,
+  endpoint: string
+): Record<string, unknown> {
+  const pathDef =
+    paths[endpoint] || paths[endpoint.replace(/\{[^}]+\}/g, '{id}')]
+
+  if (!pathDef) {
+    throw new Error(`Endpoint ${endpoint} not found in OpenAPI spec`)
+  }
+
+  return pathDef as Record<string, unknown>
+}
+
+/**
+ * Extract response schema from method definition
+ *
+ * @param methodDef - Method definition from OpenAPI spec
+ * @param status - HTTP status code
+ * @returns Schema object or undefined
+ */
+function extractResponseSchema(
+  methodDef: Record<string, unknown>,
+  status: number
+): object | undefined {
+  const responses = methodDef.responses as Record<string, unknown>
+  const statusKey = String(status)
+  const responseDef = responses[statusKey] || responses['default']
+
+  if (!responseDef) {
+    return undefined
+  }
+
+  const content = (responseDef as Record<string, unknown>).content as Record<
+    string,
+    unknown
+  >
+  const jsonContent = content?.['application/json'] as Record<string, unknown>
+  return jsonContent?.schema as object | undefined
+}
+
+/**
  * Resolve $ref references in OpenAPI schema
  *
  * @param ref - Reference string (e.g., "#/components/schemas/User")
@@ -68,69 +148,30 @@ export function extractOpenApiSchema(
   openApiSpec: Record<string, unknown>,
   endpoint?: string,
   method?: string,
-  status?: number
+  status = 200
 ): object {
+  // Early return for missing endpoint/method
   if (!endpoint || !method) {
-    // If no endpoint/method specified, validate against basic OpenAPI structure
-    return {
-      type: 'object',
-      properties: {
-        status: { type: 'number' },
-        data: { type: 'object' }
-      },
-      required: ['status']
-    }
+    return FALLBACK_SCHEMA
   }
 
   try {
-    // Defensive programming: Check if paths object exists
-    if (!openApiSpec || typeof openApiSpec !== 'object') {
-      throw new Error(
-        'Invalid OpenAPI specification: must be a non-null object'
-      )
-    }
+    validateOpenApiSpec(openApiSpec)
 
     const paths = (openApiSpec as Record<string, unknown>).paths as Record<
       string,
       unknown
     >
+    const pathDef = findPathDefinition(paths, endpoint)
 
-    if (!paths || typeof paths !== 'object') {
-      throw new Error(
-        'Invalid OpenAPI specification: missing or invalid "paths" object'
-      )
-    }
-
-    const pathDef =
-      paths[endpoint] || paths[endpoint.replace(/\{[^}]+\}/g, '{id}')] // Handle parameterized paths
-
-    if (!pathDef) {
-      throw new Error(`Endpoint ${endpoint} not found in OpenAPI spec`)
-    }
-
-    const methodDef = (pathDef as Record<string, unknown>)[method.toLowerCase()]
+    const methodDef = pathDef[method.toLowerCase()] as
+      | Record<string, unknown>
+      | undefined
     if (!methodDef) {
       throw new Error(`Method ${method} not found for endpoint ${endpoint}`)
     }
 
-    const responses = (methodDef as Record<string, unknown>)
-      .responses as Record<string, unknown>
-    const statusKey = status ? String(status) : '200'
-    const responseDef = responses[statusKey] || responses['default']
-
-    if (!responseDef) {
-      throw new Error(
-        `Response ${statusKey} not found for ${method} ${endpoint}`
-      )
-    }
-
-    // Extract JSON schema from OpenAPI response
-    const content = (responseDef as Record<string, unknown>).content as Record<
-      string,
-      unknown
-    >
-    const jsonContent = content?.['application/json'] as Record<string, unknown>
-    let schema = jsonContent?.schema
+    let schema = extractResponseSchema(methodDef, status)
 
     // Resolve $ref if present
     if (schema && typeof schema === 'object' && '$ref' in schema) {
@@ -138,32 +179,11 @@ export function extractOpenApiSchema(
       schema = resolveOpenApiRef(ref, openApiSpec)
     }
 
-    if (schema) {
-      return schema as object
-    }
-
-    // Fallback to basic structure
-    return {
-      type: 'object',
-      properties: {
-        status: { type: 'number' },
-        data: { type: 'object' }
-      },
-      required: ['status']
-    }
+    return schema || FALLBACK_SCHEMA
   } catch (error) {
     void getLogger().warning(
       `OpenAPI schema extraction failed: ${error instanceof Error ? error.message : String(error)}`
     )
-
-    // Fallback to basic validation
-    return {
-      type: 'object',
-      properties: {
-        status: { type: 'number' },
-        data: { type: 'object' }
-      },
-      required: ['status']
-    }
+    return FALLBACK_SCHEMA
   }
 }

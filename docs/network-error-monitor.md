@@ -12,12 +12,12 @@ Traditional Playwright tests focus on UI assertions and user interactions. But w
 
 **Network Error Monitor** acts like Sentry for your tests:
 
-- ✅ Catches HTTP 4xx/5xx responses automatically
-- ✅ Fails tests that pass UI checks but have backend errors
-- ✅ Provides structured JSON artifacts for debugging
-- ✅ Zero boilerplate - automatically enabled for all tests
-- ✅ Smart opt-out for tests expecting errors (validation testing)
-- ✅ Respects test status (won't suppress actual test failures)
+- Catches HTTP 4xx/5xx responses automatically
+- Fails tests that pass UI checks but have backend errors
+- Provides structured JSON artifacts for debugging
+- Zero boilerplate - automatically enabled for all tests
+- Smart opt-out for tests expecting errors (validation testing)
+- Respects test status (won't suppress actual test failures)
 
 ## Quick Start
 
@@ -99,7 +99,7 @@ Some tests intentionally trigger 4xx/5xx errors (e.g., validation testing). Use 
 ```typescript
 test(
   'validation returns 400',
-  { annotation: { type: 'skipNetworkMonitoring' } },
+  { annotation: [{ type: 'skipNetworkMonitoring' }] },
   async ({ page }) => {
     await page.goto('/api/invalid-request')
     // Test expects 400 errors - network monitor is disabled
@@ -144,21 +144,9 @@ When errors are detected, a `network-errors.json` artifact is attached to the te
 ]
 ```
 
-### 4. Try/Finally Guarantee
-
-The monitor uses a try/finally pattern to ensure errors are checked even if the test fails early:
-
-```typescript
-test('example', async ({ page }) => {
-  await page.goto('/dashboard')
-  throw new Error('Test failed for other reasons')
-  // Network errors are still checked and logged as additional context
-})
-```
-
 Output:
 
-```
+```bash
 ❌ Test failed: Error: Test failed for other reasons
 ⚠️  Network errors also detected (1 request(s)):
   GET 404 https://api.example.com/missing
@@ -187,18 +175,37 @@ test('feature gated test', async ({ page }) => {
 
 ## Excluding Legitimate Errors
 
-Some endpoints legitimately return 4xx/5xx responses. Configure exclusions by modifying the `EXCLUDE_PATTERNS` array in the fixture source:
+Some endpoints legitimately return 4xx/5xx responses. Configure exclusions using the factory function:
 
 ```typescript
-// src/network-error-monitor/fixtures.ts
-const EXCLUDE_PATTERNS: RegExp[] = [
-  /email-cluster\/ml-app\/has-active-run/, // ML service returns 404 when no active run
-  /idv\/session-templates\/list/, // IDV service returns 404 when not configured
-  /sentry\.io\/api/ // External Sentry errors should not fail tests
-]
+import { test as base } from '@playwright/test'
+import { createNetworkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
+
+export const test = base.extend(
+  createNetworkErrorMonitorFixture({
+    excludePatterns: [
+      /email-cluster\/ml-app\/has-active-run/, // ML service returns 404 when no active run
+      /idv\/session-templates\/list/, // IDV service returns 404 when not configured
+      /sentry\.io\/api/ // External Sentry errors should not fail tests
+    ]
+  })
+)
 ```
 
-Future enhancement: Make this configurable per-project without modifying fixture source.
+For merged fixtures:
+
+```typescript
+import { mergeTests } from '@playwright/test'
+import { createNetworkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
+
+const networkErrorMonitor = base.extend(
+  createNetworkErrorMonitorFixture({
+    excludePatterns: [/analytics\.google\.com/, /cdn\.example\.com/]
+  })
+)
+
+export const test = mergeTests(authFixture, networkErrorMonitor)
+```
 
 ## Troubleshooting
 
@@ -208,14 +215,7 @@ The errors might be happening during page load or in background polling. Check t
 
 ### False positives from external services
 
-Add exclusion patterns for external domains:
-
-```typescript
-const EXCLUDE_PATTERNS: RegExp[] = [
-  /analytics\.google\.com/,
-  /cdn\.example\.com/
-]
-```
+Configure exclusion patterns as shown in the "Excluding Legitimate Errors" section above.
 
 ### Network errors not being caught
 
@@ -235,10 +235,11 @@ import { test } from '@playwright/test'
 
 1. **Fixture Extension**: Uses Playwright's `base.extend()` with `auto: true`
 2. **Response Listener**: Attaches `page.on('response')` listener at test start
-3. **Error Collection**: Captures 4xx/5xx responses, checking exclusion patterns
-4. **Try/Finally**: Ensures error processing runs even if test fails early
-5. **Status Check**: Only throws errors if test hasn't already reached final status
-6. **Artifact**: Attaches JSON file to test report for debugging
+3. **Multi-Page Monitoring**: Automatically monitors popups and new tabs via `context.on('page')`
+4. **Error Collection**: Captures 4xx/5xx responses, checking exclusion patterns
+5. **Try/Finally**: Ensures error processing runs even if test fails early
+6. **Status Check**: Only throws errors if test hasn't already reached final status
+7. **Artifact**: Attaches JSON file to test report for debugging
 
 ### Performance
 
