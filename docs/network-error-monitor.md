@@ -1,5 +1,20 @@
 # Network Error Monitor
 
+- [Network Error Monitor](#network-error-monitor)
+  - [Why Use This?](#why-use-this)
+  - [Quick Start](#quick-start)
+  - [Real-World Example](#real-world-example)
+  - [Usage](#usage)
+    - [As a Fixture (Recommended)](#as-a-fixture-recommended)
+    - [Integration with Merged Fixtures](#integration-with-merged-fixtures)
+  - [Opt-Out for Validation Tests](#opt-out-for-validation-tests)
+  - [Features](#features)
+  - [Excluding Legitimate Errors](#excluding-legitimate-errors)
+  - [Troubleshooting](#troubleshooting)
+  - [Implementation Details](#implementation-details)
+  - [Comparison to Alternatives](#comparison-to-alternatives)
+  - [Future Enhancements](#future-enhancements)
+
 **Built-in Sentry for Playwright Tests**
 
 Automatically detects and reports HTTP 4xx/5xx errors during test execution, ensuring no silent failures slip through your test suite.
@@ -59,7 +74,22 @@ test('load dashboard', async ({ page }) => {
 })
 ```
 
-## Integration with Merged Fixtures
+## Usage
+
+### As a Fixture (Recommended)
+
+The simplest way to use network error monitoring is via the fixture:
+
+```typescript
+import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
+
+test('my test', async ({ page }) => {
+  await page.goto('/dashboard')
+  // Network monitoring is automatically enabled
+})
+```
+
+### Integration with Merged Fixtures
 
 The recommended pattern is to merge the network error monitor into your project's main fixture:
 

@@ -7,45 +7,48 @@ import { expect, test } from '@playwright/support/merged-fixtures'
  * so all tests here automatically have network monitoring enabled.
  */
 
-test.describe('Network Error Monitor - Opt-out Mechanism', () => {
-  test(
-    'should not fail when opt-out annotation is used',
-    { annotation: [{ type: 'skipNetworkMonitoring' }] },
-    async ({ page }) => {
-      await page.goto('/')
+test.describe('Network Error Monitor - Basic Functionality', () => {
+  test('should allow successful requests without failing', async ({ page }) => {
+    const loadGetMovies = page.waitForResponse(
+      (response) =>
+        response.url().includes('/movies') &&
+        response.request().method() === 'GET'
+    )
 
-      // Trigger a 404 by requesting non-existent movie
-      // This would normally fail the test, but opt-out is enabled
-      const response = await page.request.get(
-        'http://localhost:3001/movies/999999'
-      )
-      const status = response.status()
+    await page.goto('/')
 
-      // Verify we got the expected 404
-      expect(status).toBe(404)
+    const response = await loadGetMovies
+    const responseStatus = response.status()
 
-      // Test should pass despite 404 error due to skipNetworkMonitoring annotation
-    }
-  )
+    expect(responseStatus).toBeGreaterThanOrEqual(200)
+    expect(responseStatus).toBeLessThan(400)
+  })
 })
 
-test.describe('Network Error Monitor - Basic Functionality', () => {
-  test('should allow successful requests', async ({ page }) => {
-    // This test verifies that successful requests don't fail tests
-    await page.goto('/')
+test.describe('Network Error Monitor - Opt-out Mechanism', () => {
+  test(
+    'should not fail test when opt-out annotation is used',
+    { annotation: [{ type: 'skipNetworkMonitoring' }] },
+    async ({ page }) => {
+      // This test verifies that the skipNetworkMonitoring annotation works
+      // Without the annotation, any 404 would fail the test
+      // With the annotation, the test should pass even if errors occur
 
-    // Verify home page loads successfully
-    await expect(page.locator('h1')).toBeVisible()
-  })
+      await page.goto('/')
 
-  test('should detect deduplication works correctly', async ({ page }) => {
-    // This test verifies our deduplication logic
-    // The network monitor deduplicates by method:status:url
-    // So multiple identical errors only count as one
+      // Trigger a 404 by trying to fetch a non-existent resource
+      // The network monitor should ignore this due to the annotation
+      await page.evaluate(() => {
+        const img = document.createElement('img')
+        img.src = '/definitely-non-existent-image-12345.png'
+        document.body.appendChild(img)
+      })
 
-    await page.goto('/')
+      // Wait a bit for the 404 to potentially be captured
+      await page.waitForTimeout(1000)
 
-    // This test passes, demonstrating the monitor is working
-    // If there were unexpected network errors, the monitor would fail the test
-  })
+      // Test passes - annotation prevents network errors from failing the test
+      expect(true).toBe(true)
+    }
+  )
 })
