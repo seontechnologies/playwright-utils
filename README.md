@@ -41,6 +41,7 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
     - [File Utilities](#file-utilities)
     - [Network Recorder](#network-recorder)
     - [Burn-in](#burn-in)
+    - [Network Error Monitor](#network-error-monitor)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
@@ -637,6 +638,43 @@ export default config
 Result: Run 3 targeted tests instead of 147 with Playwright's `--only-changed`!
 
 [→ Burn-in Documentation](./docs/burn-in.md)
+
+### [Network Error Monitor](./docs/network-error-monitor.md)
+
+Automatically detects and reports HTTP 4xx/5xx errors during test execution. Tests fail if network errors occur, even when UI appears correct.
+
+```typescript
+import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
+
+test('my test', async ({ page }) => {
+  await page.goto('/dashboard')
+  // Fails if any HTTP 4xx/5xx errors occur
+})
+```
+
+**Features**: Auto-enabled for all tests, catches silent backend failures, attaches JSON artifacts, respects test status (skipped/interrupted/failed).
+
+**Integration**:
+
+```typescript
+import { test as networkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
+
+export const test = mergeTests(authFixture, networkErrorMonitorFixture)
+```
+
+**Opt-out** for tests expecting errors:
+
+```typescript
+test(
+  'validation',
+  { annotation: [{ type: 'skipNetworkMonitoring' }] },
+  async ({ page }) => {
+    // Monitoring disabled
+  }
+)
+```
+
+Inspired by [Checkly's network monitoring pattern](https://github.com/checkly/checkly-playwright-examples/tree/main/network-monitoring). See [full docs](./docs/network-error-monitor.md).
 
 ## Testing the Package Locally
 

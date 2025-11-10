@@ -172,107 +172,106 @@ test.describe('movie crud e2e with ephemeral users (playwright-utils helpers)', 
       await log.step('at movies page')
     })
 
-    test('should not add a movie from movie list with basic user', async ({
-      page,
-      interceptNetworkCall,
-      context
-    }) => {
-      await setup(page, context, interceptNetworkCall)
-      const { name, year, rating, director } = generateMovieWithoutId()
+    test(
+      'should not add a movie from movie list with basic user',
+      { annotation: { type: 'skipNetworkMonitoring' } },
+      async ({ page, interceptNetworkCall, context }) => {
+        await setup(page, context, interceptNetworkCall)
+        const { name, year, rating, director } = generateMovieWithoutId()
 
-      await log.step('add a movie using the UI')
-      await addMovie(page, name, year, rating, director)
+        await log.step('add a movie using the UI')
+        await addMovie(page, name, year, rating, director)
 
-      const loadAddMovie = interceptNetworkCall({
-        method: 'POST',
-        url: '/movies'
-      })
+        const loadAddMovie = interceptNetworkCall({
+          method: 'POST',
+          url: '/movies'
+        })
 
-      await page.getByTestId('add-movie-button').click()
+        await page.getByTestId('add-movie-button').click()
 
-      const { responseJson: addMovieResponseBody } = await loadAddMovie
-      expect(addMovieResponseBody).toEqual({
-        status: 403,
-        error:
-          // eslint-disable-next-line quotes
-          "Access denied: User identifier 'read' is not authorized for this resource"
-      })
-    })
+        const { responseJson: addMovieResponseBody } = await loadAddMovie
+        expect(addMovieResponseBody).toEqual({
+          status: 403,
+          error:
+            // eslint-disable-next-line quotes
+            "Access denied: User identifier 'read' is not authorized for this resource"
+        })
+      }
+    )
 
-    test('should not be able to update or delete a movie with basic user', async ({
-      page,
-      addMovie,
-      context,
-      interceptNetworkCall
-    }) => {
-      await log.step('Use the API as the admin user to seed a movie')
+    test(
+      'should not be able to update or delete a movie with basic user',
+      { annotation: { type: 'skipNetworkMonitoring' } },
+      async ({ page, addMovie, context, interceptNetworkCall }) => {
+        await log.step('Use the API as the admin user to seed a movie')
 
-      const movie = generateMovieWithoutId()
-      const {
-        name: editedName,
-        year: editedYear,
-        rating: editedRating,
-        director: editedDirector
-      } = generateMovieWithoutId()
+        const movie = generateMovieWithoutId()
+        const {
+          name: editedName,
+          year: editedYear,
+          rating: editedRating,
+          director: editedDirector
+        } = generateMovieWithoutId()
 
-      const { body: createResponse } = await addMovie(AdminUser.token, movie)
+        const { body: createResponse } = await addMovie(AdminUser.token, movie)
 
-      const id = createResponse.data.id
+        const id = createResponse.data.id
 
-      await log.step(
-        `KEY FEATURE: before direct-nav to movie ${id} page and edit, apply basic user cookies (not admin!)`
-      )
+        await log.step(
+          `KEY FEATURE: before direct-nav to movie ${id} page and edit, apply basic user cookies (not admin!)`
+        )
 
-      await setup(page, context, interceptNetworkCall)
+        await setup(page, context, interceptNetworkCall)
 
-      await log.step('try to delete the movie using the UI as basic user')
-      const loadDeleteMovie = interceptNetworkCall({
-        method: 'DELETE',
-        url: '/movies/*'
-      })
-      await page.getByTestId(`delete-movie-${movie.name}`).click()
+        await log.step('try to delete the movie using the UI as basic user')
+        const loadDeleteMovie = interceptNetworkCall({
+          method: 'DELETE',
+          url: '/movies/*'
+        })
+        await page.getByTestId(`delete-movie-${movie.name}`).click()
 
-      const { responseJson: deleteMovieResponseBody } = await loadDeleteMovie
-      expect(deleteMovieResponseBody).toEqual({
-        status: 403,
-        error:
-          // eslint-disable-next-line quotes
-          "Access denied: User identifier 'read' is not authorized for this resource"
-      })
+        const { responseJson: deleteMovieResponseBody } = await loadDeleteMovie
+        expect(deleteMovieResponseBody).toEqual({
+          status: 403,
+          error:
+            // eslint-disable-next-line quotes
+            "Access denied: User identifier 'read' is not authorized for this resource"
+        })
 
-      await log.step('try to edit movie using the UI as basic user')
-      await page.goto(`/movies/${id}`)
+        await log.step('try to edit movie using the UI as basic user')
+        await page.goto(`/movies/${id}`)
 
-      const loadEditMovie = interceptNetworkCall({
-        method: 'PUT',
-        url: '/movies/*'
-      })
-      await editMovie(
-        page,
-        editedName,
-        editedYear,
-        editedRating,
-        editedDirector
-      )
+        const loadEditMovie = interceptNetworkCall({
+          method: 'PUT',
+          url: '/movies/*'
+        })
+        await editMovie(
+          page,
+          editedName,
+          editedYear,
+          editedRating,
+          editedDirector
+        )
 
-      const { responseJson: editMovieResponseBody } = await loadEditMovie
-      expect(editMovieResponseBody).toEqual({
-        status: 403,
-        error:
-          // eslint-disable-next-line quotes
-          "Access denied: User identifier 'read' is not authorized for this resource"
-      })
+        const { responseJson: editMovieResponseBody } = await loadEditMovie
+        expect(editMovieResponseBody).toEqual({
+          status: 403,
+          error:
+            // eslint-disable-next-line quotes
+            "Access denied: User identifier 'read' is not authorized for this resource"
+        })
 
-      await log.step(
-        'KEY FEATURE: overwrite the user context (as admin) inside the test block and delete the movie'
-      )
-      await applyUserCookiesToBrowserContext(context, AdminUser)
-      await page.goto(`/movies/${id}`)
-      await log.step('delete movie using the UI as admin user')
-      await page.getByTestId('delete-movie').click()
-      await expect(page).toHaveURL('/movies')
-      await page.waitForSelector(`text=${editedName}`, { state: 'detached' })
-      await log.step('movie deleted successfully')
-    })
+        await log.step(
+          'KEY FEATURE: overwrite the user context (as admin) inside the test block and delete the movie'
+        )
+        await applyUserCookiesToBrowserContext(context, AdminUser)
+        await page.goto(`/movies/${id}`)
+        await log.step('delete movie using the UI as admin user')
+        await page.getByTestId('delete-movie').click()
+        await expect(page).toHaveURL('/movies')
+        await page.waitForSelector(`text=${editedName}`, { state: 'detached' })
+        await log.step('movie deleted successfully')
+      }
+    )
   })
 })

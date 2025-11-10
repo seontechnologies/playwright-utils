@@ -7,6 +7,7 @@ import { captureTestContext } from '../../src/log'
 import { test as networkRecorder } from '../../src/network-recorder/fixtures'
 import { test as authFixture } from './auth/auth-fixture'
 import { test as crudHelper } from './fixtures/crud-helper-fixture'
+import { test as networkErrorMonitorFixture } from '../../src/network-error-monitor/fixtures'
 
 // a hook that will run before each test in the suite
 base.beforeEach(async ({}, testInfo) => {
@@ -21,7 +22,8 @@ const test = mergeTests(
   validateSchema,
   crudHelper,
   fileUtils,
-  networkRecorder
+  networkRecorder,
+  networkErrorMonitorFixture
 )
 const expect = base.expect
 export { expect, test }
