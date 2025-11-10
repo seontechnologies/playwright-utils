@@ -112,6 +112,12 @@
       "require": "./dist/cjs/burn-in/index.js",
       "import": "./dist/esm/burn-in/index.js",
       "default": "./dist/cjs/burn-in/index.js"
+    },
+    "./network-error-monitor/fixtures": {
+      "types": "./dist/types/network-error-monitor/fixtures.d.ts",
+      "require": "./dist/cjs/network-error-monitor/fixtures.js",
+      "import": "./dist/esm/network-error-monitor/fixtures.js",
+      "default": "./dist/cjs/network-error-monitor/fixtures.js"
     }
   },
   "files": [
