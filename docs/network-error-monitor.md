@@ -9,17 +9,28 @@
     - [Integration with Merged Fixtures](#integration-with-merged-fixtures)
   - [Opt-Out for Validation Tests](#opt-out-for-validation-tests)
   - [Features](#features)
+    - [1. Automatic Activation](#1-automatic-activation)
+    - [2. Deduplication](#2-deduplication)
+    - [3. Structured Artifacts](#3-structured-artifacts)
+    - [5. Respects Test Status](#5-respects-test-status)
   - [Excluding Legitimate Errors](#excluding-legitimate-errors)
   - [Troubleshooting](#troubleshooting)
+    - [Test fails with network errors but I don't see them in my app](#test-fails-with-network-errors-but-i-dont-see-them-in-my-app)
+    - [False positives from external services](#false-positives-from-external-services)
+    - [Network errors not being caught](#network-errors-not-being-caught)
   - [Implementation Details](#implementation-details)
+    - [How It Works](#how-it-works)
+    - [Performance](#performance)
+    - [Type Safety](#type-safety)
   - [Comparison to Alternatives](#comparison-to-alternatives)
+  - [Credit](#credit)
   - [Future Enhancements](#future-enhancements)
 
 **Built-in Sentry for Playwright Tests**
 
 Automatically detects and reports HTTP 4xx/5xx errors during test execution, ensuring no silent failures slip through your test suite.
 
-> Inspired by [Checkly's network monitoring pattern](https://github.com/checkly/checkly-playwright-examples/tree/main/network-monitoring) with enhancements from production usage and code reviews.
+> Inspired by [Checkly's network monitoring pattern](https://www.youtube.com/watch?v=sKpwE84K9fU) with enhancements from production usage and code reviews.
 
 ## Why Use This?
 
@@ -309,7 +320,7 @@ type NetworkErrorMonitorFixture = {
 
 ## Credit
 
-This implementation is inspired by [Checkly's network monitoring example](https://github.com/checkly/checkly-playwright-examples/tree/main/network-monitoring), with enhancements including:
+This implementation is inspired by [Checkly's network monitoring example](https://www.youtube.com/watch?v=sKpwE84K9fU), with enhancements including:
 
 - Try/finally for reliable error checking
 - Test status awareness (skip/interrupted/failed)
@@ -322,7 +333,6 @@ This implementation is inspired by [Checkly's network monitoring example](https:
 
 Potential improvements for future versions:
 
-- Configurable exclusion patterns (without modifying source)
 - Custom error handlers (e.g., send to Sentry)
 - Warn-only mode (log errors without failing tests)
 - Pattern-based error expectations (expect 404 for specific URLs)
