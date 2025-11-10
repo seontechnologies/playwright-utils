@@ -41,6 +41,7 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
     - [File Utilities](#file-utilities)
     - [Network Recorder](#network-recorder)
     - [Burn-in](#burn-in)
+    - [Network Error Monitor](#network-error-monitor)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
@@ -637,6 +638,58 @@ export default config
 Result: Run 3 targeted tests instead of 147 with Playwright's `--only-changed`!
 
 [→ Burn-in Documentation](./docs/burn-in.md)
+
+### [Network Error Monitor](./docs/network-error-monitor.md)
+
+**Built-in Sentry for Playwright Tests** - automatically detects and reports HTTP 4xx/5xx errors during test execution.
+
+```typescript
+import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+
+// Network monitoring is automatically enabled
+test('my test', async ({ page }) => {
+  await page.goto('/dashboard');
+  // If any HTTP 4xx/5xx errors occur, the test will fail
+});
+```
+
+**Key Features**:
+
+- ✅ **Zero boilerplate**: Auto-enabled for all tests
+- ✅ **Silent failure detection**: Catches backend errors that don't affect UI
+- ✅ **Structured artifacts**: JSON reports attached to test results
+- ✅ **Smart opt-out**: Skip monitoring for validation tests
+- ✅ **Status aware**: Respects skipped/interrupted/failed test statuses
+
+**Quick Integration with Merged Fixtures**:
+
+```typescript
+// support/fixtures/merged-fixtures.ts
+import { mergeTests } from '@playwright/test';
+import { test as networkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+
+export const test = mergeTests(
+  authFixture,
+  apiRequestFixture,
+  networkErrorMonitorFixture, // Add here
+  // ... other fixtures
+);
+```
+
+**Opt-out for validation tests**:
+
+```typescript
+test('validation returns 400',
+  { annotation: { type: 'skipNetworkMonitoring' } },
+  async ({ page }) => {
+    // Test expects 400 errors - monitoring disabled
+  }
+);
+```
+
+> Inspired by [Checkly's network monitoring pattern](https://github.com/checkly/checkly-playwright-examples/tree/main/network-monitoring)
+
+[→ Network Error Monitor Documentation](./docs/network-error-monitor.md)
 
 ## Testing the Package Locally
 
