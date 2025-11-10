@@ -30,7 +30,7 @@
 
 Automatically detects and reports HTTP 4xx/5xx errors during test execution, ensuring no silent failures slip through your test suite.
 
-> Inspired by [Checkly's network monitoring pattern](https://www.youtube.com/watch?v=sKpwE84K9fU) with enhancements from production usage and code reviews.
+> Inspired by [Checkly's network monitoring pattern](https://www.youtube.com/watch?v=sKpwE84K9fU).
 
 ## Why Use This?
 
