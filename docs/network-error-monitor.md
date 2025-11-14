@@ -12,7 +12,7 @@
     - [1. Automatic Activation](#1-automatic-activation)
     - [2. Deduplication](#2-deduplication)
     - [3. Structured Artifacts](#3-structured-artifacts)
-    - [5. Respects Test Status](#5-respects-test-status)
+    - [4. Respects Test Status](#4-respects-test-status)
   - [Excluding Legitimate Errors](#excluding-legitimate-errors)
   - [Preventing Domino Effect](#preventing-domino-effect)
   - [Troubleshooting](#troubleshooting)
@@ -193,7 +193,7 @@ Output:
   GET 404 https://api.example.com/missing
 ```
 
-### 5. Respects Test Status
+### 4. Respects Test Status
 
 The monitor respects final test statuses to avoid suppressing important test outcomes:
 

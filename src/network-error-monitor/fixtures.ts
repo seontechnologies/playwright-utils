@@ -152,13 +152,29 @@ function shouldSkipFailureForErrorPattern(
 }
 
 /**
- * Increment failure count for all error patterns in this test.
+ * Increment failure count for error patterns that contributed to test failure.
+ * Only increments patterns that were below the limit (new patterns).
+ * Patterns already at limit are not incremented to avoid overcounting.
+ *
+ * @example
+ * Test encounters 3 errors with maxTestsPerError: 1
+ * - 500:/api/v2/old (count: 1, limit: 1) → at limit, DON'T increment
+ * - 404:/api/v2/new (count: 0, limit: 1) → new pattern, increment to 1
+ * - 503:/api/v2/other (count: 0, limit: 1) → new pattern, increment to 1
  */
-function incrementErrorPatternCounts(errorData: ErrorRequest[]): void {
+function incrementErrorPatternCounts(
+  errorData: ErrorRequest[],
+  maxTestsPerError: number
+): void {
   for (const error of errorData) {
     const patternKey = createErrorPatternKey(error)
     const currentCount = errorPatternFailureCount.get(patternKey) || 0
-    errorPatternFailureCount.set(patternKey, currentCount + 1)
+
+    // Only increment if this pattern contributed to the test failing
+    // (i.e., it was below the limit and thus caused the failure)
+    if (currentCount < maxTestsPerError) {
+      errorPatternFailureCount.set(patternKey, currentCount + 1)
+    }
   }
 }
 
@@ -214,8 +230,8 @@ async function processNetworkErrors(
     return null
   }
 
-  // This test will fail - increment failure counts for all error patterns
-  incrementErrorPatternCounts(errorData)
+  // This test will fail - increment failure counts for error patterns that caused it
+  incrementErrorPatternCounts(errorData, maxTestsPerError)
 
   // Test passed but network errors detected - return error to throw
   return new Error(
@@ -288,7 +304,9 @@ export function createNetworkErrorMonitorFixture(
             )
           } catch (error) {
             // Log the error but don't fail the test for monitoring issues
-            log.errorSync(`Error in network monitor: ${String(error)}`)
+            log.errorSync(
+              `Network monitor internal error [${response.url()}]: ${String(error)}`
+            )
           }
         }
 

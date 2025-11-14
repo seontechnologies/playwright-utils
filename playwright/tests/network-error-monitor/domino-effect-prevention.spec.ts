@@ -12,6 +12,13 @@ import { createNetworkErrorMonitorFixture } from '../../../src/network-error-mon
  * - Use maxTestsPerError: 1 configuration
  * - Trigger same error patterns across multiple tests
  * - Verify only first test fails, subsequent tests pass with warnings
+ *
+ * Note on test.fail():
+ * Tests marked with test.fail() are EXPECTED to fail due to network errors.
+ * - If these tests FAIL as expected → Playwright treats them as PASSING ✅
+ * - If these tests PASS unexpectedly → Indicates a bug in the network monitor ❌
+ * This pattern allows us to test that the network monitor correctly detects
+ * and fails tests when it should, while keeping the test suite green.
  */
 
 // Create test with maxTestsPerError: 1 to prevent domino effect
