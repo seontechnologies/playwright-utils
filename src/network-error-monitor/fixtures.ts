@@ -14,6 +14,15 @@ import { test as base } from '@playwright/test'
 import type { Page, Response, TestInfo } from '@playwright/test'
 import { log } from '../log/log'
 
+/**
+ * Global state to track how many tests have failed per error pattern.
+ * This prevents domino effect where same backend issue fails hundreds of tests.
+ *
+ * Key format: `${status}:${basePath}` (e.g., "500:/api/v2/case-management")
+ * Value: number of tests that have already failed with this error pattern
+ */
+const errorPatternFailureCount = new Map<string, number>()
+
 type ErrorRequest = {
   url: string
   status: number
@@ -29,6 +38,13 @@ type NetworkErrorMonitorFixture = {
 type NetworkErrorMonitorConfig = {
   /** Regex patterns for URLs to exclude from error monitoring */
   excludePatterns?: RegExp[]
+  /**
+   * Maximum number of tests that can fail per unique error pattern.
+   * Once this limit is reached, subsequent tests just log the error without failing.
+   * Default: Infinity (all tests fail)
+   * @example maxTestsPerError: 1 // Only first test fails, rest just log
+   */
+  maxTestsPerError?: number
 }
 
 /**
@@ -70,11 +86,89 @@ function handleErrorResponse(
 }
 
 /**
+ * Extract base path from URL for error pattern grouping.
+ * Groups similar API failures together (e.g., all /api/v2/case-management/* failures).
+ *
+ * @example
+ * "https://api.example.com/api/v2/case-management/cases/123" → "/api/v2/case-management"
+ * "https://api.example.com/api/v2/ai/text-to-filter" → "/api/v2/ai"
+ */
+function extractBasePath(url: string): string {
+  try {
+    const urlObj = new URL(url)
+    const pathSegments = urlObj.pathname.split('/').filter(Boolean)
+    // Take first 3 path segments for grouping (e.g., /api/v2/case-management)
+    return '/' + pathSegments.slice(0, 3).join('/')
+  } catch {
+    return url
+  }
+}
+
+/**
+ * Create error pattern key for tracking failures across tests.
+ *
+ * @example
+ * GET 500 /api/v2/case-management/cases/123 → "500:/api/v2/case-management"
+ */
+function createErrorPatternKey(error: ErrorRequest): string {
+  const basePath = extractBasePath(error.url)
+  return `${error.status}:${basePath}`
+}
+
+/**
+ * Check if we've already failed enough tests for this error pattern.
+ * Prevents domino effect where same backend issue fails hundreds of tests.
+ *
+ * Returns true ONLY if ALL error patterns in this test have already hit the limit.
+ * If even one pattern is new (or below limit), returns false to fail the test.
+ *
+ * @example
+ * Test encounters 3 errors:
+ * - 500:/api/v2/cases (count: 1, limit: 1) → at limit
+ * - 404:/api/v2/users (count: 0, limit: 1) → NEW pattern
+ * - 503:/api/v2/metrics (count: 0, limit: 1) → NEW pattern
+ * Result: false (test should fail because 2 patterns are new)
+ */
+function shouldSkipFailureForErrorPattern(
+  errorData: ErrorRequest[],
+  maxTestsPerError: number
+): boolean {
+  if (!isFinite(maxTestsPerError)) {
+    return false // No limit, fail all tests
+  }
+
+  // Check if ALL error patterns have already hit the limit
+  // Only skip if there are no new patterns that should still fail
+  for (const error of errorData) {
+    const patternKey = createErrorPatternKey(error)
+    const currentCount = errorPatternFailureCount.get(patternKey) || 0
+
+    if (currentCount < maxTestsPerError) {
+      return false // Found a pattern that hasn't hit limit yet - should fail
+    }
+  }
+
+  return true // All patterns have hit the limit - skip failing
+}
+
+/**
+ * Increment failure count for all error patterns in this test.
+ */
+function incrementErrorPatternCounts(errorData: ErrorRequest[]): void {
+  for (const error of errorData) {
+    const patternKey = createErrorPatternKey(error)
+    const currentCount = errorPatternFailureCount.get(patternKey) || 0
+    errorPatternFailureCount.set(patternKey, currentCount + 1)
+  }
+}
+
+/**
  * Process collected network errors and determine action
  */
 async function processNetworkErrors(
   errorData: ErrorRequest[],
-  testInfo: TestInfo
+  testInfo: TestInfo,
+  maxTestsPerError: number
 ): Promise<Error | null> {
   if (errorData.length === 0) {
     return null
@@ -106,6 +200,23 @@ async function processNetworkErrors(
     return null
   }
 
+  // Check if we should skip failing this test (maxTestsPerError limit reached)
+  const shouldSkip = shouldSkipFailureForErrorPattern(
+    errorData,
+    maxTestsPerError
+  )
+
+  if (shouldSkip) {
+    // Already failed enough tests for this error pattern - just log
+    log.errorSync(
+      `\n⚠️  Network errors detected but not failing test (maxTestsPerError limit reached):\n${errorSummary}`
+    )
+    return null
+  }
+
+  // This test will fail - increment failure counts for all error patterns
+  incrementErrorPatternCounts(errorData)
+
   // Test passed but network errors detected - return error to throw
   return new Error(
     `Network errors detected: ${errorData.length} request(s) failed.\n` +
@@ -115,10 +226,11 @@ async function processNetworkErrors(
 }
 
 /**
- * Creates a network error monitoring fixture with configurable exclusion patterns.
+ * Creates a network error monitoring fixture with configurable exclusion patterns and fail-fast behavior.
  *
  * @param config - Configuration options
  * @param config.excludePatterns - Regex patterns for URLs to exclude from monitoring
+ * @param config.maxTestsPerError - Maximum tests that can fail per error pattern (prevents domino effect). Default: Infinity
  * @returns Fixture configuration object
  *
  * @example
@@ -132,7 +244,8 @@ async function processNetworkErrors(
  *     excludePatterns: [
  *       /sentry\.io\/api/,
  *       /analytics/,
- *     ]
+ *     ],
+ *     maxTestsPerError: 1  // Only first test fails per error pattern, rest just log
  *   })
  * );
  * ```
@@ -140,7 +253,7 @@ async function processNetworkErrors(
 export function createNetworkErrorMonitorFixture(
   config: NetworkErrorMonitorConfig = {}
 ) {
-  const { excludePatterns = [] } = config
+  const { excludePatterns = [], maxTestsPerError = Infinity } = config
 
   return {
     networkErrorMonitor: [
@@ -211,7 +324,11 @@ export function createNetworkErrorMonitorFixture(
           }
           context.off('page', pageHandler)
           // Process network errors and determine if we should throw
-          networkError = await processNetworkErrors(errorData, testInfo)
+          networkError = await processNetworkErrors(
+            errorData,
+            testInfo,
+            maxTestsPerError
+          )
         }
 
         // Throw network error outside finally block (ESLint no-unsafe-finally)

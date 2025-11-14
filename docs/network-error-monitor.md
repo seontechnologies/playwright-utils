@@ -14,6 +14,7 @@
     - [3. Structured Artifacts](#3-structured-artifacts)
     - [5. Respects Test Status](#5-respects-test-status)
   - [Excluding Legitimate Errors](#excluding-legitimate-errors)
+  - [Preventing Domino Effect](#preventing-domino-effect)
   - [Troubleshooting](#troubleshooting)
     - [Test fails with network errors but I don't see them in my app](#test-fails-with-network-errors-but-i-dont-see-them-in-my-app)
     - [False positives from external services](#false-positives-from-external-services)
@@ -246,6 +247,71 @@ const networkErrorMonitor = base.extend(
 
 export const test = mergeTests(authFixture, networkErrorMonitor)
 ```
+
+## Preventing Domino Effect
+
+When a backend service fails, it can cause dozens of tests to fail with the same error. Use `maxTestsPerError` to prevent this:
+
+```typescript
+import { createNetworkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
+
+const networkErrorMonitor = base.extend(
+  createNetworkErrorMonitorFixture({
+    maxTestsPerError: 1 // Only first test fails per error pattern, rest just log
+  })
+)
+```
+
+**How it works:**
+
+When `/api/v2/case-management/cases` returns 500:
+
+- **First test** encountering this error: ❌ FAILS with clear error message
+- **Subsequent tests** encountering same error: ✅ PASS but log warning
+
+Error patterns are grouped by `status + base path`:
+
+- `/api/v2/case-management/cases/123` → Pattern: `500:/api/v2/case-management`
+- `/api/v2/case-management/quota` → Pattern: `500:/api/v2/case-management` (same group!)
+
+This prevents 17 tests failing when case management backend is down - only first test fails.
+
+**Example output for subsequent tests:**
+
+```
+⚠️  Network errors detected but not failing test (maxTestsPerError limit reached):
+  GET 500 https://api.example.com/api/v2/case-management/cases
+```
+
+**Recommended configuration:**
+
+```typescript
+createNetworkErrorMonitorFixture({
+  excludePatterns: [...],  // Known broken endpoints
+  maxTestsPerError: 1      // Stop domino effect
+})
+```
+
+**Understanding worker-level state:**
+
+Error pattern counts are stored in worker-level global state that persists for all test files run by that worker. This is intentional behavior for domino effect prevention:
+
+```typescript
+// test-file-1.spec.ts (runs first in Worker 1)
+test('test A', () => { /* triggers 500:/api/v2/cases */ })  // ❌ Fails
+
+// test-file-2.spec.ts (runs later in Worker 1)
+test('test B', () => { /* triggers 500:/api/v2/cases */ })  // ✅ Passes (limit reached)
+
+// test-file-3.spec.ts (runs in Worker 2 - different worker)
+test('test C', () => { /* triggers 500:/api/v2/cases */ })  // ❌ Fails (fresh worker)
+```
+
+**Key points:**
+- Each Playwright worker has its own error pattern count state
+- State persists across all test files in the worker's lifetime
+- Parallel workers have independent state (no cross-contamination)
+- This prevents 17 tests in same worker from all failing when backend is down
 
 ## Troubleshooting
 
