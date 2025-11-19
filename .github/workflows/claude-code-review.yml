@@ -76,11 +76,11 @@ jobs:
             - **Dependencies** - Minimal external dependencies, appropriate and secure versions
 
             ## Review Guidelines
-            - Use the repository's CLAUDE.md for guidance on project-specific conventions
-            - Follow the testing best practices defined in the global CLAUDE.md
-            - Provide specific, actionable feedback with code examples where helpful
-            - Prioritize issues by severity: **Critical** → **High** → **Medium** → **Low**
-            - Be constructive and focus on maintainability and reliability
+            - **BREVITY REQUIRED**: Report only top 5-10 most impactful issues. No explanations for passing checks.
+            - **Format**: Bullet points only, one line per issue with file:line reference - no verbose paragraphs
+            - **Priority**: Focus on Critical/High severity; skip Medium/Low unless blocking
+            - **Examples**: Only provide code examples for Critical security issues or architectural violations
+            - Reference CLAUDE.md for project-specific conventions and testing best practices
 
             ## Specific Playwright-Utils Checks
             - Validate "functional core, fixture shell" pattern implementation

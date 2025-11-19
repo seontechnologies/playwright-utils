@@ -6,7 +6,7 @@
     "sample-app/*"
   ],
   "author": "Murat Ozcan",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/types/index.d.ts",
@@ -137,7 +137,8 @@
     "utils"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "start:sample-app": "npm-run-all --parallel start:backend start:frontend",

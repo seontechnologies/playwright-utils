@@ -353,7 +353,7 @@ Security Layers:
 - **Build Command**: `npm run build` (builds CJS, ESM, and TypeScript declarations)
 - **Clean Command**: `npm run clean` (removes dist directory)
 - **Validation**: `npm run validate` (runs typecheck, lint, test, format in parallel)
-- **Publishing**: Published to GitHub Packages registry under `@seontechnologies` scope
+- **Publishing**: Published to public npm registry under `@seontechnologies` scope
 - **Local Testing**: `npm run publish:local` script available
 
 ### Environment Configuration

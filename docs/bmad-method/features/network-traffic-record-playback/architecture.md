@@ -14,7 +14,7 @@ This document supplements existing project architecture by defining how new comp
 - **Primary Purpose:** TypeScript utility library for Playwright testing providing modular utilities as both standalone functions and Playwright fixtures
 - **Current Tech Stack:** TypeScript 5.8.3 (strict mode), Node.js >=20.0.0, Playwright 1.54.1, dual CJS/ESM build system
 - **Architecture Style:** "Functional core, fixture shell" pattern with modular utilities
-- **Deployment Method:** Published to GitHub Packages registry as npm package
+- **Deployment Method:** Published to public npm registry as npm package
 
 **Available Documentation:**
 
@@ -32,7 +32,7 @@ This document supplements existing project architecture by defining how new comp
 - Sample app testing approach must be extended
 - Authentication-agnostic design required (no auth handling in network recorder)
 - Node.js >=20.0.0 version constraint
-- GitHub Packages registry publishing pipeline
+- Public npm registry publishing pipeline
 
 ### Change Log
 
@@ -303,14 +303,14 @@ src/
 
 ### Existing Infrastructure
 
-**Current Deployment:** Published as npm package to GitHub Packages registry under @seontechnologies scope
+**Current Deployment:** Published as npm package to public npm registry under @seontechnologies scope
 **Infrastructure Tools:** GitHub Actions for CI/CD, npm for package management, TypeScript compiler for builds
-**Environments:** Development (local), CI/CD (GitHub Actions), Package Registry (GitHub Packages)
+**Environments:** Development (local), CI/CD (GitHub Actions), Package Registry (npm)
 
 ### Enhancement Deployment Strategy
 
 **Deployment Approach:** Integrate with existing package publishing pipeline, no separate deployment required
-**Infrastructure Changes:** None - utilizes existing dual CJS/ESM build system and GitHub Packages publishing
+**Infrastructure Changes:** None - utilizes existing dual CJS/ESM build system and public npm publishing
 **Pipeline Integration:** Add network-recorder module to existing tsconfig builds, include in subpath exports in package.json
 
 ### Rollback Strategy

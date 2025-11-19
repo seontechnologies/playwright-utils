@@ -298,16 +298,23 @@ Error pattern counts are stored in worker-level global state that persists for a
 
 ```typescript
 // test-file-1.spec.ts (runs first in Worker 1)
-test('test A', () => { /* triggers 500:/api/v2/cases */ })  // ❌ Fails
+test('test A', () => {
+  /* triggers 500:/api/v2/cases */
+}) // ❌ Fails
 
 // test-file-2.spec.ts (runs later in Worker 1)
-test('test B', () => { /* triggers 500:/api/v2/cases */ })  // ✅ Passes (limit reached)
+test('test B', () => {
+  /* triggers 500:/api/v2/cases */
+}) // ✅ Passes (limit reached)
 
 // test-file-3.spec.ts (runs in Worker 2 - different worker)
-test('test C', () => { /* triggers 500:/api/v2/cases */ })  // ❌ Fails (fresh worker)
+test('test C', () => {
+  /* triggers 500:/api/v2/cases */
+}) // ❌ Fails (fresh worker)
 ```
 
 **Key points:**
+
 - Each Playwright worker has its own error pattern count state
 - State persists across all test files in the worker's lifetime
 - Parallel workers have independent state (no cross-contamination)
@@ -368,7 +375,7 @@ The monitor has minimal performance impact:
 
 ## Credit
 
-This implementation is inspired by [Checkly's network monitoring example](https://www.youtube.com/watch?v=sKpwE84K9fU), with enhancements including:
+This implementation is inspired by [Stefan Judis/Checkly's network monitoring example](https://www.youtube.com/watch?v=sKpwE84K9fU), with enhancements including:
 
 ## Potential Future Enhancements
 

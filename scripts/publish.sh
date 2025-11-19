@@ -26,21 +26,18 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 # Check for required .npmrc configuration
-if [ ! -f .npmrc ] || ! grep -q "npm.pkg.github.com" .npmrc; then
+if [ ! -f .npmrc ] || ! grep -q "registry.npmjs.org" .npmrc; then
   echo -e "${RED}Error: Missing .npmrc file or incorrect configuration.${NC}"
-  echo -e "Please create an .npmrc file with the following example content:"
-  echo -e "public registry example:"
-  echo -e "@seontechnologies:registry=https://npm.pkg.github.com"
-  echo -e "//npm.pkg.github.com/:_authToken=\${GITHUB_TOKEN}"
-  echo -e "public example"
-  echo -e "registry=https://registry.npmjs.org"
+  echo -e "Please create an .npmrc file with the following content:"
+  echo -e "@seontechnologies:registry=https://registry.npmjs.org"
   exit 1
 fi
 
-# Check if GITHUB_TOKEN is set
-if [ -z "$GITHUB_TOKEN" ]; then
-  echo -e "${RED}Error: GITHUB_TOKEN environment variable is not set.${NC}"
-  echo -e "Please set it with: export GITHUB_TOKEN=your_github_token"
+# Check if NPM_TOKEN is set
+if [ -z "$NPM_TOKEN" ]; then
+  echo -e "${RED}Error: NPM_TOKEN environment variable is not set.${NC}"
+  echo -e "Please set it with: export NPM_TOKEN=your_npm_token"
+  echo -e "Get your npm token from: https://www.npmjs.com/settings/~/tokens"
   exit 1
 fi
 
@@ -93,8 +90,17 @@ fi
 NEW_VERSION=$(npm pkg get version | tr -d '"')
 
 # Publish
-echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to GitHub Packages..."
-npm publish
+echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to npm registry..."
+
+# Create temporary .npmrc with auth token for publishing
+echo "@seontechnologies:registry=https://registry.npmjs.org" > .npmrc.tmp
+echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc.tmp
+
+# Publish using the temporary .npmrc
+npm publish --userconfig .npmrc.tmp
+
+# Clean up temporary file
+rm -f .npmrc.tmp
 
 echo -e "${GREEN}Successfully published version $NEW_VERSION${NC}"
 

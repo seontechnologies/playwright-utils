@@ -695,7 +695,7 @@ pnpm add file:/path/to/playwright-utils-1.0.1.tgz
 
 ## Release and Publishing
 
-This package is published to the GitHub Packages registry under the `@seontechnologies` scope.
+This package is published to the public npm registry under the `@seontechnologies` scope.
 
 ### Publishing via GitHub UI (Recommended)
 
@@ -709,15 +709,18 @@ You can trigger a release directly from GitHub's web interface:
    - **Custom version**: Only needed if you selected "custom" type
 4. Click "Run workflow"
 
-**Important**: You must review and merge the PR to complete the process
+**Important**:
+- Requires `NPM_TOKEN` secret to be configured in GitHub repository settings
+- You must review and merge the PR to complete the process
 
 ### Publishing Locally
 
 You can also publish the package locally using the provided script:
 
 ```bash
-# 1. If not already set, set your GitHub token as an environment variable
-export GITHUB_TOKEN=your_personal_access_token
+# 1. Set your npm token as an environment variable
+# Get your token from: https://www.npmjs.com/settings/~/tokens
+export NPM_TOKEN=your_npm_token
 
 # 2. Run the publish script
 npm run publish:local

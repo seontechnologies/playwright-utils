@@ -310,11 +310,11 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 ### Local Publishing
 
 ```bash
-export GITHUB_TOKEN=your_personal_access_token
+export NPM_TOKEN=your_npm_token
 npm run publish:local
 ```
 
-The package publishes to GitHub Packages registry under `@seontechnologies` scope.
+The package publishes to public npm registry under `@seontechnologies` scope.
 
 ## Project Structure
 

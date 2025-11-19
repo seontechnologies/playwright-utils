@@ -1,13 +1,20 @@
-name: Run Gitleaks against changed files
+name: Security Scan (Gitleaks)
+
 on:
   pull_request:
-    branches: [ "master" ]
+    branches: ["main"]
+  push:
+    branches: ["main"]
 
 jobs:
-  call-gitleaks-workflow:
-    uses: seontechnologies/internal-tools-security/.github/workflows/gitleaks-actions.yml@master
-    with:
-      prnumber: ${{ github.event.number }}
-      reponame: ${{ github.repository }}
-    secrets:
-      slackwebhook:  ${{ secrets.CREDENTIAL_LEAK_SLACK_WEBHOOK }}
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
