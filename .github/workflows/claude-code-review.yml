@@ -29,7 +29,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           # Using API key for per-token billing plan
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.CLAUDE_REVIEW_TOKEN }}
 
           # Track progress creates a comment showing review progress
           track_progress: true
