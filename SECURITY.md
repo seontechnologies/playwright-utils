@@ -25,7 +25,7 @@ Instead, please use one of the following methods:
    - Provide detailed information about the vulnerability
 
 2. **Email**
-   - Contact the maintainers directly
+   - Contact: murat.ozcan@seon.io
    - Include detailed information about the vulnerability
    - Provide steps to reproduce if possible
 

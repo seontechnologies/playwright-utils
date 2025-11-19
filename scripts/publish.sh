@@ -93,14 +93,14 @@ NEW_VERSION=$(npm pkg get version | tr -d '"')
 echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to npm registry..."
 
 # Create temporary .npmrc with auth token for publishing
-echo "@seontechnologies:registry=https://registry.npmjs.org" > .npmrc.tmp
-echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc.tmp
+NPMRC_TMP=$(mktemp)
+trap "rm -f $NPMRC_TMP" EXIT
+
+echo "@seontechnologies:registry=https://registry.npmjs.org" > "$NPMRC_TMP"
+echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> "$NPMRC_TMP"
 
 # Publish using the temporary .npmrc
-npm publish --userconfig .npmrc.tmp
-
-# Clean up temporary file
-rm -f .npmrc.tmp
+npm publish --userconfig "$NPMRC_TMP"
 
 echo -e "${GREEN}Successfully published version $NEW_VERSION${NC}"
 

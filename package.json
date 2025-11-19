@@ -145,7 +145,7 @@
     "start:frontend": "cd sample-app/frontend && npm start",
     "start:backend": "cd sample-app/backend && npm start",
     "prepare": "npm run build",
-    "postinstall": "git submodule update --init --recursive || true",
+    "postinstall": "git submodule update --init --recursive --force",
     "publish:local": "./scripts/publish.sh",
     "build": "npm run clean && npm run build:types && npm run build:cjs && npm run build:esm",
     "clean": "rm -rf dist",
