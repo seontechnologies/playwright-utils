@@ -1,0 +1,18 @@
+title = "gitleaks config"
+
+# Exclude documentation files with example code
+[[rules]]
+id = "exclude-readme"
+description = "Exclude README files from scanning (contains example code)"
+regex = '''.*'''
+path = '''README\.md'''
+
+[allowlist]
+description = "Allowlist for documentation and test files"
+paths = [
+  '''README\.md''',
+  '''.*\.spec\.ts$''',
+  '''.*\.test\.ts$''',
+  '''.*/fixtures/.*''',
+  '''.*/test-data/.*'''
+]

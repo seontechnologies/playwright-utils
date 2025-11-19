@@ -21,4 +21,4 @@ jobs:
           sudo mv gitleaks /usr/local/bin/
 
       - name: Run Gitleaks
-        run: gitleaks detect --source . --verbose --redact --no-git
+        run: gitleaks detect --source . --config .gitleaks.toml --verbose --redact --no-git
