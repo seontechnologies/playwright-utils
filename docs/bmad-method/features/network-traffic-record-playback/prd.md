@@ -149,7 +149,7 @@ src/network-recorder/
 ### Deployment and Operations
 
 **Build Process Integration**: Add to existing dual CJS/ESM build via `tsconfig-*.json`, include in subpath exports in `package.json`
-**Deployment Strategy**: Published as part of `@seontechnologies/playwright-utils` package to GitHub Packages registry
+**Deployment Strategy**: Published as part of `@seontechnologies/playwright-utils` package to public npm registry
 **Monitoring and Logging**: Integration with existing `src/log/` utility for debugging record/replay operations
 **Configuration Management**: Environment variables (`PW_NET_MODE`, `PW_NET_RECORD_PATH`) and programmatic options
 

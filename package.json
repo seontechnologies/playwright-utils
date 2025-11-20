@@ -6,7 +6,7 @@
     "sample-app/*"
   ],
   "author": "Murat Ozcan",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/types/index.d.ts",
@@ -137,14 +137,15 @@
     "utils"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "start:sample-app": "npm-run-all --parallel start:backend start:frontend",
     "start:frontend": "cd sample-app/frontend && npm start",
     "start:backend": "cd sample-app/backend && npm start",
     "prepare": "npm run build",
-    "postinstall": "git submodule update --init --recursive || true",
+    "postinstall": "git submodule update --init --recursive --force",
     "publish:local": "./scripts/publish.sh",
     "build": "npm run clean && npm run build:types && npm run build:cjs && npm run build:esm",
     "clean": "rm -rf dist",

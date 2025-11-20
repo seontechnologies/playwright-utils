@@ -20,7 +20,6 @@ on:
 
 permissions:
   contents: write # Required for checkout and pushing changes
-  packages: write # Required for publishing to GitHub Packages
   pull-requests: write # Required for creating PRs
 
 jobs:
@@ -38,15 +37,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc' # Verified correct for v4
-          registry-url: 'https://npm.pkg.github.com/'
+          registry-url: 'https://registry.npmjs.org'
           scope: '@seontechnologies'
           cache: 'npm' # Use built-in caching
 
       # 3. Install dependencies
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-        env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }} # TODO: if possible do not use a personal token (but I cannot get it to work otherwise while publishing)
 
       # 5. Validate custom version input if provided
       - name: Validate inputs
@@ -119,14 +116,10 @@ jobs:
           # Build the package
           npm run build
 
-          # Create .npmrc file with authentication token directly
-          echo "@seontechnologies:registry=https://npm.pkg.github.com/" > .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.PERSONAL_GITHUB_TOKEN }}" >> .npmrc
-
-          # Publish with the explicit .npmrc file
+          # Publish to npm registry
           npm publish
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PCKG_PUBLISHER }}
 
       # 9. Create git commit, tag and branch
       - name: Create commit and branch
@@ -144,11 +137,11 @@ jobs:
           git push origin "${{ steps.version.outputs.release_branch }}"
           git push origin "v${{ steps.version.outputs.new_version }}"
 
-      # 10. Create pull request (letting GitHub CLI use GH_TOKEN automatically)
+      # 10. Create pull request
       - name: Create pull request
         if: steps.version.outputs.skip != 'true'
         env:
-          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Creating pull request for version ${{ steps.version.outputs.new_version }}"
 

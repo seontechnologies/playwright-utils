@@ -11,6 +11,7 @@ The Recurse utility provides a powerful mechanism for polling and retrying opera
 - Optional logging with customizable messages
 - Post-polling callback support for additional processing
 - **Enhanced Error Categorization**: Specific error types for timeout, command failure, and predicate errors
+- Inspired by Gleb Bahmutov's [cypress-recurse](https://github.com/bahmutov/cypress-recurse) plugin.
 
 ## Usage
 

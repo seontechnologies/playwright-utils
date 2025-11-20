@@ -1,0 +1,16 @@
+title = "gitleaks config"
+
+[allowlist]
+description = "Allowlist for documentation and test files"
+paths = [
+  '''README\.md''',
+  '''.*\.md$''',
+  '''docs/.*''',
+  '''.*\.spec\.ts$''',
+  '''.*\.test\.ts$''',
+  '''.*/fixtures/.*''',
+  '''.*/test-data/.*''',
+  '''package-lock\.json$''',
+  '''dist/.*''',
+  '''coverage/.*'''
+]

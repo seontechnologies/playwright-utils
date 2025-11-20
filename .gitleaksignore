@@ -1,0 +1,8 @@
+# Ignore documentation files with example code
+README.md
+
+# Ignore test fixtures and sample data
+**/fixtures/**
+**/test-data/**
+**/*.spec.ts
+**/*.test.ts

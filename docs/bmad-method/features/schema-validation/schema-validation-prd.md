@@ -81,7 +81,8 @@ interface ValidationOptions {
 
 - **Functional Core, Fixture Shell**: Core validation logic as standalone functions, fixtures provide Playwright integration
 - **Error Integration**: Validation failures integrate with Playwright's assertion and reporting system
-- **UI Enhancement**: Leverage Sebastian's UI reporting concepts for enhanced validation feedback
+- **UI Enhancement**: Leverage Sebastian Clavijosuero's UI reporting concepts [pw-api-plugin](http://github.com/sclavijosuero/pw-api-plugin) for enhanced validation feedback.
+- **Schema testing**: Leverage Sebastian Clavijosuero's [playwright-schema-validator](https://github.com/sclavijosuero/playwright-schema-validator) for schema testing.
 
 ## Target Users
 
