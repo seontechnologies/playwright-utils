@@ -18,7 +18,12 @@ import { log } from '../log/log'
  * Global state to track how many tests have failed per error pattern.
  * This prevents domino effect where same backend issue fails hundreds of tests.
  *
- * Key format: `${status}:${basePath}` (e.g., "500:/api/v2/case-management")
+ * IMPORTANT: This state is worker-scoped and persists across test files.
+ * - Parallel workers have independent state (no cross-contamination)
+ * - Sequential tests in same worker share this state
+ * - State is never reset during worker lifetime
+ *
+ * Key format: `${method}:${status}:${basePath}` (e.g., "GET:500:/api/v2/case-management")
  * Value: number of tests that have already failed with this error pattern
  */
 const errorPatternFailureCount = new Map<string, number>()
@@ -125,19 +130,30 @@ function extractBasePath(url: string): string {
     // Take first 3 path segments for grouping (e.g., /api/v2/case-management)
     return '/' + pathSegments.slice(0, 3).join('/')
   } catch {
+    // Log parsing failures to help debug issues with malformed URLs
+    log.warningSync(
+      `Failed to parse URL for error pattern grouping: ${url}. Using full URL as pattern key.`
+    )
     return url
   }
 }
 
 /**
  * Create error pattern key for tracking failures across tests.
+ * Includes HTTP method to distinguish between different error types on same endpoint.
  *
  * @example
- * GET 500 /api/v2/case-management/cases/123 → "500:/api/v2/case-management"
+ * GET 500 /api/v2/case-management/cases/123 → "GET:500:/api/v2/case-management"
+ * POST 404 /api/v2/users → "POST:404:/api/v2/users"
+ *
+ * @rationale
+ * A GET 404 vs POST 404 on same endpoint might represent different issues:
+ * - GET 404 /api/users/123 → User not found (expected in some tests)
+ * - POST 404 /api/users → Endpoint doesn't exist (critical error)
  */
 function createErrorPatternKey(error: ErrorRequest): string {
   const basePath = extractBasePath(error.url)
-  return `${error.status}:${basePath}`
+  return `${error.method}:${error.status}:${basePath}`
 }
 
 /**
@@ -149,9 +165,9 @@ function createErrorPatternKey(error: ErrorRequest): string {
  *
  * @example
  * Test encounters 3 errors:
- * - 500:/api/v2/cases (count: 1, limit: 1) → at limit
- * - 404:/api/v2/users (count: 0, limit: 1) → NEW pattern
- * - 503:/api/v2/metrics (count: 0, limit: 1) → NEW pattern
+ * - GET:500:/api/v2/cases (count: 1, limit: 1) → at limit
+ * - POST:404:/api/v2/users (count: 0, limit: 1) → NEW pattern
+ * - GET:503:/api/v2/metrics (count: 0, limit: 1) → NEW pattern
  * Result: false (test should fail because 2 patterns are new)
  */
 function shouldSkipFailureForErrorPattern(
@@ -183,9 +199,9 @@ function shouldSkipFailureForErrorPattern(
  *
  * @example
  * Test encounters 3 errors with maxTestsPerError: 1
- * - 500:/api/v2/old (count: 1, limit: 1) → at limit, DON'T increment
- * - 404:/api/v2/new (count: 0, limit: 1) → new pattern, increment to 1
- * - 503:/api/v2/other (count: 0, limit: 1) → new pattern, increment to 1
+ * - GET:500:/api/v2/old (count: 1, limit: 1) → at limit, DON'T increment
+ * - POST:404:/api/v2/new (count: 0, limit: 1) → new pattern, increment to 1
+ * - GET:503:/api/v2/other (count: 0, limit: 1) → new pattern, increment to 1
  */
 function incrementErrorPatternCounts(
   errorData: ErrorRequest[],
@@ -198,7 +214,17 @@ function incrementErrorPatternCounts(
     // Only increment if this pattern contributed to the test failing
     // (i.e., it was below the limit and thus caused the failure)
     if (currentCount < maxTestsPerError) {
-      errorPatternFailureCount.set(patternKey, currentCount + 1)
+      const newCount = currentCount + 1
+      errorPatternFailureCount.set(patternKey, newCount)
+
+      // Debug logging to help developers track pattern counts
+      log.debugSync(
+        `Pattern ${patternKey} count incremented: ${currentCount} -> ${newCount} (limit: ${maxTestsPerError})`
+      )
+    } else {
+      log.debugSync(
+        `Pattern ${patternKey} already at limit: ${currentCount}/${maxTestsPerError} - not incrementing`
+      )
     }
   }
 }

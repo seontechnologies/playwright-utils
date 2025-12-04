@@ -44,8 +44,16 @@ test.describe('Network Error Monitor - Opt-out Mechanism', () => {
         document.body.appendChild(img)
       })
 
-      // Wait a bit for the 404 to potentially be captured
-      await page.waitForTimeout(1000)
+      // Wait for the 404 response deterministically (expected to fail)
+      await page
+        .waitForResponse(
+          (response) =>
+            response.url().includes('definitely-non-existent-image-12345.png'),
+          { timeout: 2000 }
+        )
+        .catch(() => {
+          // Expected to fail - we're testing the annotation prevents failure
+        })
 
       // Test passes - annotation prevents network errors from failing the test
       expect(true).toBe(true)
