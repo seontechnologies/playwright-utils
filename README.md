@@ -710,6 +710,7 @@ You can trigger a release directly from GitHub's web interface:
 4. Click "Run workflow"
 
 **Important**:
+
 - Requires `NPM_TOKEN` secret to be configured in GitHub repository settings
 - You must review and merge the PR to complete the process
 

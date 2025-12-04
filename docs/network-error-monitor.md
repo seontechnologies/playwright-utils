@@ -252,11 +252,14 @@ export const test = mergeTests(authFixture, networkErrorMonitor)
 
 When a backend service fails, it can cause dozens of tests to fail with the same error. Use `maxTestsPerError` to prevent this:
 
+> **Note:** `maxTestsPerError` requires `excludePatterns` to be specified. This enforces a best practice where domino effect prevention is paired with known exclusion patterns.
+
 ```typescript
 import { createNetworkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
 
 const networkErrorMonitor = base.extend(
   createNetworkErrorMonitorFixture({
+    excludePatterns: [], // Required when using maxTestsPerError
     maxTestsPerError: 1 // Only first test fails per error pattern, rest just log
   })
 )
@@ -287,8 +290,8 @@ This prevents 17 tests failing when case management backend is down - only first
 
 ```typescript
 createNetworkErrorMonitorFixture({
-  excludePatterns: [...],  // Known broken endpoints
-  maxTestsPerError: 1      // Stop domino effect
+  excludePatterns: [...],  // Required - known broken endpoints (can be empty [])
+  maxTestsPerError: 1      // Stop domino effect (requires excludePatterns)
 })
 ```
 

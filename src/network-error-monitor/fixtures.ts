@@ -35,17 +35,42 @@ type NetworkErrorMonitorFixture = {
   networkErrorMonitor: void
 }
 
-type NetworkErrorMonitorConfig = {
+/**
+ * Base configuration without excludePatterns - maxTestsPerError cannot be used
+ */
+type BaseNetworkErrorMonitorConfig = {
+  /** Not specified - maxTestsPerError cannot be used without excludePatterns */
+  excludePatterns?: undefined
+  /** Cannot be specified without excludePatterns */
+  maxTestsPerError?: never
+}
+
+/**
+ * Configuration with excludePatterns - enables maxTestsPerError option
+ */
+type NetworkErrorMonitorConfigWithPatterns = {
   /** Regex patterns for URLs to exclude from error monitoring */
-  excludePatterns?: RegExp[]
+  excludePatterns: RegExp[]
   /**
    * Maximum number of tests that can fail per unique error pattern.
    * Once this limit is reached, subsequent tests just log the error without failing.
    * Default: Infinity (all tests fail)
+   * Requires excludePatterns to be specified.
    * @example maxTestsPerError: 1 // Only first test fails, rest just log
    */
   maxTestsPerError?: number
 }
+
+/**
+ * Configuration options for the network error monitor.
+ *
+ * Note: maxTestsPerError can only be used when excludePatterns is specified.
+ * This enforces a best practice where domino effect prevention is paired with
+ * known exclusion patterns.
+ */
+type NetworkErrorMonitorConfig =
+  | BaseNetworkErrorMonitorConfig
+  | NetworkErrorMonitorConfigWithPatterns
 
 /**
  * Check if a URL should be excluded from error monitoring
