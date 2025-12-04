@@ -86,6 +86,7 @@
 - [x] **Update package.json publishConfig** - Add public access ✅
   - File: `package.json:139-141`
   - **DONE**: Switched to public npm registry
+
   ```json
   "publishConfig": {
     "access": "public",
@@ -97,10 +98,12 @@
   - File: `.npmrc:1-2`
   - **DONE**: Chose **Option B: Public npm** for zero-noise installation
   - **Updated to**:
+
   ```
   @seontechnologies:registry=https://registry.npmjs.org
   //registry.npmjs.org/:_authToken=${NPM_TOKEN}
   ```
+
   - **Result**: Users can now install with zero configuration! Just `npm install @seontechnologies/playwright-utils`
 
 ### 3. GitHub Workflows - Security & Authentication
@@ -245,6 +248,7 @@ Before making repository public, verify:
   ```bash
   npm run build
   ```
+
   **DONE**: All builds successful (CJS, ESM, types)
 
 - [x] **All tests pass** ✅
@@ -253,6 +257,7 @@ Before making repository public, verify:
   npm run validate
   npm run test:pw
   ```
+
   **DONE**: 24/24 tests passed, library builds successfully
 
 - [ ] **Package installs locally** (Optional - can test after)

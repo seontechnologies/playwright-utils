@@ -252,11 +252,14 @@ export const test = mergeTests(authFixture, networkErrorMonitor)
 
 When a backend service fails, it can cause dozens of tests to fail with the same error. Use `maxTestsPerError` to prevent this:
 
+> **Note:** `maxTestsPerError` requires `excludePatterns` to be specified. This enforces a best practice where domino effect prevention is paired with known exclusion patterns.
+
 ```typescript
 import { createNetworkErrorMonitorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
 
 const networkErrorMonitor = base.extend(
   createNetworkErrorMonitorFixture({
+    excludePatterns: [], // Required when using maxTestsPerError
     maxTestsPerError: 1 // Only first test fails per error pattern, rest just log
   })
 )
@@ -269,12 +272,18 @@ When `/api/v2/case-management/cases` returns 500:
 - **First test** encountering this error: ❌ FAILS with clear error message
 - **Subsequent tests** encountering same error: ✅ PASS but log warning
 
-Error patterns are grouped by `status + base path`:
+Error patterns are grouped by `method + status + base path`:
 
-- `/api/v2/case-management/cases/123` → Pattern: `500:/api/v2/case-management`
-- `/api/v2/case-management/quota` → Pattern: `500:/api/v2/case-management` (same group!)
+- `GET /api/v2/case-management/cases/123` → Pattern: `GET:500:/api/v2/case-management`
+- `GET /api/v2/case-management/quota` → Pattern: `GET:500:/api/v2/case-management` (same group!)
+- `POST /api/v2/case-management/cases` → Pattern: `POST:500:/api/v2/case-management` (different group!)
 
 This prevents 17 tests failing when case management backend is down - only first test fails.
+
+**Why include HTTP method?** A GET 404 vs POST 404 on the same endpoint might represent different issues:
+
+- `GET 404 /api/users/123` → User not found (expected in some tests)
+- `POST 404 /api/users` → Endpoint doesn't exist (critical error)
 
 **Example output for subsequent tests:**
 
@@ -287,8 +296,8 @@ This prevents 17 tests failing when case management backend is down - only first
 
 ```typescript
 createNetworkErrorMonitorFixture({
-  excludePatterns: [...],  // Known broken endpoints
-  maxTestsPerError: 1      // Stop domino effect
+  excludePatterns: [...],  // Required - known broken endpoints (can be empty [])
+  maxTestsPerError: 1      // Stop domino effect (requires excludePatterns)
 })
 ```
 
@@ -299,17 +308,17 @@ Error pattern counts are stored in worker-level global state that persists for a
 ```typescript
 // test-file-1.spec.ts (runs first in Worker 1)
 test('test A', () => {
-  /* triggers 500:/api/v2/cases */
+  /* triggers GET:500:/api/v2/cases */
 }) // ❌ Fails
 
 // test-file-2.spec.ts (runs later in Worker 1)
 test('test B', () => {
-  /* triggers 500:/api/v2/cases */
+  /* triggers GET:500:/api/v2/cases */
 }) // ✅ Passes (limit reached)
 
 // test-file-3.spec.ts (runs in Worker 2 - different worker)
 test('test C', () => {
-  /* triggers 500:/api/v2/cases */
+  /* triggers GET:500:/api/v2/cases */
 }) // ❌ Fails (fresh worker)
 ```
 
@@ -319,6 +328,64 @@ test('test C', () => {
 - State persists across all test files in the worker's lifetime
 - Parallel workers have independent state (no cross-contamination)
 - This prevents 17 tests in same worker from all failing when backend is down
+
+### Real-World Example: Different Error Patterns on Same Endpoint
+
+This example demonstrates how different HTTP methods and status codes create distinct error patterns, even on the same endpoint:
+
+```typescript
+import {
+  test,
+  expect
+} from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
+
+// Configure with maxTestsPerError to limit domino effect
+const testWithLimit = test.extend(
+  createNetworkErrorMonitorFixture({
+    excludePatterns: [],
+    maxTestsPerError: 1
+  })
+)
+
+test.describe('Complex error patterns', () => {
+  testWithLimit.fail('GET 404 on user endpoint', async ({ page }) => {
+    // Pattern: GET:404:/api/users
+    // First test with this pattern - will fail
+    await page.goto('/users/search')
+    await page.getByRole('button', { name: 'Search' }).click()
+
+    // GET 404 /api/users/999 (user not found)
+    expect(true).toBe(true)
+  })
+
+  testWithLimit.fail('POST 500 on user endpoint', async ({ page }) => {
+    // Pattern: POST:500:/api/users (DIFFERENT from above)
+    // Also first test with this pattern - will fail
+    await page.goto('/users/create')
+    await page.getByRole('button', { name: 'Submit' }).click()
+
+    // POST 500 /api/users/create (server error)
+    expect(true).toBe(true)
+  })
+
+  testWithLimit('GET 404 on same endpoint again', async ({ page }) => {
+    // Pattern: GET:404:/api/users (same as first test)
+    // Second test with this pattern - will PASS (limit reached)
+    await page.goto('/users/search')
+    await page.getByRole('button', { name: 'Search' }).click()
+
+    // This test passes because GET:404:/api/users already failed once
+    expect(true).toBe(true)
+  })
+})
+```
+
+**Key Insights:**
+
+- `GET 404 /api/users/999` and `POST 500 /api/users/create` are **different patterns**
+- Both tests fail because they're the first occurrence of their respective patterns
+- Third test passes because `GET:404:/api/users` pattern already hit the limit
+- This fine-grained distinction helps identify whether it's a missing resource vs. a server error
 
 ## Troubleshooting
 
