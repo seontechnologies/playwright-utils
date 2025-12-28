@@ -9,6 +9,11 @@ A smart test burn-in utility for Playwright that intelligently filters which tes
     - [Create Burn-in Script](#create-burn-in-script)
     - [Package.json Script](#packagejson-script)
     - [Create a Configuration File](#create-a-configuration-file)
+  - [Debugging and Troubleshooting](#debugging-and-troubleshooting)
+    - [Debug Mode](#debug-mode)
+    - [Common Issues and Solutions](#common-issues-and-solutions)
+      - [1. Config File Not Found](#1-config-file-not-found)
+      - [2. Patterns Not Matching](#2-patterns-not-matching)
   - [Best Practices](#best-practices)
     - [**Organize Code to Avoid Accidental Skips**](#organize-code-to-avoid-accidental-skips)
   - [CI Integration](#ci-integration)
@@ -30,8 +35,12 @@ Playwright's built-in `--only-changed` feature triggers all affected tests when 
 
 The burn-in utility uses custom dependency analysis with two simple controls:
 
-1. **Skip patterns** (`skipBurnInPatterns`) → Files that should never trigger tests (configs, types, docs)
-2. **Volume control** (`burnInTestPercentage`) → Run a percentage of affected tests after dependency analysis
+1. **Build dependency graph** via `madge` and map changed files to affected tests (direct and transitive imports). This is more precise than `--only-changed` because it follows real dependency edges instead of assuming every touched file should trigger all tests.
+
+2. **Skip patterns** (`skipBurnInPatterns`) → Files that should never trigger tests (configs, types, docs)
+3. **Volume control** (`burnInTestPercentage`) → Run a percentage of affected tests after dependency analysis
+
+> Under the hood, dependency analysis uses `madge` to build a project-wide import graph (including type imports). The burn-in runner walks that graph to find tests that directly or indirectly depend on changed files, then filters with `skipBurnInPatterns`. If dependency analysis fails, it falls back to Playwright's `--only-changed` mode.
 
 ## Installation & Usage
 
@@ -336,7 +345,9 @@ Your burn-in workflow will:
 2. **Set up environment** and install dependencies
 3. **Ensure base branch exists** for git diff comparison
 4. **Run burn-in script** with sharding: `npm run test:pw:burn-in-changed -- --base-branch=main --shard=1/2`
-5. **Set output** to determine if E2E tests should run
+5. **Build dependency graph** via `madge` and map changed files to affected tests (direct and transitive imports)
+6. **Filter + sample** affected tests using skip patterns and `burnInTestPercentage`
+7. **Set output** to determine if E2E tests should run
 
 ### Key Configuration Points
 
