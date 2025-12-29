@@ -30,7 +30,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
     - [Quick Start - Schema Validation](#quick-start---schema-validation)
     - [Multi-Format Schema Support](#multi-format-schema-support)
       - [JSON Schema](#json-schema)
-      - [Chained vs Awaited Schema Validation](#chained-vs-awaited-schema-validation)
+      - [Chained vs Helper Schema Validation](#chained-vs-helper-schema-validation)
       - [Zod Schema Integration](#zod-schema-integration)
       - [OpenAPI Specification Support](#openapi-specification-support)
       - [Schema-Only Validation (No Shape Assertions)](#schema-only-validation-no-shape-assertions)
@@ -425,11 +425,17 @@ npm install ajv zod js-yaml @types/js-yaml
 
 Reduce 5-10 lines of manual validation to a single line with built-in schema validation:
 
+Schema validation examples below assume the merged fixtures import (`@seontechnologies/playwright-utils/fixtures`), which includes the `validateSchema` fixture. If you maintain your own `test` via `mergeTests`, include `validateSchemaFixture` from `@seontechnologies/playwright-utils/api-request/fixtures`.
+
 ```typescript
 import { test, expect } from '@seontechnologies/playwright-utils/fixtures'
 import { CreateMovieResponseSchema } from '../../../sample-app/shared/types/schema'
 
-test('schema validation basics', async ({ apiRequest, authToken }) => {
+test('schema validation basics', async ({
+  apiRequest,
+  authToken,
+  validateSchema
+}) => {
   const movieData = {
     name: 'Test Movie',
     year: 2024,
@@ -473,6 +479,8 @@ test('schema validation basics', async ({ apiRequest, authToken }) => {
   expect(responseBody.data.name).toBe('Test Movie')
 })
 ```
+
+TypeScript note: schema validation verifies runtime shape but does not infer a compile-time type for `response.body`. The examples use inline assertions for clarity; consider a shared response type (for example `z.infer<typeof Schema>`) or a typed helper that wraps `validateSchema<TValidated>()` to reduce repetition.
 
 ### Multi-Format Schema Support
 
@@ -561,12 +569,12 @@ test('JSON Schema validation with awaited helper', async ({
 })
 ```
 
-#### Chained vs Awaited Schema Validation
+#### Chained vs Helper Schema Validation
 
 Both `.validateSchema()` and the standalone `validateSchema()` helper share the same validation engine. Choose the style that fits how you obtain your response:
 
 - **Chained** — works great when you call `apiRequest()` directly and want a fluent API.
-- **Awaited** — ideal when a fixture wraps `apiRequest()` (for example with `functionTestStep`) or when you already have the `{ status, body }` pair from another helper.
+- **Helper** — ideal when a fixture wraps `apiRequest()` (for example with `functionTestStep`) or when you already have the `{ status, body }` pair from another helper.
 
 ```typescript
 // Chained style (fluent)
@@ -676,6 +684,12 @@ test('OpenAPI JSON specification validation', async ({
   expect(responseBody.data.id).toBeDefined()
   expect(responseBody.data.name).toBe(movieData.name)
 })
+```
+
+When you want to assert on `validationResult`, capture the returned object from the helper:
+
+```typescript
+import openApiJson from '../../../sample-app/backend/src/api-docs/openapi.json'
 
 test('awaited OpenAPI JSON validation', async ({
   apiRequest,
@@ -701,7 +715,9 @@ test('awaited OpenAPI JSON validation', async ({
 
   expect(result.validationResult.success).toBe(true)
 })
+```
 
+```typescript
 test('OpenAPI YAML file validation', async ({ apiRequest, authToken }) => {
   const response = await apiRequest({
     method: 'POST',
