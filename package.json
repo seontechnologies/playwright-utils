@@ -165,7 +165,8 @@
     "test:pw-ui": "TEST_ENV=local npx playwright test --ui",
     "test:pw:burn-in": "PW_BURN_IN=true npx playwright test --repeat-each=3 --retries=0",
     "test:pw:burn-in-changed-classic": "PW_BURN_IN=true npx playwright test --only-changed=main --repeat-each=3 --retries=0",
-    "test:pw:burn-in-changed": "tsx playwright/scripts/burn-in-changed.ts"
+    "test:pw:burn-in-changed": "tsx playwright/scripts/burn-in-changed.ts",
+    "show:report": "npx playwright show-report --port 9324"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.54.1",

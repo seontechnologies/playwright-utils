@@ -30,7 +30,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
     - [Quick Start - Schema Validation](#quick-start---schema-validation)
     - [Multi-Format Schema Support](#multi-format-schema-support)
       - [JSON Schema](#json-schema)
-      - [Chained vs Awaited Schema Validation](#chained-vs-awaited-schema-validation)
+      - [Chained vs Helper Schema Validation](#chained-vs-helper-schema-validation)
       - [Zod Schema Integration](#zod-schema-integration)
       - [OpenAPI Specification Support](#openapi-specification-support)
       - [Schema-Only Validation (No Shape Assertions)](#schema-only-validation-no-shape-assertions)
@@ -114,7 +114,10 @@ async function apiRequest<T = unknown>({
   configBaseUrl,
   body,
   headers,
-  params
+  params,
+  testStep,
+  uiMode,
+  retryConfig
 }: ApiRequestParams): Promise<ApiRequestResponse<T>>
 ```
 
@@ -134,12 +137,41 @@ async function apiRequest<T = unknown>({
 | uiMode        | boolean (optional)                                        | Enable rich UI display in Playwright UI (defaults to false)                            |
 | retryConfig   | ApiRetryConfig (optional)                                 | Retry configuration for server errors (defaults enabled, set maxRetries: 0 to disable) |
 
+**retryConfig details (defaults):**
+
+```typescript
+{
+  maxRetries: 3,
+  initialDelayMs: 100,
+  backoffMultiplier: 2,
+  maxDelayMs: 5000,
+  enableJitter: true, // Adds random jitter to backoff delays
+  retryStatusCodes: [500, 502, 503, 504]
+}
+```
+
 ### Return Type
+
+`apiRequest` returns an enhanced promise that resolves to a response with `status` and `body`, plus a chained `validateSchema()` helper.
 
 ```typescript
 type ApiRequestResponse<T = unknown> = {
   status: number // HTTP status code
   body: T // Response body, typed as T
+}
+
+type EnhancedApiResponse<T = unknown> = ApiRequestResponse<T> & {
+  validateSchema<TValidated = T>(
+    schema: SupportedSchema,
+    options?: ValidateSchemaOptions
+  ): Promise<ValidatedApiResponse<TValidated>>
+}
+
+type EnhancedApiPromise<T = unknown> = Promise<EnhancedApiResponse<T>> & {
+  validateSchema<TValidated = T>(
+    schema: SupportedSchema,
+    options?: ValidateSchemaOptions
+  ): Promise<ValidatedApiResponse<TValidated>>
 }
 ```
 
@@ -393,11 +425,17 @@ npm install ajv zod js-yaml @types/js-yaml
 
 Reduce 5-10 lines of manual validation to a single line with built-in schema validation:
 
+Schema validation examples below assume the merged fixtures import (`@seontechnologies/playwright-utils/fixtures`), which includes the `validateSchema` fixture. If you maintain your own `test` via `mergeTests`, include `validateSchemaFixture` from `@seontechnologies/playwright-utils/api-request/fixtures`.
+
 ```typescript
 import { test, expect } from '@seontechnologies/playwright-utils/fixtures'
 import { CreateMovieResponseSchema } from '../../../sample-app/shared/types/schema'
 
-test('schema validation basics', async ({ apiRequest, authToken }) => {
+test('schema validation basics', async ({
+  apiRequest,
+  authToken,
+  validateSchema
+}) => {
   const movieData = {
     name: 'Test Movie',
     year: 2024,
@@ -426,6 +464,9 @@ test('schema validation basics', async ({ apiRequest, authToken }) => {
   }).validateSchema(CreateMovieResponseSchema, {
     shape: { status: 200, data: { name: 'Test Movie' } }
   })
+  // Fixture style:
+  // const { body } = await apiRequest({ ... })
+  // await validateSchema(CreateMovieResponseSchema, body, { shape: { ... } })
 
   // Type assertion needed for accessing response data
   const responseBody = validatedResponse.body as {
@@ -438,6 +479,8 @@ test('schema validation basics', async ({ apiRequest, authToken }) => {
   expect(responseBody.data.name).toBe('Test Movie')
 })
 ```
+
+TypeScript note: schema validation verifies runtime shape but does not infer a compile-time type for `response.body`. The examples use inline assertions for clarity; consider a shared response type (for example `z.infer<typeof Schema>`) or a typed helper that wraps `validateSchema<TValidated>()` to reduce repetition.
 
 ### Multi-Format Schema Support
 
@@ -488,6 +531,9 @@ test('JSON Schema validation basics', async ({ apiRequest, authToken }) => {
       }
     }
   })
+  // Fixture style:
+  // const { body } = await apiRequest({ ... })
+  // await validateSchema(jsonSchema, body, { shape: { ... } })
 
   // Type assertion for accessing response data
   const responseBody = response.body as {
@@ -523,12 +569,12 @@ test('JSON Schema validation with awaited helper', async ({
 })
 ```
 
-#### Chained vs Awaited Schema Validation
+#### Chained vs Helper Schema Validation
 
 Both `.validateSchema()` and the standalone `validateSchema()` helper share the same validation engine. Choose the style that fits how you obtain your response:
 
 - **Chained** — works great when you call `apiRequest()` directly and want a fluent API.
-- **Awaited** — ideal when a fixture wraps `apiRequest()` (for example with `functionTestStep`) or when you already have the `{ status, body }` pair from another helper.
+- **Helper** — ideal when a fixture wraps `apiRequest()` (for example with `functionTestStep`) or when you already have the `{ status, body }` pair from another helper.
 
 ```typescript
 // Chained style (fluent)
@@ -571,6 +617,9 @@ test('Zod schema validation with TypeScript inference', async ({
     body: movieData,
     headers: { Cookie: `seon-jwt=${authToken}` }
   }).validateSchema(CreateMovieResponseSchema)
+  // Fixture style:
+  // const { body } = await apiRequest({ ... })
+  // await validateSchema(CreateMovieResponseSchema, body)
 
   // Response is guaranteed valid with proper typing
   expect(response.body.data.id).toBeDefined()
@@ -622,6 +671,9 @@ test('OpenAPI JSON specification validation', async ({
       }
     }
   })
+  // Fixture style:
+  // const { body } = await apiRequest({ ... })
+  // await validateSchema(openApiJson, body, { shape: { ... } })
 
   // Type assertion for accessing response data
   const responseBody = response.body as {
@@ -632,6 +684,12 @@ test('OpenAPI JSON specification validation', async ({
   expect(responseBody.data.id).toBeDefined()
   expect(responseBody.data.name).toBe(movieData.name)
 })
+```
+
+When you want to assert on `validationResult`, capture the returned object from the helper:
+
+```typescript
+import openApiJson from '../../../sample-app/backend/src/api-docs/openapi.json'
 
 test('awaited OpenAPI JSON validation', async ({
   apiRequest,
@@ -657,7 +715,9 @@ test('awaited OpenAPI JSON validation', async ({
 
   expect(result.validationResult.success).toBe(true)
 })
+```
 
+```typescript
 test('OpenAPI YAML file validation', async ({ apiRequest, authToken }) => {
   const response = await apiRequest({
     method: 'POST',
@@ -669,6 +729,13 @@ test('OpenAPI YAML file validation', async ({ apiRequest, authToken }) => {
     method: 'POST',
     status: 200
   })
+  // Fixture style:
+  // const { body } = await apiRequest({ ... })
+  // await validateSchema('./api-docs/openapi.yml', body, {
+  //   path: '/movies',
+  //   method: 'POST',
+  //   status: 200
+  // })
 
   const responseBody = response.body as {
     status: number
@@ -694,6 +761,9 @@ test('schema validation without shape assertions', async ({
     path: `/movies/123`,
     headers: { Cookie: `seon-jwt=${authToken}` }
   }).validateSchema(GetMovieResponseUnionSchema)
+  // Fixture style:
+  // const { body } = await apiRequest({ ... })
+  // await validateSchema(GetMovieResponseUnionSchema, body)
 
   // Type assertion for accessing response data
   const responseBody = response.body as {
@@ -755,6 +825,9 @@ test('return mode validation - does not throw on failure', async ({
       mode: 'return' // Don't throw on failure
     }
   )
+  // Fixture style:
+  // const { body } = await apiRequest({ ... })
+  // await validateSchema(z.object({ ... }), body, { mode: 'return' })
 
   // Response indicates validation failure but doesn't throw
   expect(response.validationResult.success).toBe(false)
@@ -797,6 +870,9 @@ test('combined schema + shape validation with functions', async ({
       }
     }
   })
+  // Fixture style:
+  // const { body } = await apiRequest({ ... })
+  // await validateSchema(CreateMovieResponseSchema, body, { shape: { ... } })
 
   // Type assertion for accessing response data
   const responseBody = response.body as {
