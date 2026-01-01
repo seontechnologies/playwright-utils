@@ -2,7 +2,7 @@
 
 Playwright is unopinionated by design, providing developers with powerful tools and flexible patterns while leaving the implementation details and developer experience up to you.
 
-This library builds on Playwright's authentication capabilities to create a more structured, efficient developer experience. It implements a session-based storage pattern for authentication that works seamlessly with both API and UI testing, allowing you to fetch an authentication token once and reuse it across multiple tests and test runs.
+This library builds on Playwright's authentication capabilities to create a more structured, efficient developer experience. It implements a session-based storage pattern for authentication that works seamlessly with both API and UI testing, allowing you to fetch an authentication token once per environment/user and reuse it while valid across tests and test runs.
 
 ## Table of Contents
 
@@ -33,13 +33,16 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Ephemeral User Authentication](#ephemeral-user-authentication)
       - [How Ephemeral Authentication Works](#how-ephemeral-authentication-works)
     - [UI Testing with Browser Context](#ui-testing-with-browser-context)
+      - [Custom Authentication Provider](#custom-authentication-provider)
+      - [Understanding the Options Flow for Auth Provider Methods](#understanding-the-options-flow-for-auth-provider-methods)
       - [OAuth2 Example](#oauth2-example)
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-      - [Our Enhanced Approach](#our-enhanced-approach)
-    - [Storage/\*\_ Options for the auth session \_/](#storage_-options-for-the-auth-session-_)
+        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+        - [Our Enhanced Approach](#our-enhanced-approach)
+  - [Reference](#reference)
+    - [Storage Options for the auth session](#storage-options-for-the-auth-session)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
 
 ## What is this and why does it exist?
@@ -230,17 +233,17 @@ test.describe('Auth Session Example', () => {
 
 | **No.** | **Limitation of Playwright’s Approach**                                                                                                                                                                          | **What This Library Adds**                                                                                                                                                          |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1       | **Complex setup** – Requires configuration across multiple files and understanding of projects/dependencies.                                                                                                     | **Simplified setup** – Single configuration approach with built-in token expiration checking and programmatic refresh capabilities.                                                 |
+| 1       | **Complex setup** – Requires configuration across multiple files and understanding of projects/dependencies.                                                                                                     | **Simplified setup** – Single configuration approach with provider-based expiration checks and on-demand refresh during token acquisition.                                          |
 | 2       | **Manual token management** – No built-in handling of token expiration or refreshing.                                                                                                                            | **Structured token storage** – Organized acquisition and persistence of tokens.                                                                                                     |
 | 3       | **No multi-environment support** – No straightforward way to handle different environments (dev/staging/prod).                                                                                                   | **Multi-environment support** – First-class support for different environments (dev/staging/prod).                                                                                  |
 | 4       | **No multi-user support** – No built-in system for managing different user identifiers (admin/user/guest).                                                                                                       | **User-based testing** – Built-in system for managing different user identifiers (admin/user/guest).                                                                                |
-| 5       | **Limited programmatic control** – No simple API for clearing or refreshing tokens during test execution.                                                                                                        | **Rich programmatic control** – Clear APIs for managing tokens during test execution.                                                                                               |
+| 5       | **Limited programmatic control** – No simple API for clearing or refreshing tokens during test execution.                                                                                                        | **Programmatic control** – Clear and re-fetch tokens via `clearAuthToken` and `getAuthToken`.                                                                                       |
 | 6       | **Separate implementations** – Different approaches needed for API vs UI authentication.                                                                                                                         | **Unified implementation** – Same approach works for both API and browser testing.                                                                                                  |
-| 7       | **Performance bottleneck** – Relies solely on file storage, requiring disk I/O and JSON parsing for every test run, causing slowdowns.                                                                           | **Performance optimization** – In-memory caching eliminates repeated file reads and JSON parsing operations that slow down Playwright’s approach.                                   |
+| 7       | **Performance bottleneck** – Relies solely on file storage, requiring disk I/O and JSON parsing for every test run, causing slowdowns.                                                                           | **Performance optimization** – Optional in-memory caching (via `AuthSessionManager`/`globalTokenCache`) reduces repeated file reads in flows that use it.                           |
 | 8       | **UI Mode limitations** – UI mode doesn’t run setup projects by default, requiring manual intervention to re-authenticate when tokens expire (enabling filters, running auth.setup.ts, disabling filters again). | **Seamless UI Mode integration** – Works with Playwright UI Mode without manual intervention; no need to enable filters, run setup projects, or re-authenticate when tokens expire. |
-| 9       | **Between-run API calls** – Authentication request is made at the start of each test run session, even when a previously acquired token is still valid.                                                          | **Reduced API calls** – Token is fetched only once and reused across all tests, significantly reducing authentication overhead.                                                     |
-| 10      | **Manual parallel worker setup** – Requires custom fixtures and significant boilerplate code to implement worker-specific authentication for parallel testing.                                                   | **Automatic parallel worker support** – Handles worker-specific authentication without custom fixtures or boilerplate, automatically managing unique accounts per worker.           |
-| 11      | **No session storage support** – Playwright explicitly does not provide APIs to persist session storage, requiring custom scripts for apps that use this storage method.                                         | **Complete storage support** – Automatically handles all storage types including cookies, localStorage, IndexedDB, and sessionStorage without manual scripts.                       |
+| 9       | **Between-run API calls** – Authentication request is made at the start of each test run session, even when a previously acquired token is still valid.                                                          | **Reduced API calls** – Valid tokens are reused from storage/cache; new auth happens only when missing or expired.                                                                  |
+| 10      | **Manual parallel worker setup** – Requires custom fixtures and significant boilerplate code to implement worker-specific authentication for parallel testing.                                                   | **Parallel worker support** – Works with worker-specific user identifiers (e.g., `parallelIndex`) and isolated storage once you map worker → user in your provider.                 |
+| 11      | **No session storage support** – Playwright explicitly does not provide APIs to persist session storage, requiring custom scripts for apps that use this storage method.                                         | **Storage state support** – Handles Playwright `storageState` (cookies + localStorage). SessionStorage/IndexedDB require custom handling (see extension recipe).                    |
 
 **Additional Benefits**:
 
@@ -251,6 +254,8 @@ test.describe('Auth Session Example', () => {
 <details><summary><strong>More on UI mode integration:</strong></summary>
 
 > ### More on UI mode integration:
+>
+> **Assumes:** you are using the auth fixtures from `createAuthFixtures` (or merged fixtures) and have set a provider with `setAuthProvider`.
 >
 > In Playwright's authentication approach, they use separate "setup projects" that run before your tests to handle authentication. The problem is that UI Mode intentionally skips these setup projects for speed. This forces you to manually authenticate by:
 >
@@ -264,7 +269,7 @@ test.describe('Auth Session Example', () => {
 > Our solution bakes authentication directly into the normal test flow instead of using separate setup projects:
 >
 > 1. **Smarter Token Management**: We store tokens in a central location that works for both normal tests and UI Mode tests.
-> 2. **On-Demand Authentication**: Instead of requiring a separate setup step, each test automatically checks if it needs a token:
+> 2. **On-Demand Authentication**: Instead of requiring a separate setup step, fixtures call your provider's `manageAuthToken` on demand:
 >    - If a valid token exists, it uses it (fast path)
 >    - If no token exists or it's expired, it fetches a new one (transparent to you)
 > 3. **Integrated with Test Fixtures**: Authentication is provided through fixtures that UI Mode automatically uses, so there's no separate step to enable or disable.
@@ -294,48 +299,32 @@ test.describe('Auth Session Example', () => {
 > 3. **Storage persistence**: Manually handling the storage state files
 > 4. **Code duplication**: Reimplementing this pattern across projects
 >
-> **Our authentication library provides this worker-specific functionality automatically:**
+> **Our authentication library supports this worker-specific pattern when you map worker → user in your provider:**
 >
-> 1. We use a fixed path at the repo root (.auth) to store authentication data
-> 2. We handle the token storage and retrieval without custom fixtures
-> 3. Our solution works for both browser tests and API tests with the same code
-> 4. We add in-memory caching for better performance
+> 1. Storage is isolated under `.auth/<environment>/<userIdentifier>`
+> 2. The same fixtures work for both browser tests and API tests
+> 3. Optional in-memory caching is available via `AuthSessionManager`/`globalTokenCache`
 >
 > This is a key advantage of our approach - **getting the same benefits with significantly less code and complexity**.
+
+</details>
 
 <details><summary><strong>More on performance and simplicity benefits:</strong></summary>
 
 > ### More on performance and simplicity benefits:
 >
-> Our authentication system provides significant advantages in several areas:
+> - **Fewer auth calls**: reuse stored state while valid; refresh only on miss/expiry.
+> - **Optional caching**: `AuthSessionManager`/`globalTokenCache` can reduce disk I/O in compatible flows.
+> - **Persistent storage**: tokens survive between runs for faster local/CI loops.
+> - **Simple API**: fixture-based access works for both API and UI tests.
 >
-> 1. **Reduced API Calls**: Token is fetched only once and persists between separate test runs. This means:
->    - No authentication API calls when starting a new test session if token is still valid
->    - Less load on your authentication servers across development cycles
->    - Faster test execution overall, especially for multiple test runs
->    - No rate limiting issues from your auth provider
-> 2. **Speed Optimization**: Tests run substantially faster by:
->    - Avoiding repeated authentication requests
->    - Utilizing in-memory caching to eliminate disk I/O
->    - Removing JSON parsing overhead for each test
-> 3. **Persistence**: Token persists between test runs, enabling:
->    - Faster CI/CD pipelines
->    - Quicker local development cycles
->    - Reduced authentication server load, and emails
-> 4. **Simplicity**: The API design allows tests to focus on business logic:
->    - Clean test code without authentication boilerplate
->    - Simple fixture-based access to tokens
->    - Consistent patterns across your test suite
->    - Same code works for both API and UI authentication (no separate implementations)
->    - No need for different setup approaches based on authentication method
->
-> The system is designed to be compatible with Playwright's recommended patterns for authentication in both API testing and UI testing contexts while solving the performance and usability limitations of the built-in approach.
+> The system stays compatible with Playwright's storageState flow while reducing boilerplate.
 
 </details>
 
 ## Quick Start Guide
 
-⚠️ **IMPORTANT**: The authentication system requires explicit configuration before use. You MUST set up authentication in your global setup file with **both** `configureAuthSession` AND `setAuthProvider` in the correct order.
+⚠️ **IMPORTANT**: The authentication system requires a configured auth provider before use. Set up `setAuthProvider` in global setup, and use `configureAuthSession` to establish global defaults and storage metadata.
 
 ### Configure Global Setup
 
@@ -671,7 +660,7 @@ export default defineConfig({
 
 ### Configure Authentication Options
 
-When setting up your auth fixtures, explicitly include the baseUrl in your auth options:
+When setting up your auth fixtures, it's recommended to include the baseUrl in your auth options:
 
 ```typescript
 // playwright/support/auth/auth-fixture.ts
@@ -727,44 +716,40 @@ test('authenticated UI test', async ({ page }) => {
   await page.goto('/protected-area')
   await expect(page.locator('h1')).toHaveText('Protected Content')
 })
+```
 
-// Advanced usage
+Advanced usage (inside your auth provider's `manageAuthToken`):
+
+```typescript
+// Build a Playwright-compatible storage state from the auth response,
+// so both API and UI tests can reuse the same authenticated state.
 const data = await response.json()
 
-    // 4. Create a storage state object (supports both API and browser testing)
-    const storageState: Record<string, unknown> = {
-      // For API testing with a simple token
-      token: data.access_token,
-      // For UI testing, you might include cookies or localStorage
-      // cookies: [...],
-      // origins: [...]
+// Create a storage state object (supports both API and browser testing)
+const storageState: Record<string, unknown> = {
+  // For UI testing, include cookies and/or localStorage
+  cookies: [
+    {
+      name: 'auth-token',
+      value: data.access_token,
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax'
     }
-
-    // 5. Save the token using AuthSessionManager for better caching and reliability
-    const authManager = AuthSessionManager.getInstance({
-      debug: true,
-      storageDir: path.dirname(tokenPath)
-    })
-
-    authManager.saveToken(JSON.stringify(storageState))
-
-    return storageState
-
+  ],
+  origins: []
 }
 
-async getToken(request, options = {}) {
-// Use our own methods to ensure consistency
-const environment = this.getEnvironment(options)
-const userIdentifier = this.getUserIdentifier(options)
-// Use the utility functions to get standardized paths
-const tokenPath = getTokenFilePath({
-environment,
-userIdentifier
+// Save via AuthSessionManager for caching and persistence
+const authManager = AuthSessionManager.getInstance({
+  debug: true,
+  storageDir: path.dirname(tokenPath)
 })
-// Check if we already have a valid token using the core utility
-// Add custom logging for this provider implementation
-console.log(`[Custom Auth] Checking for existing token at ${tokenPath}`)
-}
+await authManager.saveToken(storageState)
+
+return storageState
 ```
 
 ### Using Multiple User Identifiers in Tests
@@ -1021,7 +1006,7 @@ This approach is particularly useful for:
 
 This functionality is already built in and requires no additional code:
 
-````typescript
+```typescript
 // No special setup needed - auth is automatically applied
 test('authenticated UI test', async ({ page }) => {
   // The page is already authenticated!
@@ -1030,6 +1015,7 @@ test('authenticated UI test', async ({ page }) => {
   // Verify authenticated content is visible
   await expect(page.locator('h1')).toContainText('Welcome Back')
 })
+```
 
 #### Custom Authentication Provider
 
@@ -1039,16 +1025,18 @@ For specialized authentication needs, the custom provider becomes the source of 
 
 The `AuthProvider` interface methods (like `getEnvironment` and `getUserIdentifier`) accept options parameters that might seem confusing at first. Here's how these options are passed:
 
-1. **In Test Files**: When you call methods on the auth fixture:
-   ```typescript
-   test('example', async ({ auth }) => {
-     // This passes options to getEnvironment() internally
-     await auth.useEnvironment('staging');
+1. **In Test Files**: When you set `authOptions` via `test.use()` or user-specific fixtures:
 
-     // This passes options to getUserIdentifier() internally
-     await auth.useUserIdentifier('admin');
-   });
-````
+   ```typescript
+   test.use({
+     authOptions: { environment: 'staging', userIdentifier: 'admin' }
+   })
+
+   test('example', async ({ authToken }) => {
+     // authOptions are passed to the provider internally
+     expect(authToken).toBeTruthy()
+   })
+   ```
 
 2. **Direct API Calls**: When directly calling API functions with options:
 
@@ -1063,7 +1051,7 @@ The `AuthProvider` interface methods (like `getEnvironment` and `getUserIdentifi
 3. **Default Values**: When no options are explicitly passed, the auth provider should fall back to sensible defaults:
    ```typescript
    // Priority order in getEnvironment():
-   // 1. Options passed from test/API (auth.useEnvironment() or direct API call)
+   // 1. Options passed from test via authOptions or direct API call
    // 2. Environment variables (process.env.TEST_ENV)
    // 3. Default value ('local')
    return options.environment || process.env.TEST_ENV || 'local'
@@ -1077,79 +1065,106 @@ Here's how to implement OAuth2 authentication in your custom auth provider:
 
 ```typescript
 // Inside your custom-auth-provider.ts
-import { getEnvironment, getUserIdentifier } from './auth-helpers'
+import type { APIRequestContext } from '@playwright/test'
+import type { AuthProvider } from '@seontechnologies/playwright-utils/auth-session'
+import {
+  getTokenFilePath,
+  loadStorageState,
+  saveStorageState
+} from '@seontechnologies/playwright-utils/auth-session'
 
 const myCustomProvider: AuthProvider = {
-  // Standard methods for environment and user identifier
   getEnvironment(options = {}) {
-    return getEnvironment(options)
+    return options.environment || process.env.TEST_ENV || 'local'
   },
   getUserIdentifier(options = {}) {
-    return getUserIdentifier(options)
+    return options.userIdentifier || 'default'
   },
-	getEnvironment(options = {}) { ... },
-	getUserIdentifier(options = {}) { ... },
 
-	// OAuth2-specific token retrieval
-	async getToken(request, options = {}) {
-		const environment = this.getEnvironment(options)
-		const userIdentifier = this.getUserIdentifier(options)
+  extractToken(tokenData) {
+    if (tokenData && typeof tokenData === 'object' && 'cookies' in tokenData) {
+      const cookies =
+        (tokenData as { cookies?: Array<{ name: string; value: string }> })
+          .cookies || []
+      return (
+        cookies.find((cookie) => cookie.name === 'auth-token')?.value || null
+      )
+    }
+    return null
+  },
+  extractCookies(tokenData) {
+    if (tokenData && typeof tokenData === 'object' && 'cookies' in tokenData) {
+      return (
+        (tokenData as { cookies?: Array<Record<string, unknown>> }).cookies ||
+        []
+      )
+    }
+    return []
+  },
 
-		// Get token path using utility function
-		const tokenPath = getTokenFilePath({
-			environment,
-			userIdentifier,
-			tokenFileName: 'oauth-token.json'
-		})
+  async manageAuthToken(
+    request: APIRequestContext,
+    options = {}
+  ): Promise<Record<string, unknown>> {
+    const environment = this.getEnvironment(options)
+    const userIdentifier = this.getUserIdentifier(options)
+    const tokenPath = getTokenFilePath({ environment, userIdentifier })
 
-		// Check for existing valid token
-		const existingToken = loadTokenFromStorage(tokenPath)
-		if (existingToken && !isTokenExpired(existingToken)) {
-			return existingToken
-		}
+    const existingState = loadStorageState(tokenPath)
+    if (existingState) {
+      const token = this.extractToken(existingState)
+      if (token && (!this.isTokenExpired || !this.isTokenExpired(token))) {
+        return existingState
+      }
+    }
 
-		// Initialize storage if needed
-		authStorageInit({ environment, userIdentifier })
+    const oauthConfig = {
+      clientId: process.env.OAUTH_CLIENT_ID || 'client-id',
+      clientSecret: process.env.OAUTH_CLIENT_SECRET || 'client-secret',
+      tokenUrl:
+        process.env.OAUTH_TOKEN_URL || 'http://localhost:3000/oauth/token',
+      scope: process.env.OAUTH_SCOPE || 'read write'
+    }
 
-		// Get OAuth config from environment or defaults
-		const oauthConfig = {
-			clientId: process.env.OAUTH_CLIENT_ID || 'client-id',
-			clientSecret: process.env.OAUTH_CLIENT_SECRET || 'client-secret',
-			tokenUrl: process.env.OAUTH_TOKEN_URL || 'http://localhost:3000/oauth/token',
-			scope: process.env.OAUTH_SCOPE || 'read write'
-		}
+    const response = await request.post(oauthConfig.tokenUrl, {
+      form: {
+        grant_type: 'client_credentials',
+        client_id: oauthConfig.clientId,
+        client_secret: oauthConfig.clientSecret,
+        scope: oauthConfig.scope
+      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
 
-		// Request a new token using client credentials flow
-		const response = await request.post(oauthConfig.tokenUrl, {
-			form: {
-				grant_type: 'client_credentials',
-				client_id: oauthConfig.clientId,
-				client_secret: oauthConfig.clientSecret,
-				scope: oauthConfig.scope
-			},
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-		})
+    const data = await response.json()
+    const token = data.access_token
 
-		const data = await response.json()
-		const token = data.access_token
+    const baseUrl =
+      this.getBaseUrl?.(options) ||
+      process.env.BASE_URL ||
+      'http://localhost:3000'
+    const storageState = {
+      cookies: [
+        {
+          name: 'auth-token',
+          value: token,
+          domain: new URL(baseUrl).hostname,
+          path: '/',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax'
+        }
+      ],
+      origins: []
+    }
 
-		// Save token with metadata using core utility
-		saveTokenToStorage(
-			tokenPath,
-			token,
-			{
-				environment,
-				userIdentifier,
-				expiresAt: Date.now() + (data.expires_in * 1000 || 3600000),
-				scope: data.scope
-			},
-			true // Debug mode
-		)
+    saveStorageState(tokenPath, storageState)
+    return storageState
+  },
 
-		return token
-	},
-
-	// Rest of the methods...
+  clearToken() {
+    // Implement as needed (e.g., delete the storage state file)
+  }
 }
 ```
 
@@ -1181,7 +1196,7 @@ async function globalSetup() {
   // Set the auth provider
   setAuthProvider(myCustomProvider)
 
-  // Pre-fetch tokens for all configured environments and users
+  // Pre-fetch tokens for configured users in the selected environment
   // This happens once before all tests run
   await authGlobalInit()
 }
@@ -1196,8 +1211,17 @@ Playwright recommends using one account per parallel worker for tests that modif
 ```typescript
 // pw/support/custom-auth-provider.ts with worker-specific accounts
 import { test } from '@playwright/test'
+import type { AuthProvider } from '@seontechnologies/playwright-utils/auth-session'
+import {
+  getTokenFilePath,
+  saveStorageState
+} from '@seontechnologies/playwright-utils/auth-session'
 
-const myCustomProvider = {
+const myCustomProvider: AuthProvider = {
+  getEnvironment(options = {}) {
+    return options.environment || process.env.TEST_ENV || 'local'
+  },
+
   // Use parallelIndex to determine the user identifier
   getUserIdentifier(options = {}) {
     // If a specific user identifier is requested, use it; otherwise, use the worker index
@@ -1210,12 +1234,34 @@ const myCustomProvider = {
     return `worker-${workerIndex}`
   },
 
+  extractToken(tokenData) {
+    if (tokenData && typeof tokenData === 'object' && 'cookies' in tokenData) {
+      const cookies =
+        (tokenData as { cookies?: Array<{ name: string; value: string }> })
+          .cookies || []
+      return (
+        cookies.find((cookie) => cookie.name === 'auth-token')?.value || null
+      )
+    }
+    return null
+  },
+  extractCookies(tokenData) {
+    if (tokenData && typeof tokenData === 'object' && 'cookies' in tokenData) {
+      return (
+        (tokenData as { cookies?: Array<Record<string, unknown>> }).cookies ||
+        []
+      )
+    }
+    return []
+  },
+
   // Get token based on the worker-specific user
-  async getToken(request, options = {}) {
+  async manageAuthToken(request, options = {}) {
+    const environment = this.getEnvironment(options)
     const userIdentifier = this.getUserIdentifier(options)
 
-    // This will automatically use a separate token file for each worker
-    // The rest of the implementation remains the same
+    // Each worker uses a separate storage file based on userIdentifier
+    const tokenPath = getTokenFilePath({ environment, userIdentifier })
 
     // When fetching a token, you can use different credentials per worker:
     const accounts = [
@@ -1236,17 +1282,35 @@ const myCustomProvider = {
       }
     })
 
-    // Process and return the token...
+    const data = await response.json()
+    const token = data.access_token
+
+    const storageState = {
+      cookies: [
+        {
+          name: 'auth-token',
+          value: token,
+          domain: 'localhost',
+          path: '/',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax'
+        }
+      ],
+      origins: []
+    }
+
+    saveStorageState(tokenPath, storageState)
+    return storageState
   }
 }
 ```
 
 With this approach:
 
-1. Each worker automatically gets its own storage file based on the worker index
-2. No special fixtures or config changes are needed - it's handled by our provider architecture
-3. Tests in the same worker reuse the authentication state
-4. Different workers use different accounts
+1. Each worker gets its own storage file because `userIdentifier` includes the worker index
+2. Tests in the same worker reuse the authentication state
+3. Different workers use different accounts
 
 This implementation is more elegant than Playwright's approach because:
 
@@ -1323,52 +1387,55 @@ test.describe('unauthenticated browser tests', () => {
 
 This makes it much easier to test complex authentication scenarios like authenticated session timeouts, partial authentication, or mixed authenticated/unauthenticated user journeys.
 
-### Storage/\*_ Options for the auth session _/
+## Reference
 
+### Storage Options for the auth session
+
+```typescript
 export type AuthSessionOptions = AuthIdentifiers & {
-/\*\* Root directory for auth session storage (default: process.cwd()/.auth)
-
-- Note: The environment and user identifier will be appended to this path by the provider _/
+  /** Root directory for auth session storage (default: process.cwd()/.auth)
+   * Note: environment and user identifier are appended to this path by the provider. */
   storageDir?: string
-  /\*\* Token filename (default: storage-state.json) _/
+
+  /** Token filename (default: storage-state.json) */
   tokenFileName?: string
-  /** Cookie name to use for authentication (default: auth-token) \*/
+
+  /** Cookie name to use for authentication (default: auth-token) */
   cookieName?: string
-  /** Custom token data formatter to control how tokens are saved _/
+
+  /** Custom token data formatter to control how tokens are saved */
   tokenDataFormatter?: TokenDataFormatter
-  /\*\* Debug mode (default: false) _/
+
+  /** Debug mode (default: false) */
   debug?: boolean
-  }
+}
 
-/\*\*
+/**
+ * Full auth configuration that extends the base identifiers
+ * Includes URLs and additional configuration beyond just identifiers
+ */
+export type AuthOptions = AuthIdentifiers & {
+  /** Base URL to use for the browser context (the application URL)
+   * Recommended to ensure page.goto('/') works correctly with authenticated pages.
+   * If not provided, the system attempts to resolve it in this order:
+   * 1. Explicitly passed authOptions.baseUrl
+   * 2. Auth provider getBaseUrl() (if implemented)
+   * 3. Playwright context baseURL
+   * 4. Environment variable process.env.BASE_URL
+   *
+   * @default process.env.BASE_URL || environment-specific URL */
+  baseUrl?: string
 
-- Full auth configuration that extends the base identifiers
-- Includes URLs and additional configuration beyond just identifiers
-  \*/
-  export type AuthOptions = AuthIdentifiers & {
-  /\*\* Base URL to use for the browser context (the application URL)
-  - This is a critical parameter for enabling proper page navigation with relative URLs.
-  - IMPORTANT: You must set this parameter to ensure that page.goto('/') works correctly
-  - with authenticated pages. The baseUrl is used to resolve relative URLs during navigation.
-  -
-  - If not provided, the system will attempt to determine it from these sources (in order):
-  - 1.  Explicitly passed authOptions.baseUrl (recommended approach)
-  - 2.  Environment variable process.env.BASE_URL
-  - 3.  Playwright context options
-  -
-  - @default process.env.BASE_URL || environment-specific URL \*/
-    baseUrl?: string
-
-/\*\* Base URL to use for authentication requests (the auth service URL)
-
-- This is often different from the application baseUrl
-- @default process.env.AUTH_BASE_URL || environment-specific auth URL \*/
+  /** Base URL to use for authentication requests (the auth service URL)
+   * This is often different from the application baseUrl
+   * @default process.env.AUTH_BASE_URL || environment-specific auth URL */
   authBaseUrl?: string
-  }
+}
+```
 
-All tokens are stored in the Playwright-compatible `storage-state.json` format, which can contain cookies and/or localStorage items. This consistent format works seamlessly with both API and UI testing.
+By default, tokens are stored in the Playwright-compatible `storage-state.json` format, which can contain cookies and/or localStorage items. This consistent format works seamlessly with both API and UI testing.
 
-When using `userIdentifier` in your authentication options, the library creates a subdirectory with that identifier inside the user identifier directory. This allows for multiple distinct users with the same user identifier type to have their tokens stored and managed independently.
+When using `userIdentifier` in your authentication options, the library stores tokens under `.auth/<environment>/<userIdentifier>/` so each user/environment pair stays isolated.
 
 ### Session Storage Support (Extension Recipe)
 
@@ -1384,30 +1451,31 @@ You can extend our authentication library to handle session storage by adding th
 // And in your getToken method, add session storage capture after authentication
 // This assumes you're using a page to authenticate rather than an API request
 async captureSessionStorage(page, options = {}) {
-	const environment = this.getEnvironment(options);
-	const userIdentifier = this.getUserIdentifier(options);
+  const environment = this.getEnvironment(options)
+  const userIdentifier = this.getUserIdentifier(options)
 
-	// Extract session storage data
-	const sessionStorage = await page.evaluate(() => {
-		const data = {};
-		for (let i = 0; i < window.sessionStorage.length; i++) {
-			const key = window.sessionStorage.key(i);
-			data[key] = window.sessionStorage.getItem(key);
-		}
-		return data;
-	});
+  // Extract session storage data
+  const sessionStorage = await page.evaluate(() => {
+    const data: Record<string, string | null> = {}
+    for (let i = 0; i < window.sessionStorage.length; i++) {
+      const key = window.sessionStorage.key(i)
+      if (!key) continue
+      data[key] = window.sessionStorage.getItem(key)
+    }
+    return data
+  })
 
-	// Save it alongside the token
-	const sessionStoragePath = getTokenFilePath({
-		environment,
-		userIdentifier,
-		tokenFileName: 'session-storage.json'
-	});
+  // Save it alongside the token
+  const sessionStoragePath = getTokenFilePath({
+    environment,
+    userIdentifier,
+    tokenFileName: 'session-storage.json'
+  })
 
-	fs.writeFileSync(
-		sessionStoragePath,
-		JSON.stringify(sessionStorage),
-		'utf-8'
-	);
+  fs.writeFileSync(
+    sessionStoragePath,
+    JSON.stringify(sessionStorage),
+    'utf-8'
+  )
 }
 ```
