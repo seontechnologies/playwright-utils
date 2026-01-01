@@ -338,7 +338,7 @@ async function globalSetup() {
   // STEP 1: Configure auth storage settings
   configureAuthSession({
     // store auth tokens anywhere you want, and remember to gitignore the directory
-    authStoragePath: process.cwd() + '/playwright/auth-sessions',
+    storageDir: process.cwd() + '/playwright/auth-sessions',
     debug: true
   })
 

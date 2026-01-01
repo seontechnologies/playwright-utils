@@ -12,6 +12,7 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Playwright's Built-in Authentication](#playwrights-built-in-authentication)
       - [Approach 1: Setup Project with Dependencies](#approach-1-setup-project-with-dependencies)
       - [Approach 2: Global Setup Function](#approach-2-global-setup-function)
+      - [Approach 3: Per-Worker Authentication (workerStorageState)](#approach-3-per-worker-authentication-workerstoragestate)
       - [Write tests that use the authenticated state](#write-tests-that-use-the-authenticated-state)
     - [Limitations of Playwright’s Approach vs. What This Library Adds](#limitations-of-playwrights-approach-vs-what-this-library-adds)
   - [Quick Start Guide](#quick-start-guide)
@@ -29,7 +30,7 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Parallel Test Execution with Multiple User Identifiers](#parallel-test-execution-with-multiple-user-identifiers)
       - [User-Specific Test Fixtures](#user-specific-test-fixtures)
     - [Direct Use of Storage State (Vanilla Playwright Approach)](#direct-use-of-storage-state-vanilla-playwright-approach)
-      - [3. Testing Interactions Between Multiple Users in a Single Test](#3-testing-interactions-between-multiple-users-in-a-single-test)
+      - [Testing Interactions Between Multiple Users in a Single Test](#testing-interactions-between-multiple-users-in-a-single-test)
     - [Ephemeral User Authentication](#ephemeral-user-authentication)
       - [How Ephemeral Authentication Works](#how-ephemeral-authentication-works)
     - [UI Testing with Browser Context](#ui-testing-with-browser-context)
@@ -39,10 +40,21 @@ This library builds on Playwright's authentication capabilities to create a more
       - [Token Pre-fetching](#token-pre-fetching)
     - [Parallel Testing with Worker-Specific Accounts](#parallel-testing-with-worker-specific-accounts)
     - [Testing Unauthenticated States](#testing-unauthenticated-states)
-        - [Playwright's Built-in Approach](#playwrights-built-in-approach)
-        - [Our Enhanced Approach](#our-enhanced-approach)
+      - [Playwright's Built-in Approach](#playwrights-built-in-approach)
+      - [Our Enhanced Approach](#our-enhanced-approach)
   - [Reference](#reference)
     - [Storage Options for the auth session](#storage-options-for-the-auth-session)
+    - [Storage State Format](#storage-state-format)
+    - [Token Expiration Handling](#token-expiration-handling)
+      - [Standard JWT Tokens](#standard-jwt-tokens)
+      - [Custom Token Formats](#custom-token-formats)
+    - [Troubleshooting](#troubleshooting)
+      - ["Cannot extract token, considering expired"](#cannot-extract-token-considering-expired)
+      - [Tokens not being reused between test runs](#tokens-not-being-reused-between-test-runs)
+      - [Browser context not authenticated](#browser-context-not-authenticated)
+      - [Different users getting same token](#different-users-getting-same-token)
+    - [Quick Reference](#quick-reference)
+    - [Token Utility Modules (Reference Implementation)](#token-utility-modules-reference-implementation)
     - [Session Storage Support (Extension Recipe)](#session-storage-support-extension-recipe)
 
 ## What is this and why does it exist?
@@ -177,6 +189,66 @@ export default defineConfig({
 
 </details>
 
+#### Approach 3: Per-Worker Authentication (workerStorageState)
+
+For parallel tests that modify server-side state, Playwright recommends one account per worker:
+
+<details><summary><strong>Expand for details:</strong></summary>
+
+```typescript
+// playwright/fixtures.ts
+import { test as baseTest } from '@playwright/test'
+import fs from 'fs'
+import path from 'path'
+
+export const test = baseTest.extend<{}, { workerStorageState: string }>({
+  // Use the worker-specific storage state for all tests
+  storageState: ({ workerStorageState }, use) => use(workerStorageState),
+
+  // Worker-scoped fixture that authenticates once per worker
+  workerStorageState: [
+    async ({ browser }, use) => {
+      // Each worker gets a unique ID (0, 1, 2, etc.)
+      const id = test.info().parallelIndex
+      const fileName = path.resolve(
+        test.info().project.outputDir,
+        `.auth/${id}.json`
+      )
+
+      // Reuse existing authentication if available
+      if (fs.existsSync(fileName)) {
+        await use(fileName)
+        return
+      }
+
+      // Authenticate with worker-specific account
+      const page = await browser.newPage({ storageState: undefined })
+      const account = await acquireAccount(id) // Your account pool logic
+
+      await page.goto('https://example.com/login')
+      await page.getByLabel('Username').fill(account.username)
+      await page.getByLabel('Password').fill(account.password)
+      await page.getByRole('button', { name: 'Sign in' }).click()
+      await page.waitForURL('https://example.com/dashboard')
+
+      // Save and reuse for this worker's tests
+      await page.context().storageState({ path: fileName })
+      await page.close()
+      await use(fileName)
+    },
+    { scope: 'worker' }
+  ]
+})
+```
+
+This approach requires:
+
+- A pool of test accounts (one per potential parallel worker)
+- Custom fixture code with worker-scoped storage
+- Manual file management for storage state
+
+</details>
+
 #### Write tests that use the authenticated state
 
 <details><summary><strong>Expand for details:</strong></summary>
@@ -243,7 +315,7 @@ test.describe('Auth Session Example', () => {
 | 8       | **UI Mode limitations** – UI mode doesn’t run setup projects by default, requiring manual intervention to re-authenticate when tokens expire (enabling filters, running auth.setup.ts, disabling filters again). | **Seamless UI Mode integration** – Works with Playwright UI Mode without manual intervention; no need to enable filters, run setup projects, or re-authenticate when tokens expire. |
 | 9       | **Between-run API calls** – Authentication request is made at the start of each test run session, even when a previously acquired token is still valid.                                                          | **Reduced API calls** – Valid tokens are reused from storage/cache; new auth happens only when missing or expired.                                                                  |
 | 10      | **Manual parallel worker setup** – Requires custom fixtures and significant boilerplate code to implement worker-specific authentication for parallel testing.                                                   | **Parallel worker support** – Works with worker-specific user identifiers (e.g., `parallelIndex`) and isolated storage once you map worker → user in your provider.                 |
-| 11      | **No session storage support** – Playwright explicitly does not provide APIs to persist session storage, requiring custom scripts for apps that use this storage method.                                         | **Storage state support** – Handles Playwright `storageState` (cookies + localStorage). SessionStorage/IndexedDB require custom handling (see extension recipe).                    |
+| 11      | **No session storage support** – Playwright explicitly does not provide APIs to persist session storage, requiring custom scripts for apps that use this storage method.                                         | **Storage state support** – Handles Playwright `storageState` (cookies, localStorage, and IndexedDB). SessionStorage requires custom handling (see extension recipe).               |
 
 **Additional Benefits**:
 
@@ -332,6 +404,7 @@ Create `playwright/support/global-setup.ts` and add it to your Playwright config
 
 ```typescript
 // playwright/support/global-setup.ts
+import type { FullConfig } from '@playwright/test'
 import {
   authStorageInit,
   setAuthProvider,
@@ -341,7 +414,7 @@ import {
 
 import myCustomProvider from './auth/custom-auth-provider'
 
-async function globalSetup() {
+async function globalSetup(_config: FullConfig): Promise<void> {
   // Initialize storage, config and provider in the correct order
   authStorageInit()
 
@@ -491,7 +564,10 @@ const myCustomProvider: AuthProvider = {
   isTokenExpired,
 
   // Main token management method
-  async manageAuthToken(request: APIRequestContext, options: AuthOptions = {}) {
+  async manageAuthToken(
+    request: APIRequestContext,
+    options: AuthOptions = {}
+  ): Promise<Record<string, unknown>> {
     const environment = this.getEnvironment(options)
     const userIdentifier = this.getUserIdentifier(options)
 
@@ -613,7 +689,7 @@ export const acquireToken = async (
       throw new Error(`Auth failed: ${response.status()} - ${error}`)
     }
 
-    // Get the storage state which includes cookies and localStorage
+    // Get the storage state which includes cookies, localStorage, and IndexedDB
     const storageState = await context.storageState()
 
     // Add any additional metadata you want to store with the token
@@ -689,6 +765,8 @@ export const test = base.extend({
 })
 ```
 
+See [Storage Options for the auth session](#storage-options-for-the-auth-session) for the full list of available configuration fields.
+
 ### Use the Auth Session in Your Tests
 
 #### Cookie-Based Authentication
@@ -727,7 +805,7 @@ const data = await response.json()
 
 // Create a storage state object (supports both API and browser testing)
 const storageState: Record<string, unknown> = {
-  // For UI testing, include cookies and/or localStorage
+  // For UI testing, include cookies, localStorage, and/or IndexedDB
   cookies: [
     {
       name: 'auth-token',
@@ -883,26 +961,40 @@ test.describe('Fraud Analyst Tests', () => {
 })
 ```
 
-#### 3. Testing Interactions Between Multiple Users in a Single Test
+#### Testing Interactions Between Multiple Users in a Single Test
 
-Sometimes you need to test how different user identifiers interact with each other. Our authentication library makes this easy by allowing you to explicitly request tokens for different user identifiers within the same test:
+Sometimes you need to test how different user identifiers interact with each other. Our authentication library makes this easy by allowing you to explicitly request storage states for different user identifiers within the same test:
 
 ```typescript
-// example of testing multiple users in a single test
+// Example: testing multiple users in a single test
 import { test, expect } from '../support/fixtures'
 import { chromium } from '@playwright/test'
+import {
+  applyUserCookiesToBrowserContext,
+  getAuthProvider,
+  getAuthToken
+} from '@seontechnologies/playwright-utils/auth-session'
 
-test('admin and regular user interaction', async ({ page, request }) => {
-  // Get tokens for different users
-  const adminToken = await test.step('Get admin token', async () => {
-    return getAuthToken(request, { userIdentifier: 'admin' })
-  })
+test('admin and regular user interaction', async ({ request }) => {
+  // Get storage states for different users
+  // NOTE: getAuthToken returns a Playwright storage state object (cookies + origins),
+  // NOT a raw token string. Use extractToken() to get the actual token value.
+  const adminStorageState =
+    await test.step('Get admin storage state', async () => {
+      return getAuthToken(request, { userIdentifier: 'admin' })
+    })
 
-  const userToken = await test.step('Get user token', async () => {
-    return getAuthToken(request, { userIdentifier: 'user' })
-  })
+  const userStorageState =
+    await test.step('Get user storage state', async () => {
+      return getAuthToken(request, { userIdentifier: 'user' })
+    })
 
-  // Use tokens for API requests
+  // Extract the actual token strings from storage states for API requests
+  const authProvider = getAuthProvider()
+  const adminToken = authProvider.extractToken(adminStorageState) || ''
+  const userToken = authProvider.extractToken(userStorageState) || ''
+
+  // Use extracted tokens for API requests
   const adminResponse = await request.get('/api/admin-only-resource', {
     headers: { Cookie: `seon-jwt=${adminToken}` }
   })
@@ -913,17 +1005,17 @@ test('admin and regular user interaction', async ({ page, request }) => {
   })
   expect(userResponse.ok()).toBeTruthy()
 
-  // For browser testing, you can create multiple contexts
+  // For browser testing, create multiple contexts with different storage states
   const browser = await chromium.launch()
 
-  // Admin browser context
+  // Admin browser context - use storage state directly (not the extracted token)
   const adminContext = await browser.newContext()
-  await applyAuthToContext(adminContext, { userIdentifier: 'admin' })
+  await applyUserCookiesToBrowserContext(adminContext, adminStorageState)
   const adminPage = await adminContext.newPage()
 
   // User browser context
   const userContext = await browser.newContext()
-  await applyAuthToContext(userContext, { userIdentifier: 'user' })
+  await applyUserCookiesToBrowserContext(userContext, userStorageState)
   const userPage = await userContext.newPage()
 
   // Now you can interact with both contexts
@@ -1061,6 +1153,8 @@ Understanding this flow helps you implement a robust custom auth provider that w
 
 #### OAuth2 Example
 
+<details><summary><strong>OAuth2 Implementation Example:</strong></summary>
+
 Here's how to implement OAuth2 authentication in your custom auth provider:
 
 ```typescript
@@ -1168,6 +1262,8 @@ const myCustomProvider: AuthProvider = {
 }
 ```
 
+</details>
+
 #### Token Pre-fetching
 
 For improved test performance, pre-fetch tokens during global setup:
@@ -1206,12 +1302,18 @@ export default globalSetup
 
 ### Parallel Testing with Worker-Specific Accounts
 
-Playwright recommends using one account per parallel worker for tests that modify server-side state. Our authentication system naturally supports this pattern through its environment and user identifier isolation:
+Playwright recommends using one account per parallel worker for tests that modify server-side state. Our authentication system naturally supports this pattern through its environment and user identifier isolation.
+
+<details><summary><strong>Worker-specific auth implementation:</strong></summary>
 
 ```typescript
 // pw/support/custom-auth-provider.ts with worker-specific accounts
 import { test } from '@playwright/test'
-import type { AuthProvider } from '@seontechnologies/playwright-utils/auth-session'
+import type { APIRequestContext } from '@playwright/test'
+import type {
+  AuthOptions,
+  AuthProvider
+} from '@seontechnologies/playwright-utils/auth-session'
 import {
   getTokenFilePath,
   saveStorageState
@@ -1256,7 +1358,10 @@ const myCustomProvider: AuthProvider = {
   },
 
   // Get token based on the worker-specific user
-  async manageAuthToken(request, options = {}) {
+  async manageAuthToken(
+    request: APIRequestContext,
+    options: AuthOptions = {}
+  ): Promise<Record<string, unknown>> {
     const environment = this.getEnvironment(options)
     const userIdentifier = this.getUserIdentifier(options)
 
@@ -1319,11 +1424,13 @@ This implementation is more elegant than Playwright's approach because:
 - The provider architecture handles all the complexity
 - The same approach works in both UI Mode and normal test mode
 
+</details>
+
 ### Testing Unauthenticated States
 
 There are several approaches to test unauthenticated scenarios:
 
-##### Playwright's Built-in Approach
+#### Playwright's Built-in Approach
 
 Playwright's documentation shows this approach for testing without authentication:
 
@@ -1349,7 +1456,7 @@ test.describe('unauthenticated tests', () => {
 })
 ```
 
-##### Our Enhanced Approach
+#### Our Enhanced Approach
 
 Our library offers more flexibility and control over authentication states:
 
@@ -1366,13 +1473,22 @@ test('test with cleared token', async ({ request }) => {
   const response = await request.get('/api/public-resource')
 })
 
-// Our approach - Option 2: For browser tests, test-level config
+// Our approach - Option 2: For browser tests, disable auth session entirely
 test.describe('unauthenticated browser tests', () => {
-  // Skip the auth fixture for this group
-  test.useOptions({ auth: false })
+  // Disable the auth session fixture for this group
+  test.use({ authSessionEnabled: false })
 
   test('unauthenticated test', async ({ page }) => {
     // Page will load without authentication
+  })
+})
+
+// Our approach - Option 3: Use empty storage state (Playwright-native approach)
+test.describe('unauthenticated with empty state', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test('unauthenticated test', async ({ page }) => {
+    // Page will load without any stored cookies
   })
 })
 ```
@@ -1393,8 +1509,8 @@ This makes it much easier to test complex authentication scenarios like authenti
 
 ```typescript
 export type AuthSessionOptions = AuthIdentifiers & {
-  /** Root directory for auth session storage (default: process.cwd()/.auth)
-   * Note: environment and user identifier are appended to this path by the provider. */
+  /** Root directory for auth session storage (default: process.cwd()/.auth/<environment>/<userIdentifier>)
+   * Note: if storageDir is provided, it is used as-is (no auto-append). */
   storageDir?: string
 
   /** Token filename (default: storage-state.json) */
@@ -1408,6 +1524,9 @@ export type AuthSessionOptions = AuthIdentifiers & {
 
   /** Debug mode (default: false) */
   debug?: boolean
+
+  /** Retry configuration for error recovery (default: { maxRetries: 3, initialDelayMs: 100 }) */
+  retryConfig?: RetryConfig
 }
 
 /**
@@ -1433,11 +1552,176 @@ export type AuthOptions = AuthIdentifiers & {
 }
 ```
 
-By default, tokens are stored in the Playwright-compatible `storage-state.json` format, which can contain cookies and/or localStorage items. This consistent format works seamlessly with both API and UI testing.
+By default, tokens are stored in the Playwright-compatible `storage-state.json` format, which can contain cookies, localStorage, and IndexedDB data. This consistent format works seamlessly with both API and UI testing.
 
-When using `userIdentifier` in your authentication options, the library stores tokens under `.auth/<environment>/<userIdentifier>/` so each user/environment pair stays isolated.
+By default, when using `userIdentifier` in your authentication options, the library stores tokens under `.auth/<environment>/<userIdentifier>/` so each user/environment pair stays isolated.
+
+### Storage State Format
+
+The auth-session library stores tokens in Playwright's standard storage state format:
+
+```json
+{
+  "cookies": [
+    {
+      "name": "auth-token",
+      "value": "your-token-value",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1767283405,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}
+```
+
+**Key fields:**
+
+- `cookies[]` - Array of cookies to apply to browser context
+- `origins[]` - localStorage and IndexedDB items per origin (rarely used for auth)
+
+Playwright's `storageState()` also captures **IndexedDB** data automatically. This format is directly compatible with Playwright's `context.storageState()` and `browser.newContext({ storageState })` APIs.
+
+### Token Expiration Handling
+
+The auth provider's `isTokenExpired` method determines whether to reuse or refresh tokens. The library supports multiple token formats:
+
+#### Standard JWT Tokens
+
+For JWT tokens with the standard `header.payload.signature` format:
+
+```typescript
+isTokenExpired(token: string): boolean {
+  // Decode the base64 payload and extract the 'exp' claim
+  const [, payload] = token.split('.')
+  const decoded = JSON.parse(Buffer.from(payload, 'base64').toString())
+  return decoded.exp < Math.floor(Date.now() / 1000)
+}
+```
+
+#### Custom Token Formats
+
+For custom token formats (like `Bearer <timestamp>:{identity}`), implement custom parsing:
+
+```typescript
+// Example: Sample app token format "Bearer 2026-01-01T15:58:25.986Z:{identity}"
+isTokenExpired(token: string): boolean {
+  const decodedToken = decodeURIComponent(token)
+  const tokenContent = decodedToken.replace(/^bearer /i, '')
+  const colonIndex = tokenContent.indexOf(':{')
+  const timestampStr = tokenContent.substring(0, colonIndex)
+  const creationTime = new Date(timestampStr).getTime() / 1000
+  const expirationTime = creationTime + TOKEN_LIFETIME_SECONDS
+  return expirationTime < Math.floor(Date.now() / 1000)
+}
+```
+
+**Best practices:**
+
+- Log when tokens are reused vs refreshed for debugging
+- Consider adding a small buffer (e.g., 30 seconds) before expiration to avoid edge cases
+- Return `true` (expired) when token format is unrecognized to force re-authentication
+
+### Troubleshooting
+
+#### "Cannot extract token, considering expired"
+
+**Cause:** `extractToken` failed to read the raw token from your stored data.
+
+**Solution:** Update your auth provider's `extractToken` method to match your storage format. See [Token Expiration Handling](#token-expiration-handling) for token format examples.
+
+#### Tokens not being reused between test runs
+
+**Causes:**
+
+1. Storage state file not being saved correctly
+2. `isTokenExpired` always returning `true`
+3. Storage directory path mismatch
+
+**Solution:** Enable debug mode and check logs:
+
+```typescript
+configureAuthSession({ debug: true })
+```
+
+Look for messages like:
+
+- "Cannot extract token, considering expired" - extractToken failed or token format not handled
+- "Token expired according to provider check" - provider logic expired the token
+- "Token expired or not found in advanced cache" - cache miss/expiration
+
+#### Browser context not authenticated
+
+**Cause:** Storage state not being applied to browser context.
+
+**Solution:** Ensure you're using the auth fixtures (`authToken`, `page`, `context`) from `createAuthFixtures()`, not the base Playwright fixtures.
+
+#### Different users getting same token
+
+**Cause:** User identifiers not properly isolated.
+
+**Solution:** Ensure your auth provider's `getUserIdentifier` method returns unique values for each user, and that you're wrapping `test.use()` in `test.describe()` blocks for parallel tests.
+
+### Quick Reference
+
+| Task                     | Code                                                                     |
+| ------------------------ | ------------------------------------------------------------------------ |
+| Get auth token           | `test('...', async ({ authToken }) => { /* use authToken */ })`          |
+| Get storage state        | `const state = await getAuthToken(request, { userIdentifier: 'admin' })` |
+| Extract token from state | `authProvider.extractToken(storageState)`                                |
+| Clear token              | `clearAuthToken({ userIdentifier: 'admin' })`                            |
+| Disable auth for test    | `test.use({ authSessionEnabled: false })`                                |
+| Override user            | `test.use({ authOptions: { userIdentifier: 'admin' } })`                 |
+| Ephemeral auth           | `await applyUserCookiesToBrowserContext(context, userData)`              |
+
+### Token Utility Modules (Reference Implementation)
+
+<details><summary><strong>Token utility modules reference:</strong></summary>
+
+The `playwright/support/auth/token/` directory contains reference implementations for token management. These can be used as-is or as inspiration for your own implementations:
+
+| Module              | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
+| `acquire.ts`        | Token acquisition via API call                   |
+| `extract.ts`        | Extract token/cookies from storage state         |
+| `is-expired.ts`     | Check if token is expired (JWT + custom formats) |
+| `check-validity.ts` | Load and validate existing token                 |
+| `renew.ts`          | Refresh expired tokens                           |
+
+Example usage in your auth provider:
+
+```typescript
+import { acquireToken } from './token/acquire'
+import { checkTokenValidity } from './token/check-validity'
+import { isTokenExpired } from './token/is-expired'
+import { extractToken, extractCookies } from './token/extract'
+
+const myCustomProvider: AuthProvider = {
+  extractToken,
+  extractCookies,
+  isTokenExpired,
+
+  async manageAuthToken(request, options = {}) {
+    const tokenPath = getTokenFilePath({ environment, userIdentifier })
+
+    // Check for existing valid token
+    const validToken = await checkTokenValidity(tokenPath)
+    if (validToken) return validToken
+
+    // Acquire new token
+    return acquireToken(request, environment, userIdentifier, options)
+  }
+}
+```
+
+</details>
 
 ### Session Storage Support (Extension Recipe)
+
+<details><summary><strong>Session storage extension recipe:</strong></summary>
 
 > **Note**: This is an extension recipe showing how you could add session storage support to the auth system. The core library doesn't currently implement this functionality.
 
@@ -1479,3 +1763,5 @@ async captureSessionStorage(page, options = {}) {
   )
 }
 ```
+
+</details>
