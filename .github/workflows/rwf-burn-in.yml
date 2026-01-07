@@ -4,8 +4,11 @@ on:
   workflow_call:
     outputs:
       runE2E:
-        description: 'Whether to run E2E tests'
+        description: 'Whether to run E2E tests (true if passed OR skipped)'
         value: ${{ jobs.burn-in-rwf.outputs.runE2E }}
+      status:
+        description: 'Burn-in status: skipped (no changed specs), success, or failure'
+        value: ${{ jobs.burn-in-rwf.outputs.status }}
     inputs:
       base-ref:
         type: string
@@ -15,6 +18,10 @@ on:
         type: string
         description: 'Directory containing test files and burn-in script'
         default: 'playwright/'
+      test-file-pattern:
+        type: string
+        description: 'Regex pattern to match test files (Playwright default: .spec.ts)'
+        default: '\.spec\.ts$'
       install-command:
         type: string
         description: 'Dependency install command'
@@ -38,6 +45,7 @@ jobs:
       packages: read
     outputs:
       runE2E: ${{ steps.burn-in-result.outputs.runE2E }}
+      status: ${{ steps.burn-in-result.outputs.status }}
     steps:
       # Always check out code first before using any local actions
       - name: Checkout code
@@ -46,8 +54,32 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: '0'
 
-      # Use the install composite action
+      # OPTIMIZATION: Detect changed specs BEFORE expensive setup steps
+      # If no specs changed, skip install/browsers/Kafka entirely (saves ~3-5 min)
+      - name: Detect changed Playwright specs
+        id: detect-changed
+        env:
+          BASE_REF: ${{ inputs.base-ref }}
+          TEST_DIR: ${{ inputs.test-directory }}
+          FILE_PATTERN: ${{ inputs.test-file-pattern }}
+        run: |
+          git fetch origin "$BASE_REF" --quiet || true
+          git branch -f "$BASE_REF" "origin/$BASE_REF" || true
+
+          CHANGED=$(git diff "$BASE_REF"...HEAD --name-only | grep -E "^${TEST_DIR}.*${FILE_PATTERN}" || true)
+
+          if [[ -z "$CHANGED" ]]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "✅ No changed Playwright specs. Skipping burn-in setup."
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "📝 Changed specs:"
+            echo "$CHANGED"
+          fi
+
+      # Use the install composite action - ONLY if specs changed
       - name: Setup Node and Install Dependencies
+        if: steps.detect-changed.outputs.changed == 'true'
         uses: ./.github/actions/install
         with:
           install-command: ${{ inputs.install-command }}
@@ -56,8 +88,9 @@ jobs:
       #######################################################################
       #  ↓↓↓  PLAYWRIGHT BROWSER CACHING ↓↓↓
       #######################################################################
-      # Use the setup-playwright-browsers composite action
+      # Use the setup-playwright-browsers composite action - ONLY if specs changed
       - name: Setup Playwright browsers
+        if: steps.detect-changed.outputs.changed == 'true'
         id: setup-pw
         uses: ./.github/actions/setup-playwright-browsers
         with:
@@ -66,8 +99,9 @@ jobs:
       #  ↑↑↑  PLAYWRIGHT BROWSER CACHING ↑↑↑
       #######################################################################
 
-      # Setup Kafka with the composite action
+      # Setup Kafka with the composite action - ONLY if specs changed
       - name: Setup Kafka
+        if: steps.detect-changed.outputs.changed == 'true'
         id: setup-kafka
         uses: ./.github/actions/setup-kafka
         with:
@@ -76,33 +110,46 @@ jobs:
           continue-on-error: true
 
       - name: Run Smart Burn-in
+        if: steps.detect-changed.outputs.changed == 'true'
         id: burn-in-step
         working-directory: ${{ inputs.test-directory }}
         env:
           CI: 'true'
           ALLOW_KAFKA_FAILURE: 'true'
           PW_BURN_IN: true
+          BASE_REF: ${{ inputs.base-ref }}
+          SHARD_INDEX: ${{ matrix.shardIndex }}
+          SHARD_TOTAL: ${{ matrix.shardTotal }}
         run: |
-          # Ensure base branch is available
-          git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
-
+          # Base branch already set up in detect-changed step
           # Use npm script for consistency - config path is hardcoded in script
-          npm run test:pw:burn-in-changed -- --base-branch=${{ inputs.base-ref }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          npm run test:pw:burn-in-changed -- --base-branch="$BASE_REF" --shard="${SHARD_INDEX}/${SHARD_TOTAL}"
 
-      # Stop Kafka after tests
+      # Stop Kafka after tests - only if it was started
       - name: Stop Kafka
         continue-on-error: true
-        if: always()
+        if: always() && steps.detect-changed.outputs.changed == 'true'
         run: docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml down
 
       - name: Set E2E execution result
         id: burn-in-result
         if: always()
         run: |
+          # If no specs changed, skip burn-in but allow E2E to proceed
+          if [[ "${{ steps.detect-changed.outputs.changed }}" != "true" ]]; then
+            echo "runE2E=true" >> $GITHUB_OUTPUT
+            echo "status=skipped" >> $GITHUB_OUTPUT
+            echo "✅ Burn-in skipped (no changed specs) => E2E can proceed"
+            exit 0
+          fi
+
+          # Specs changed - check burn-in result
           if [ "${{ steps.burn-in-step.outcome }}" = "success" ]; then
             echo "runE2E=true" >> $GITHUB_OUTPUT
+            echo "status=success" >> $GITHUB_OUTPUT
             echo "✅ Smart burn-in completed successfully => E2E can proceed"
           else
             echo "runE2E=false" >> $GITHUB_OUTPUT
+            echo "status=failure" >> $GITHUB_OUTPUT
             echo "❌ Smart burn-in failed => E2E will be skipped"
           fi
