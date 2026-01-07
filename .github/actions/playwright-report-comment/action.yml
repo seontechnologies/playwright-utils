@@ -1,0 +1,172 @@
+name: Playwright Report and PR Comment
+description: |
+  Download shard reports, merge them, upload artifact, and comment on PR.
+  Supports sharded Playwright test execution with blob reporter.
+
+inputs:
+  blob-pattern:
+    description: 'Artifact name pattern for blob reports'
+    required: false
+    default: 'blob-report-*'
+  blob-path:
+    description: 'Path to download blob reports'
+    required: false
+    default: 'all-blob-reports'
+  report-name:
+    description: 'Name for the uploaded artifact'
+    required: false
+    default: 'playwright-report'
+  report-path:
+    description: 'Path for merged report output'
+    required: false
+    default: 'playwright-report'
+  retention-days:
+    description: 'Artifact retention in days'
+    required: false
+    default: '7'
+  test-outcome:
+    description: 'Test job result (success/failure)'
+    required: true
+  shards:
+    description: 'Number of shards used'
+    required: false
+    default: '2'
+  burn-in-result:
+    description: 'Burn-in status for summary'
+    required: false
+    default: 'skipped'
+  comment-on-pr:
+    description: 'Whether to post a PR comment'
+    required: false
+    default: 'true'
+
+outputs:
+  report-url:
+    description: 'URL to download the report artifact'
+    value: ${{ steps.resolve-url.outputs.report_url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download shard reports
+      uses: actions/download-artifact@v4
+      with:
+        path: ${{ inputs.blob-path }}
+        pattern: ${{ inputs.blob-pattern }}
+        merge-multiple: true
+
+    - name: Merge Playwright reports
+      shell: bash
+      env:
+        REPORT_PATH: ${{ inputs.report-path }}
+        BLOB_PATH: ${{ inputs.blob-path }}
+      run: |
+        mkdir -p "$REPORT_PATH/trace"
+
+        # Log trace file discovery for debugging
+        echo "📁 Searching for trace files in $BLOB_PATH"
+        find "$BLOB_PATH" -name "*.zip" -type f || echo "⚠️ No trace files found"
+
+        # Copy traces with logging (may be empty if no test failures)
+        if ! cp -r "$BLOB_PATH"/*/trace/* "$REPORT_PATH/trace" 2>/dev/null; then
+          echo "⚠️ No trace files copied (normal if no failures occurred)"
+        fi
+
+        # Merge reports - fail if this fails
+        if ! npx playwright merge-reports --reporter=html "$BLOB_PATH"; then
+          echo "❌ ERROR: Failed to merge Playwright reports"
+          exit 1
+        fi
+
+    - name: Upload merged report
+      id: upload-report
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report-name }}
+        path: ${{ inputs.report-path }}
+        retention-days: ${{ inputs.retention-days }}
+
+    - name: Resolve artifact download URL
+      id: resolve-url
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const artifactName = '${{ inputs.report-name }}';
+          let reportUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+          try {
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            const artifact = data.artifacts.find((a) => a.name === artifactName);
+            if (artifact) {
+              reportUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${artifact.id}`;
+            }
+          } catch (e) {
+            core.warning(`Could not resolve report URL: ${e.message}`);
+          }
+          core.setOutput('report_url', reportUrl);
+
+    - name: Generate step summary
+      shell: bash
+      env:
+        TEST_OUTCOME: ${{ inputs.test-outcome }}
+        SHARDS: ${{ inputs.shards }}
+        BURN_IN_RESULT: ${{ inputs.burn-in-result }}
+        REPORT_URL: ${{ steps.resolve-url.outputs.report_url }}
+      run: |
+        echo "## 🎭 Playwright E2E Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "$TEST_OUTCOME" == "success" ]; then
+          echo "✅ **Status: PASSED**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Status: FAILED**" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Configuration | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Shards | $SHARDS |" >> $GITHUB_STEP_SUMMARY
+        echo "| Burn-in | $BURN_IN_RESULT |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📦 **[Download Report & Traces]($REPORT_URL)**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "_Contains merged HTML report and trace files for debugging failures_" >> $GITHUB_STEP_SUMMARY
+
+    - name: Comment results on PR
+      if: ${{ github.event_name == 'pull_request' && inputs.comment-on-pr == 'true' }}
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Skip commenting on PRs from forks to avoid permissions issues
+          if (context.payload.pull_request && context.payload.pull_request.head.repo.full_name !== context.payload.pull_request.base.repo.full_name) {
+            core.info('Skipping PR comment for forked repository');
+            return;
+          }
+
+          const testResult = '${{ inputs.test-outcome }}';
+          const reportUrl = '${{ steps.resolve-url.outputs.report_url }}';
+          const burnInStatus = '${{ inputs.burn-in-result }}';
+          const shards = '${{ inputs.shards }}';
+
+          const statusEmoji = testResult === 'success' ? '✅' : '❌';
+
+          const body = [
+            `## 🎭 Playwright E2E: ${statusEmoji} **${testResult.toUpperCase()}**`,
+            '',
+            `| Metric | Value |`,
+            `|--------|-------|`,
+            `| Shards | ${shards} |`,
+            `| Burn-in | ${burnInStatus} |`,
+            '',
+            `📦 **[Download Report & Traces](${reportUrl})**`,
+            '',
+            '_Includes merged HTML report and trace files for debugging failures_',
+          ].join('\n');
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body,
+          });
