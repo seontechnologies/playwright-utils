@@ -17,7 +17,7 @@ env:
 jobs:
   vitest-ct:
     timeout-minutes: 10
-    runs-on: kubernetes-default
+    runs-on: ubuntu-latest-4-cores
     steps:
       - uses: actions/checkout@v4
 

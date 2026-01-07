@@ -32,7 +32,7 @@ env:
 
 jobs:
   burn-in-rwf:
-    runs-on: kubernetes-default
+    runs-on: ubuntu-latest-4-cores
     timeout-minutes: 30
     strategy:
       fail-fast: false
