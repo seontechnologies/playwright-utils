@@ -4,8 +4,11 @@ on:
   workflow_call:
     outputs:
       runE2E:
-        description: 'Whether to run E2E tests'
+        description: 'Whether to run E2E tests (true if passed OR skipped)'
         value: ${{ jobs.burn-in-rwf.outputs.runE2E }}
+      status:
+        description: 'Burn-in status: skipped (no changed specs), success, or failure'
+        value: ${{ jobs.burn-in-rwf.outputs.status }}
     inputs:
       base-ref:
         type: string
@@ -15,6 +18,10 @@ on:
         type: string
         description: 'Directory containing test files and burn-in script'
         default: 'playwright/'
+      test-file-pattern:
+        type: string
+        description: 'Regex pattern to match test files (Playwright default: .spec.ts)'
+        default: '\.spec\.ts$'
       install-command:
         type: string
         description: 'Dependency install command'
@@ -38,6 +45,7 @@ jobs:
       packages: read
     outputs:
       runE2E: ${{ steps.burn-in-result.outputs.runE2E }}
+      status: ${{ steps.burn-in-result.outputs.status }}
     steps:
       # Always check out code first before using any local actions
       - name: Checkout code
@@ -54,7 +62,7 @@ jobs:
           git fetch origin "${{ inputs.base-ref }}" --quiet || true
           git branch -f "${{ inputs.base-ref }}" "origin/${{ inputs.base-ref }}" || true
 
-          CHANGED=$(git diff "${{ inputs.base-ref }}"...HEAD --name-only | grep -E '^${{ inputs.test-directory }}.*\.(spec|test)\.(ts|tsx)$' || true)
+          CHANGED=$(git diff "${{ inputs.base-ref }}"...HEAD --name-only | grep -E '^${{ inputs.test-directory }}.*${{ inputs.test-file-pattern }}' || true)
 
           if [[ -z "$CHANGED" ]]; then
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -106,9 +114,7 @@ jobs:
           ALLOW_KAFKA_FAILURE: 'true'
           PW_BURN_IN: true
         run: |
-          # Ensure base branch is available (already done in detect step, but ensure it's fresh)
-          git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
-
+          # Base branch already set up in detect-changed step
           # Use npm script for consistency - config path is hardcoded in script
           npm run test:pw:burn-in-changed -- --base-branch=${{ inputs.base-ref }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
@@ -125,6 +131,7 @@ jobs:
           # If no specs changed, skip burn-in but allow E2E to proceed
           if [[ "${{ steps.detect-changed.outputs.changed }}" != "true" ]]; then
             echo "runE2E=true" >> $GITHUB_OUTPUT
+            echo "status=skipped" >> $GITHUB_OUTPUT
             echo "✅ Burn-in skipped (no changed specs) => E2E can proceed"
             exit 0
           fi
@@ -132,8 +139,10 @@ jobs:
           # Specs changed - check burn-in result
           if [ "${{ steps.burn-in-step.outcome }}" = "success" ]; then
             echo "runE2E=true" >> $GITHUB_OUTPUT
+            echo "status=success" >> $GITHUB_OUTPUT
             echo "✅ Smart burn-in completed successfully => E2E can proceed"
           else
             echo "runE2E=false" >> $GITHUB_OUTPUT
+            echo "status=failure" >> $GITHUB_OUTPUT
             echo "❌ Smart burn-in failed => E2E will be skipped"
           fi
