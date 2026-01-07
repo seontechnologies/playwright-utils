@@ -32,7 +32,7 @@ env:
 
 jobs:
   burn-in-rwf:
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
