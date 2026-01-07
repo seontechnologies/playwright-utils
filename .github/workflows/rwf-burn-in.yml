@@ -58,11 +58,15 @@ jobs:
       # If no specs changed, skip install/browsers/Kafka entirely (saves ~3-5 min)
       - name: Detect changed Playwright specs
         id: detect-changed
+        env:
+          BASE_REF: ${{ inputs.base-ref }}
+          TEST_DIR: ${{ inputs.test-directory }}
+          FILE_PATTERN: ${{ inputs.test-file-pattern }}
         run: |
-          git fetch origin "${{ inputs.base-ref }}" --quiet || true
-          git branch -f "${{ inputs.base-ref }}" "origin/${{ inputs.base-ref }}" || true
+          git fetch origin "$BASE_REF" --quiet || true
+          git branch -f "$BASE_REF" "origin/$BASE_REF" || true
 
-          CHANGED=$(git diff "${{ inputs.base-ref }}"...HEAD --name-only | grep -E '^${{ inputs.test-directory }}.*${{ inputs.test-file-pattern }}' || true)
+          CHANGED=$(git diff "$BASE_REF"...HEAD --name-only | grep -E "^${TEST_DIR}.*${FILE_PATTERN}" || true)
 
           if [[ -z "$CHANGED" ]]; then
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -113,10 +117,13 @@ jobs:
           CI: 'true'
           ALLOW_KAFKA_FAILURE: 'true'
           PW_BURN_IN: true
+          BASE_REF: ${{ inputs.base-ref }}
+          SHARD_INDEX: ${{ matrix.shardIndex }}
+          SHARD_TOTAL: ${{ matrix.shardTotal }}
         run: |
           # Base branch already set up in detect-changed step
           # Use npm script for consistency - config path is hardcoded in script
-          npm run test:pw:burn-in-changed -- --base-branch=${{ inputs.base-ref }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          npm run test:pw:burn-in-changed -- --base-branch="$BASE_REF" --shard="${SHARD_INDEX}/${SHARD_TOTAL}"
 
       # Stop Kafka after tests - only if it was started
       - name: Stop Kafka
