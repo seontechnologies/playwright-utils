@@ -46,8 +46,28 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: '0'
 
-      # Use the install composite action
+      # OPTIMIZATION: Detect changed specs BEFORE expensive setup steps
+      # If no specs changed, skip install/browsers/Kafka entirely (saves ~3-5 min)
+      - name: Detect changed Playwright specs
+        id: detect-changed
+        run: |
+          git fetch origin "${{ inputs.base-ref }}" --quiet || true
+          git branch -f "${{ inputs.base-ref }}" "origin/${{ inputs.base-ref }}" || true
+
+          CHANGED=$(git diff "${{ inputs.base-ref }}"...HEAD --name-only | grep -E '^${{ inputs.test-directory }}.*\.(spec|test)\.(ts|tsx)$' || true)
+
+          if [[ -z "$CHANGED" ]]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "✅ No changed Playwright specs. Skipping burn-in setup."
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "📝 Changed specs:"
+            echo "$CHANGED"
+          fi
+
+      # Use the install composite action - ONLY if specs changed
       - name: Setup Node and Install Dependencies
+        if: steps.detect-changed.outputs.changed == 'true'
         uses: ./.github/actions/install
         with:
           install-command: ${{ inputs.install-command }}
@@ -56,8 +76,9 @@ jobs:
       #######################################################################
       #  ↓↓↓  PLAYWRIGHT BROWSER CACHING ↓↓↓
       #######################################################################
-      # Use the setup-playwright-browsers composite action
+      # Use the setup-playwright-browsers composite action - ONLY if specs changed
       - name: Setup Playwright browsers
+        if: steps.detect-changed.outputs.changed == 'true'
         id: setup-pw
         uses: ./.github/actions/setup-playwright-browsers
         with:
@@ -66,8 +87,9 @@ jobs:
       #  ↑↑↑  PLAYWRIGHT BROWSER CACHING ↑↑↑
       #######################################################################
 
-      # Setup Kafka with the composite action
+      # Setup Kafka with the composite action - ONLY if specs changed
       - name: Setup Kafka
+        if: steps.detect-changed.outputs.changed == 'true'
         id: setup-kafka
         uses: ./.github/actions/setup-kafka
         with:
@@ -76,6 +98,7 @@ jobs:
           continue-on-error: true
 
       - name: Run Smart Burn-in
+        if: steps.detect-changed.outputs.changed == 'true'
         id: burn-in-step
         working-directory: ${{ inputs.test-directory }}
         env:
@@ -83,22 +106,30 @@ jobs:
           ALLOW_KAFKA_FAILURE: 'true'
           PW_BURN_IN: true
         run: |
-          # Ensure base branch is available
+          # Ensure base branch is available (already done in detect step, but ensure it's fresh)
           git branch -f ${{ inputs.base-ref }} origin/${{ inputs.base-ref }}
 
           # Use npm script for consistency - config path is hardcoded in script
           npm run test:pw:burn-in-changed -- --base-branch=${{ inputs.base-ref }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
-      # Stop Kafka after tests
+      # Stop Kafka after tests - only if it was started
       - name: Stop Kafka
         continue-on-error: true
-        if: always()
+        if: always() && steps.detect-changed.outputs.changed == 'true'
         run: docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml down
 
       - name: Set E2E execution result
         id: burn-in-result
         if: always()
         run: |
+          # If no specs changed, skip burn-in but allow E2E to proceed
+          if [[ "${{ steps.detect-changed.outputs.changed }}" != "true" ]]; then
+            echo "runE2E=true" >> $GITHUB_OUTPUT
+            echo "✅ Burn-in skipped (no changed specs) => E2E can proceed"
+            exit 0
+          fi
+
+          # Specs changed - check burn-in result
           if [ "${{ steps.burn-in-step.outcome }}" = "success" ]; then
             echo "runE2E=true" >> $GITHUB_OUTPUT
             echo "✅ Smart burn-in completed successfully => E2E can proceed"
