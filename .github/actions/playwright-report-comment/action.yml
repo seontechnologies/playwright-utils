@@ -57,10 +57,26 @@ runs:
 
     - name: Merge Playwright reports
       shell: bash
+      env:
+        REPORT_PATH: ${{ inputs.report-path }}
+        BLOB_PATH: ${{ inputs.blob-path }}
       run: |
-        mkdir -p "${{ inputs.report-path }}/trace"
-        cp -r "${{ inputs.blob-path }}"/*/trace/* "${{ inputs.report-path }}/trace" || true
-        npx playwright merge-reports --reporter=html "${{ inputs.blob-path }}"
+        mkdir -p "$REPORT_PATH/trace"
+
+        # Log trace file discovery for debugging
+        echo "📁 Searching for trace files in $BLOB_PATH"
+        find "$BLOB_PATH" -name "*.zip" -type f || echo "⚠️ No trace files found"
+
+        # Copy traces with logging (may be empty if no test failures)
+        if ! cp -r "$BLOB_PATH"/*/trace/* "$REPORT_PATH/trace" 2>/dev/null; then
+          echo "⚠️ No trace files copied (normal if no failures occurred)"
+        fi
+
+        # Merge reports - fail if this fails
+        if ! npx playwright merge-reports --reporter=html "$BLOB_PATH"; then
+          echo "❌ ERROR: Failed to merge Playwright reports"
+          exit 1
+        fi
 
     - name: Upload merged report
       id: upload-report
@@ -94,10 +110,15 @@ runs:
 
     - name: Generate step summary
       shell: bash
+      env:
+        TEST_OUTCOME: ${{ inputs.test-outcome }}
+        SHARDS: ${{ inputs.shards }}
+        BURN_IN_RESULT: ${{ inputs.burn-in-result }}
+        REPORT_URL: ${{ steps.resolve-url.outputs.report_url }}
       run: |
         echo "## 🎭 Playwright E2E Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        if [ "${{ inputs.test-outcome }}" == "success" ]; then
+        if [ "$TEST_OUTCOME" == "success" ]; then
           echo "✅ **Status: PASSED**" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **Status: FAILED**" >> $GITHUB_STEP_SUMMARY
@@ -105,10 +126,10 @@ runs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "| Configuration | Value |" >> $GITHUB_STEP_SUMMARY
         echo "|---------------|-------|" >> $GITHUB_STEP_SUMMARY
-        echo "| Shards | ${{ inputs.shards }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Burn-in | ${{ inputs.burn-in-result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Shards | $SHARDS |" >> $GITHUB_STEP_SUMMARY
+        echo "| Burn-in | $BURN_IN_RESULT |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "📦 **[Download Report & Traces](${{ steps.resolve-url.outputs.report_url }})**" >> $GITHUB_STEP_SUMMARY
+        echo "📦 **[Download Report & Traces]($REPORT_URL)**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "_Contains merged HTML report and trace files for debugging failures_" >> $GITHUB_STEP_SUMMARY
 

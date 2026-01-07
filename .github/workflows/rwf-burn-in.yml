@@ -1,31 +1,31 @@
-name: 'Detect-and-Burn-in Reusable'
+name: "Detect-and-Burn-in Reusable"
 
 on:
   workflow_call:
     outputs:
       runE2E:
-        description: 'Whether to run E2E tests (true if passed OR skipped)'
+        description: "Whether to run E2E tests (true if passed OR skipped)"
         value: ${{ jobs.burn-in-rwf.outputs.runE2E }}
       status:
-        description: 'Burn-in status: skipped (no changed specs), success, or failure'
+        description: "Burn-in status: skipped (no changed specs), success, or failure"
         value: ${{ jobs.burn-in-rwf.outputs.status }}
     inputs:
       base-ref:
         type: string
-        description: 'Base ref to compare changed files with HEAD'
-        default: 'main'
+        description: "Base ref to compare changed files with HEAD"
+        default: "main"
       test-directory:
         type: string
-        description: 'Directory containing test files and burn-in script'
-        default: 'playwright/'
+        description: "Directory containing test files and burn-in script"
+        default: "playwright/"
       test-file-pattern:
         type: string
-        description: 'Regex pattern to match test files (Playwright default: .spec.ts)'
+        description: "Regex pattern to match test files (Playwright default: .spec.ts)"
         default: '\.spec\.ts$'
       install-command:
         type: string
-        description: 'Dependency install command'
-        default: 'npm ci'
+        description: "Dependency install command"
+        default: "npm ci"
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -43,6 +43,8 @@ jobs:
       id-token: write
       contents: read
       packages: read
+      actions: read # Required for resolving artifact URL
+      pull-requests: write # Required for PR comment on failure
     outputs:
       runE2E: ${{ steps.burn-in-result.outputs.runE2E }}
       status: ${{ steps.burn-in-result.outputs.status }}
@@ -52,7 +54,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: '0'
+          fetch-depth: "0"
 
       # OPTIMIZATION: Detect changed specs BEFORE expensive setup steps
       # If no specs changed, skip install/browsers/Kafka entirely (saves ~3-5 min)
@@ -83,7 +85,7 @@ jobs:
         uses: ./.github/actions/install
         with:
           install-command: ${{ inputs.install-command }}
-          node-version-file: '.nvmrc'
+          node-version-file: ".nvmrc"
 
       #######################################################################
       #  ↓↓↓  PLAYWRIGHT BROWSER CACHING ↓↓↓
@@ -114,8 +116,8 @@ jobs:
         id: burn-in-step
         working-directory: ${{ inputs.test-directory }}
         env:
-          CI: 'true'
-          ALLOW_KAFKA_FAILURE: 'true'
+          CI: "true"
+          ALLOW_KAFKA_FAILURE: "true"
           PW_BURN_IN: true
           BASE_REF: ${{ inputs.base-ref }}
           SHARD_INDEX: ${{ matrix.shardIndex }}
@@ -130,6 +132,66 @@ jobs:
         continue-on-error: true
         if: always() && steps.detect-changed.outputs.changed == 'true'
         run: docker compose -f ./sample-app/backend/src/events/kafka-cluster.yml down
+
+      # Upload burn-in report on failure for debugging
+      - name: Upload burn-in report
+        if: always() && steps.detect-changed.outputs.changed == 'true' && steps.burn-in-step.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-in-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+      # Resolve artifact URL for PR comment
+      - name: Resolve artifact URL
+        id: resolve-url
+        if: always() && steps.detect-changed.outputs.changed == 'true' && steps.burn-in-step.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifactName = 'burn-in-report';
+            let reportUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            try {
+              const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+              });
+              const artifact = data.artifacts.find((a) => a.name === artifactName);
+              if (artifact) {
+                reportUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${artifact.id}`;
+              }
+            } catch (e) {
+              core.warning(`Could not resolve report URL: ${e.message}`);
+            }
+            core.setOutput('report_url', reportUrl);
+
+      # Comment on PR when burn-in fails
+      - name: Comment burn-in failure on PR
+        if: always() && github.event_name == 'pull_request' && steps.detect-changed.outputs.changed == 'true' && steps.burn-in-step.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reportUrl = '${{ steps.resolve-url.outputs.report_url }}';
+
+            const body = [
+              `## 🔥 Burn-in Failed`,
+              '',
+              `The burn-in tests for changed specs failed. E2E tests are **blocked** until burn-in passes.`,
+              '',
+              `📦 **[Download Burn-in Report & Traces](${reportUrl})**`,
+              '',
+              `_Fix the failing tests and push again to re-run burn-in._`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
 
       - name: Set E2E execution result
         id: burn-in-result

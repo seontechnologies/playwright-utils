@@ -165,5 +165,5 @@ jobs:
         uses: ./.github/actions/playwright-report-comment
         with:
           test-outcome: ${{ needs.e2e-test.result }}
-          shards: '2'
+          shards: '2'  # Keep in sync with e2e-test.strategy.matrix.shardTotal
           burn-in-result: ${{ needs.burn-in.outputs.status || 'skipped' }}
