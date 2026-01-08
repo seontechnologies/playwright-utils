@@ -91,32 +91,65 @@ async function recurse<T>(
 
 ### Working with Assertions
 
-The recurse utility also supports using assertions directly in your predicate function. This makes your testing code more expressive and reduces boilerplate.
+The recurse utility supports using assertions directly in your predicate function. **You do NOT need to `return true`** - this is handled automatically.
+
+#### Why `return true` is not needed
+
+When your predicate function completes without throwing (i.e., all assertions pass), the function implicitly returns `undefined`. The recurse utility treats `undefined` as success:
 
 ```typescript
-// Using assertions in the predicate
+// Internal logic (simplified):
+const result = predicate(value)
+successful = result === undefined ? true : !!result
+```
+
+This means:
+
+- `undefined` (no return) → treated as **success** ✅
+- `true` → treated as **success** ✅
+- `false` → treated as **failure** (retry)
+- Throws → treated as **failure** (retry)
+
+#### Both patterns work identically
+
+```typescript
+// Pattern 1: Without return (recommended - less boilerplate)
 await recurse(
-  async () => {
-    const event = await fetchEvent(eventId)
-    return event
-  },
+  async () => fetchEvent(eventId),
   (event) => {
-    // No need to return true/false - assertions work directly!
-    expect(event).toEqual({
-      id: eventId,
-      status: 'completed',
-      timestamp: expect.any(String)
-    })
+    expect(event.status).toBe(200)
+    expect(event.body.ready).toBe(true)
+    // No return needed!
   },
+  { timeout: 10000, interval: 500 }
+)
+
+// Pattern 2: With explicit return (also works, but redundant)
+await recurse(
+  async () => fetchEvent(eventId),
+  (event) => {
+    expect(event.status).toBe(200)
+    expect(event.body.ready).toBe(true)
+    return true // Works, but unnecessary
+  },
+  { timeout: 10000, interval: 500 }
+)
+
+// Pattern 3: Arrow function with implicit return of expect result
+await recurse(
+  async () => fetchEvent(eventId),
+  (event) => expect(event.status).toBe('completed'), // expect() returns undefined
   { timeout: 10000, interval: 500 }
 )
 ```
 
+#### How assertion failures are handled
+
 Internally, the utility handles assertion errors gracefully:
 
-- If the assertions pass, the predicate is considered successful
-- If any assertion fails, the predicate is considered unsuccessful and will retry
-- You can still return boolean values if preferred
+- If assertions pass → predicate returns `undefined` → **success**
+- If any assertion throws → caught internally → **retry**
+- Playwright's `expect()` methods return `undefined` on success and throw on failure
 
 ### Return Type
 
