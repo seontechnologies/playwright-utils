@@ -2,3 +2,4 @@
 [submodule "bmad-submodule"]
 	path = bmad-submodule
 	url = https://github.com/muratkeremozcan/bmad-submodule.git
+	ignore = dirty

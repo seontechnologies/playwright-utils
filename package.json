@@ -137,8 +137,7 @@
     "utils"
   ],
   "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org"
+    "access": "public"
   },
   "scripts": {
     "start:sample-app": "npm-run-all --parallel start:backend start:frontend",
