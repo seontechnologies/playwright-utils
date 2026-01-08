@@ -120,8 +120,15 @@ jobs:
         if: steps.version.outputs.skip != 'true'
         run: |
           echo "Publishing version ${{ steps.version.outputs.new_version }} to npmjs.org..."
-          npm config set //registry.npmjs.org/:_authToken ${{ secrets.PCKG_PUBLISHER }}
-          npm publish --registry=https://registry.npmjs.org
+
+          # Create isolated .npmrc for npmjs.org
+          NPMRC_NPM=$(mktemp)
+          echo "@seontechnologies:registry=https://registry.npmjs.org" > "$NPMRC_NPM"
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.PCKG_PUBLISHER }}" >> "$NPMRC_NPM"
+
+          npm publish --userconfig "$NPMRC_NPM"
+          rm -f "$NPMRC_NPM"
+
           echo "Successfully published ${{ steps.version.outputs.new_version }} to npmjs.org"
 
       # 10. Publish to GitHub Package Registry
@@ -129,8 +136,15 @@ jobs:
         if: steps.version.outputs.skip != 'true'
         run: |
           echo "Publishing version ${{ steps.version.outputs.new_version }} to GitHub Packages..."
-          npm config set //npm.pkg.github.com/:_authToken ${{ secrets.GITHUB_TOKEN }}
-          npm publish --registry=https://npm.pkg.github.com
+
+          # Create isolated .npmrc for GitHub Packages
+          NPMRC_GITHUB=$(mktemp)
+          echo "@seontechnologies:registry=https://npm.pkg.github.com" > "$NPMRC_GITHUB"
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> "$NPMRC_GITHUB"
+
+          npm publish --userconfig "$NPMRC_GITHUB"
+          rm -f "$NPMRC_GITHUB"
+
           echo "Successfully published ${{ steps.version.outputs.new_version }} to GitHub Packages"
 
       # 11. Verify both publishes succeeded
