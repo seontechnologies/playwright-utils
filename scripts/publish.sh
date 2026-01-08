@@ -43,7 +43,8 @@ fi
 if [ -z "$GITHUB_TOKEN" ]; then
   echo -e "${RED}Error: GITHUB_TOKEN environment variable is not set.${NC}"
   echo -e "Please set it with: export GITHUB_TOKEN=your_github_token"
-  echo -e "Create a token at: https://github.com/settings/tokens with 'write:packages' scope"
+  echo -e "Create a Personal Access Token at: https://github.com/settings/tokens"
+  echo -e "Required scopes: write:packages, read:packages"
   exit 1
 fi
 
@@ -98,8 +99,8 @@ fi
 NEW_VERSION=$(npm pkg get version | tr -d '"')
 
 # Create temporary .npmrc files for publishing
-NPMRC_NPM=$(mktemp)
-NPMRC_GITHUB=$(mktemp)
+NPMRC_NPM=$(mktemp) || { echo -e "${RED}Failed to create temporary file${NC}"; exit 1; }
+NPMRC_GITHUB=$(mktemp) || { echo -e "${RED}Failed to create temporary file${NC}"; exit 1; }
 trap "rm -f $NPMRC_NPM $NPMRC_GITHUB" EXIT
 
 # Configure npmjs.org registry
@@ -112,13 +113,21 @@ echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> "$NPMRC_GITHUB"
 
 # Publish to npmjs.org (public registry)
 echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to npmjs.org...${NC}"
-npm publish --userconfig "$NPMRC_NPM"
-echo -e "${GREEN}Successfully published to npmjs.org${NC}"
+if npm publish --userconfig "$NPMRC_NPM"; then
+  echo -e "${GREEN}Successfully published to npmjs.org${NC}"
+else
+  echo -e "${RED}Failed to publish to npmjs.org${NC}"
+  exit 1
+fi
 
 # Publish to GitHub Packages (internal registry)
 echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to GitHub Packages...${NC}"
-npm publish --userconfig "$NPMRC_GITHUB"
-echo -e "${GREEN}Successfully published to GitHub Packages${NC}"
+if npm publish --userconfig "$NPMRC_GITHUB"; then
+  echo -e "${GREEN}Successfully published to GitHub Packages${NC}"
+else
+  echo -e "${RED}Failed to publish to GitHub Packages${NC}"
+  exit 1
+fi
 
 echo -e "${GREEN}Successfully published version $NEW_VERSION to both registries!${NC}"
 
