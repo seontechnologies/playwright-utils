@@ -124,14 +124,28 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           scope: '@seontechnologies'
 
-      - name: Publish to npmjs.org
+      - name: Check npmjs.org registry
         if: steps.version.outputs.skip != 'true'
+        id: npmjs
+        run: |
+          if npm view @seontechnologies/playwright-utils@${{ steps.version.outputs.new_version }} --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to npmjs.org
+        if: steps.version.outputs.skip != 'true' && steps.npmjs.outputs.exists != 'true'
         run: |
           echo "Publishing version ${{ steps.version.outputs.new_version }} to npmjs.org..."
-          npm publish --ignore-scripts
+          npm publish --ignore-scripts --registry=https://registry.npmjs.org
           echo "Successfully published ${{ steps.version.outputs.new_version }} to npmjs.org"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PCKG_PUBLISHER }}
+
+      - name: Skip npmjs.org publish (already exists)
+        if: steps.version.outputs.skip != 'true' && steps.npmjs.outputs.exists == 'true'
+        run: echo "Version ${{ steps.version.outputs.new_version }} already exists on npmjs.org, skipping publish."
 
       # 10. Setup Node for GitHub Packages and publish
       - name: Setup Node.js for GitHub Packages
@@ -142,23 +156,45 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@seontechnologies'
 
-      - name: Publish to GitHub Packages
+      - name: Check GitHub Packages registry
         if: steps.version.outputs.skip != 'true'
+        id: github
         run: |
-          echo "Publishing version ${{ steps.version.outputs.new_version }} to GitHub Packages..."
-          npm publish --ignore-scripts
-          echo "Successfully published ${{ steps.version.outputs.new_version }} to GitHub Packages"
+          if npm view @seontechnologies/playwright-utils@${{ steps.version.outputs.new_version }} --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Publish to GitHub Packages
+        if: steps.version.outputs.skip != 'true' && steps.github.outputs.exists != 'true'
+        run: |
+          echo "Publishing version ${{ steps.version.outputs.new_version }} to GitHub Packages..."
+          npm publish --ignore-scripts --registry=https://npm.pkg.github.com
+          echo "Successfully published ${{ steps.version.outputs.new_version }} to GitHub Packages"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+
+      - name: Skip GitHub Packages publish (already exists)
+        if: steps.version.outputs.skip != 'true' && steps.github.outputs.exists == 'true'
+        run: echo "Version ${{ steps.version.outputs.new_version }} already exists on GitHub Packages, skipping publish."
+
       # 11. Verify both publishes succeeded
-      - name: Verify publishes
+      - name: Verify publish on npmjs.org
         if: steps.version.outputs.skip != 'true'
         run: |
           echo "Verifying package ${{ steps.version.outputs.new_version }} is available..."
           sleep 5  # Brief wait for registries to update
           npm view @seontechnologies/playwright-utils@${{ steps.version.outputs.new_version }} --registry=https://registry.npmjs.org version && echo "✓ Verified on npmjs.org"
+
+      - name: Verify publish on GitHub Packages
+        if: steps.version.outputs.skip != 'true'
+        run: |
           npm view @seontechnologies/playwright-utils@${{ steps.version.outputs.new_version }} --registry=https://npm.pkg.github.com version && echo "✓ Verified on GitHub Packages"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 12. Create git commit, tag and branch
       - name: Create commit and branch
