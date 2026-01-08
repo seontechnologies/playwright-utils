@@ -26,20 +26,28 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 # Check for required .npmrc configuration
-if [ ! -f .npmrc ] || ! grep -q "registry.npmjs.org" .npmrc; then
-  echo -e "${RED}Error: Missing .npmrc file or incorrect configuration.${NC}"
-  echo -e "Please create an .npmrc file with the following content:"
-  echo -e "@seontechnologies:registry=https://registry.npmjs.org"
+if [ ! -f .npmrc ]; then
+  echo -e "${RED}Error: Missing .npmrc file.${NC}"
   exit 1
 fi
 
-# Check if NPM_TOKEN is set
+# Check if NPM_TOKEN is set (required for npmjs.org)
 if [ -z "$NPM_TOKEN" ]; then
   echo -e "${RED}Error: NPM_TOKEN environment variable is not set.${NC}"
   echo -e "Please set it with: export NPM_TOKEN=your_npm_token"
   echo -e "Get your npm token from: https://www.npmjs.com/settings/~/tokens"
   exit 1
 fi
+
+# Check if GITHUB_TOKEN is set (required for GitHub Packages)
+if [ -z "$GITHUB_TOKEN" ]; then
+  echo -e "${RED}Error: GITHUB_TOKEN environment variable is not set.${NC}"
+  echo -e "Please set it with: export GITHUB_TOKEN=your_github_token"
+  echo -e "Create a token at: https://github.com/settings/tokens with 'write:packages' scope"
+  exit 1
+fi
+
+echo -e "${GREEN}Both NPM_TOKEN and GITHUB_TOKEN are set. Will publish to both registries.${NC}"
 
 # Read current version
 CURRENT_VERSION=$(npm pkg get version | tr -d '"')
@@ -89,20 +97,30 @@ fi
 
 NEW_VERSION=$(npm pkg get version | tr -d '"')
 
-# Publish
-echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to npm registry..."
+# Create temporary .npmrc files for publishing
+NPMRC_NPM=$(mktemp)
+NPMRC_GITHUB=$(mktemp)
+trap "rm -f $NPMRC_NPM $NPMRC_GITHUB" EXIT
 
-# Create temporary .npmrc with auth token for publishing
-NPMRC_TMP=$(mktemp)
-trap "rm -f $NPMRC_TMP" EXIT
+# Configure npmjs.org registry
+echo "@seontechnologies:registry=https://registry.npmjs.org" > "$NPMRC_NPM"
+echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> "$NPMRC_NPM"
 
-echo "@seontechnologies:registry=https://registry.npmjs.org" > "$NPMRC_TMP"
-echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> "$NPMRC_TMP"
+# Configure GitHub Packages registry
+echo "@seontechnologies:registry=https://npm.pkg.github.com" > "$NPMRC_GITHUB"
+echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> "$NPMRC_GITHUB"
 
-# Publish using the temporary .npmrc
-npm publish --userconfig "$NPMRC_TMP"
+# Publish to npmjs.org (public registry)
+echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to npmjs.org...${NC}"
+npm publish --userconfig "$NPMRC_NPM"
+echo -e "${GREEN}Successfully published to npmjs.org${NC}"
 
-echo -e "${GREEN}Successfully published version $NEW_VERSION${NC}"
+# Publish to GitHub Packages (internal registry)
+echo -e "${YELLOW}Publishing version ${GREEN}$NEW_VERSION${NC} to GitHub Packages...${NC}"
+npm publish --userconfig "$NPMRC_GITHUB"
+echo -e "${GREEN}Successfully published to GitHub Packages${NC}"
+
+echo -e "${GREEN}Successfully published version $NEW_VERSION to both registries!${NC}"
 
 # Create a version commit and tag
 git add package.json package-lock.json

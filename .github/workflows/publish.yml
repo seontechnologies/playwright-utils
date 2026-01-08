@@ -21,6 +21,7 @@ on:
 permissions:
   contents: write # Required for checkout and pushing changes
   pull-requests: write # Required for creating PRs
+  packages: write # Required for publishing to GitHub Packages
 
 jobs:
   build-and-publish:
@@ -109,19 +110,32 @@ jobs:
           echo "new_version=$UPDATED_VERSION" >> $GITHUB_OUTPUT
           echo "release_branch=release/v$UPDATED_VERSION" >> $GITHUB_OUTPUT
 
-      # 8. Build and publish package
-      - name: Build and publish
+      # 8. Build the package
+      - name: Build package
+        if: steps.version.outputs.skip != 'true'
+        run: npm run build
+
+      # 9. Publish to public npm registry (npmjs.org)
+      - name: Publish to npmjs.org
         if: steps.version.outputs.skip != 'true'
         run: |
-          # Build the package
-          npm run build
-
-          # Publish to npm registry
+          echo "Publishing to npmjs.org..."
+          npm config set @seontechnologies:registry https://registry.npmjs.org
+          npm config set //registry.npmjs.org/:_authToken ${{ secrets.PCKG_PUBLISHER }}
           npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PCKG_PUBLISHER }}
+          echo "Successfully published to npmjs.org"
 
-      # 9. Create git commit, tag and branch
+      # 10. Publish to GitHub Package Registry
+      - name: Publish to GitHub Packages
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          echo "Publishing to GitHub Packages..."
+          npm config set @seontechnologies:registry https://npm.pkg.github.com
+          npm config set //npm.pkg.github.com/:_authToken ${{ secrets.GITHUB_TOKEN }}
+          npm publish
+          echo "Successfully published to GitHub Packages"
+
+      # 11. Create git commit, tag and branch
       - name: Create commit and branch
         if: steps.version.outputs.skip != 'true'
         run: |
@@ -137,7 +151,7 @@ jobs:
           git push origin "${{ steps.version.outputs.release_branch }}"
           git push origin "v${{ steps.version.outputs.new_version }}"
 
-      # 10. Create pull request
+      # 12. Create pull request
       - name: Create pull request
         if: steps.version.outputs.skip != 'true'
         env:
