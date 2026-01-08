@@ -26,6 +26,10 @@ dotenvConfig({
 
 export const baseConfig = defineConfig({
   globalSetup: path.resolve(__dirname, '../support/global-setup.ts'),
+  globalTeardown: path.resolve(
+    __dirname,
+    '../../sample-app/backend/scripts/global-teardown.ts'
+  ),
 
   testDir: './playwright/tests',
 

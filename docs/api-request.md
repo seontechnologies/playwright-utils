@@ -27,6 +27,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
     - [Why Only 5xx Errors?](#why-only-5xx-errors)
   - [🆕 Schema Validation](#-schema-validation)
     - [Peer Dependencies](#peer-dependencies)
+    - [Import Options](#import-options)
     - [Quick Start - Schema Validation](#quick-start---schema-validation)
     - [Multi-Format Schema Support](#multi-format-schema-support)
       - [JSON Schema](#json-schema)
@@ -421,11 +422,103 @@ npm install ajv zod js-yaml @types/js-yaml
 
 **Error handling:** If you attempt to use schema validation without the required dependency installed, you'll get a clear error message indicating which package to install.
 
+### Import Options
+
+The `validateSchema` function can be imported in multiple ways depending on your use case:
+
+#### 1. As a Plain Function (Non-Fixture)
+
+Use this when you need schema validation outside of Playwright test context, such as in helper utilities, global setup, or standalone scripts:
+
+```typescript
+import {
+  validateSchema,
+  detectSchemaFormat,
+  ValidationError
+} from '@seontechnologies/playwright-utils/api-request/schema-validation'
+
+// Plain function signature: (data, schema, options)
+const result = await validateSchema(responseBody, MySchema, {
+  shape: { status: 200 }
+})
+
+if (result.success) {
+  console.log('Validation passed')
+} else {
+  console.log('Validation errors:', result.errors)
+}
+
+// Detect schema format (Zod, JSON Schema, OpenAPI, etc.)
+const format = detectSchemaFormat(MySchema) // Returns 'Zod Schema' | 'JSON Schema' | 'JSON OpenAPI' | 'YAML OpenAPI'
+```
+
+> **Note:** The plain function uses `(data, schema, options)` parameter order, while the fixture uses `(schema, data, options)`. This allows the fixture to mirror the chained API pattern.
+
+**Available exports from this path:**
+
+- `validateSchema` - Core validation function with signature `(data, schema, options)`
+- `detectSchemaFormat` - Detect schema type automatically
+- `ValidationError` - Error class for validation failures
+- Types: `SupportedSchema`, `ValidationMode`, `ValidateSchemaOptions`, `ValidationResult`, etc.
+
+#### 2. As a Playwright Fixture
+
+Use this within Playwright tests for seamless integration with test reporting.
+
+> **Note:** The fixture uses `(schema, data, options)` parameter order to match the chained API pattern.
+
+```typescript
+// Option A: Using merged fixtures (recommended)
+import { test } from '@seontechnologies/playwright-utils/fixtures'
+
+test('validate response', async ({ apiRequest, validateSchema }) => {
+  const { body } = await apiRequest({ method: 'GET', path: '/api/data' })
+  // Fixture signature: (schema, data, options)
+  await validateSchema(MySchema, body, { shape: { status: 200 } })
+})
+```
+
+```typescript
+// Option B: Using mergeTests with your own fixtures
+import { mergeTests } from '@playwright/test'
+import { test as validateSchemaFixture } from '@seontechnologies/playwright-utils/api-request/schema-validation'
+import { test as myFixtures } from './my-fixtures'
+
+export const test = mergeTests(myFixtures, validateSchemaFixture)
+
+test('validate response', async ({ validateSchema }) => {
+  // validateSchema fixture is available
+})
+```
+
+#### 3. Chained API (via apiRequest)
+
+The most common pattern - chain `.validateSchema()` directly on apiRequest calls:
+
+```typescript
+import { test } from '@seontechnologies/playwright-utils/fixtures'
+
+test('chained validation', async ({ apiRequest }) => {
+  const response = await apiRequest({
+    method: 'GET',
+    path: '/api/data'
+  }).validateSchema(MySchema, { shape: { status: 200 } })
+})
+```
+
+#### Import Summary
+
+| Import Path                                                        | Type               | Use Case                          |
+| ------------------------------------------------------------------ | ------------------ | --------------------------------- |
+| `@seontechnologies/playwright-utils/api-request/schema-validation` | Plain function     | Helpers, utilities, non-test code |
+| `@seontechnologies/playwright-utils/fixtures`                      | Merged fixture     | Standard Playwright tests         |
+| `@seontechnologies/playwright-utils/api-request/fixtures`          | Standalone fixture | Custom `mergeTests` setups        |
+
 ### Quick Start - Schema Validation
 
 Reduce 5-10 lines of manual validation to a single line with built-in schema validation:
 
-Schema validation examples below assume the merged fixtures import (`@seontechnologies/playwright-utils/fixtures`), which includes the `validateSchema` fixture. If you maintain your own `test` via `mergeTests`, include `validateSchemaFixture` from `@seontechnologies/playwright-utils/api-request/fixtures`.
+> **Note:** Examples below use the merged fixtures import. See [Import Options](#import-options) for all available import patterns including plain function usage.
 
 ```typescript
 import { test, expect } from '@seontechnologies/playwright-utils/fixtures'

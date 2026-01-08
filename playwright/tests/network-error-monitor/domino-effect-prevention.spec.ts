@@ -18,6 +18,10 @@ import { test as interceptTest } from '../../../src/intercept-network-call/fixtu
  * - Verify only first test fails, subsequent tests pass with warnings
  * - Uses interceptNetworkCall from playwright-utils for cleaner network mocking
  *
+ * IMPORTANT: This file uses unique endpoint prefixes (/pw-*) to avoid
+ * cross-contamination with domino-effect-prevention-vanilla.spec.ts
+ * when both run in the same Playwright worker.
+ *
  * Note on test.fail():
  * Tests marked with test.fail() are EXPECTED to fail due to network errors.
  * - If these tests FAIL as expected → Playwright treats them as PASSING ✅
@@ -53,7 +57,7 @@ base.describe(
           // PLAYWRIGHT-UTILS: Using interceptNetworkCall fixture
           // Set up interception BEFORE triggering the request
           const response = interceptNetworkCall({
-            url: '**/test-endpoint-404',
+            url: '**/pw-test-endpoint-404',
             fulfillResponse: { status: 404, body: 'Not Found' }
           })
 
@@ -61,7 +65,7 @@ base.describe(
 
           // Trigger the 404 and await the intercepted response
           await page.evaluate(async () => {
-            await fetch('http://localhost:3000/test-endpoint-404')
+            await fetch('http://localhost:3000/pw-test-endpoint-404')
           })
           await response
 
@@ -76,7 +80,7 @@ base.describe(
         async ({ page, interceptNetworkCall }) => {
           // Same error pattern - set up interception first
           const response = interceptNetworkCall({
-            url: '**/test-endpoint-404',
+            url: '**/pw-test-endpoint-404',
             fulfillResponse: { status: 404, body: 'Not Found' }
           })
 
@@ -84,7 +88,7 @@ base.describe(
 
           // Trigger the same 404 and await response
           await page.evaluate(async () => {
-            await fetch('http://localhost:3000/test-endpoint-404')
+            await fetch('http://localhost:3000/pw-test-endpoint-404')
           })
           await response
 
@@ -100,14 +104,14 @@ base.describe(
         async ({ page, interceptNetworkCall }) => {
           // Set up interception before triggering
           const response = interceptNetworkCall({
-            url: '**/api/v2/users/profile',
+            url: '**/api/v2/pw-users/profile',
             fulfillResponse: { status: 500, body: 'Internal Server Error' }
           })
 
           await page.goto('data:text/html,<h1>Test</h1>')
 
           await page.evaluate(async () => {
-            await fetch('http://localhost:3000/api/v2/users/profile')
+            await fetch('http://localhost:3000/api/v2/pw-users/profile')
           })
           await response
 
@@ -121,18 +125,18 @@ base.describe(
         async ({ page, interceptNetworkCall }) => {
           // Different endpoint - set up interception first
           const response = interceptNetworkCall({
-            url: '**/api/v2/users/settings',
+            url: '**/api/v2/pw-users/settings',
             fulfillResponse: { status: 500, body: 'Internal Server Error' }
           })
 
           await page.goto('data:text/html,<h1>Test</h1>')
 
           await page.evaluate(async () => {
-            await fetch('http://localhost:3000/api/v2/users/settings')
+            await fetch('http://localhost:3000/api/v2/pw-users/settings')
           })
           await response
 
-          // Should PASS because same pattern (500:/api/v2/users) already failed
+          // Should PASS because same pattern (500:/api/v2/pw-users) already failed
           expect(true).toBe(true)
         }
       )
@@ -145,18 +149,18 @@ base.describe(
           'setup: trigger first error pattern to reach limit',
           async ({ page, interceptNetworkCall }) => {
             const response = interceptNetworkCall({
-              url: '**/api/v2/old-error',
+              url: '**/api/v2/pw-old-error',
               fulfillResponse: { status: 500, body: 'Old Error' }
             })
 
             await page.goto('data:text/html,<h1>Setup</h1>')
 
             await page.evaluate(async () => {
-              await fetch('http://localhost:3000/api/v2/old-error')
+              await fetch('http://localhost:3000/api/v2/pw-old-error')
             })
             await response
 
-            // This test should fail (first occurrence of 500:/api/v2/old-error)
+            // This test should fail (first occurrence of 500:/api/v2/pw-old-error)
             expect(true).toBe(true)
           }
         )
@@ -166,20 +170,20 @@ base.describe(
           async ({ page, interceptNetworkCall }) => {
             // Multiple intercepts - set up both before triggering
             const oldErrorResponse = interceptNetworkCall({
-              url: '**/api/v2/old-error',
+              url: '**/api/v2/pw-old-error',
               fulfillResponse: { status: 500, body: 'Old Error' }
             })
 
             const newErrorResponse = interceptNetworkCall({
-              url: '**/api/v2/new-error',
+              url: '**/api/v2/pw-new-error',
               fulfillResponse: { status: 404, body: 'New Error' }
             })
 
             await page.goto('data:text/html,<h1>Multi Error</h1>')
 
             await page.evaluate(async () => {
-              await fetch('http://localhost:3000/api/v2/old-error')
-              await fetch('http://localhost:3000/api/v2/new-error')
+              await fetch('http://localhost:3000/api/v2/pw-old-error')
+              await fetch('http://localhost:3000/api/v2/pw-new-error')
             })
             await oldErrorResponse
             await newErrorResponse
@@ -197,18 +201,18 @@ base.describe(
         'should treat different status codes as different patterns (500)',
         async ({ page, interceptNetworkCall }) => {
           const response = interceptNetworkCall({
-            url: '**/api/v2/multi-status/endpoint',
+            url: '**/api/v2/pw-multi-status/endpoint',
             fulfillResponse: { status: 500, body: 'Server Error' }
           })
 
           await page.goto('data:text/html,<h1>Test</h1>')
 
           await page.evaluate(async () => {
-            await fetch('http://localhost:3000/api/v2/multi-status/endpoint')
+            await fetch('http://localhost:3000/api/v2/pw-multi-status/endpoint')
           })
           await response
 
-          // Should fail (first occurrence of 500:/api/v2/multi-status)
+          // Should fail (first occurrence of 500:/api/v2/pw-multi-status)
           expect(true).toBe(true)
         }
       )
@@ -218,18 +222,18 @@ base.describe(
         async ({ page, interceptNetworkCall }) => {
           // Same endpoint, different status code
           const response = interceptNetworkCall({
-            url: '**/api/v2/multi-status/endpoint',
+            url: '**/api/v2/pw-multi-status/endpoint',
             fulfillResponse: { status: 404, body: 'Not Found' }
           })
 
           await page.goto('data:text/html,<h1>Test</h1>')
 
           await page.evaluate(async () => {
-            await fetch('http://localhost:3000/api/v2/multi-status/endpoint')
+            await fetch('http://localhost:3000/api/v2/pw-multi-status/endpoint')
           })
           await response
 
-          // Should FAIL (different pattern: 404:/api/v2/multi-status)
+          // Should FAIL (different pattern: 404:/api/v2/pw-multi-status)
           // Even though same endpoint, different status = different pattern
           expect(true).toBe(true)
         }
@@ -254,14 +258,14 @@ base.describe(
       async ({ page, interceptNetworkCall }) => {
         // Set up interception before triggering
         const response = interceptNetworkCall({
-          url: '**/test-unlimited-errors',
+          url: '**/pw-test-unlimited-errors',
           fulfillResponse: { status: 500, body: 'Error' }
         })
 
         await page.goto('data:text/html,<h1>Test</h1>')
 
         await page.evaluate(async () => {
-          await fetch('http://localhost:3000/test-unlimited-errors')
+          await fetch('http://localhost:3000/pw-test-unlimited-errors')
         })
         await response
 
@@ -274,14 +278,14 @@ base.describe(
       'should fail all tests when maxTestsPerError is not set (second test)',
       async ({ page, interceptNetworkCall }) => {
         const response = interceptNetworkCall({
-          url: '**/test-unlimited-errors',
+          url: '**/pw-test-unlimited-errors',
           fulfillResponse: { status: 500, body: 'Error' }
         })
 
         await page.goto('data:text/html,<h1>Test 2</h1>')
 
         await page.evaluate(async () => {
-          await fetch('http://localhost:3000/test-unlimited-errors')
+          await fetch('http://localhost:3000/pw-test-unlimited-errors')
         })
         await response
 

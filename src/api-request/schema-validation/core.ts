@@ -8,6 +8,57 @@ import {
   buildValidationResult,
   buildErrorResult
 } from './internal/result-builder'
+import { getPageContext, getLogger } from '../../internal'
+import {
+  addApiCardToUI,
+  type RequestDataInterface,
+  type ResponseDataInterface
+} from '../ui-display'
+
+/** Check if validation UI should be displayed */
+function shouldDisplayValidationUI(): boolean {
+  return process.env.API_E2E_UI_MODE === 'true'
+}
+
+/** Display validation results in UI for plain function usage */
+async function displayValidationUI(
+  validationResult: ValidationResult
+): Promise<void> {
+  const page = getPageContext()
+  if (!page || !validationResult.uiData) return
+
+  try {
+    const requestData: RequestDataInterface = {
+      url: 'Schema Validation',
+      method: 'VALIDATE',
+      validationInfo: {
+        schemaFormat: validationResult.schemaFormat,
+        validationTime: validationResult.validationTime,
+        success: validationResult.success,
+        errorCount: validationResult.errors.length
+      }
+    }
+
+    const responseData: ResponseDataInterface = {
+      status: validationResult.success ? 200 : 400,
+      statusClass: validationResult.success ? '2xx' : '4xx',
+      statusText: validationResult.success ? 'Valid' : 'Invalid',
+      validationResult: {
+        icon: validationResult.uiData.statusIcon,
+        summary: validationResult.uiData.validationSummary,
+        schemaInfo: validationResult.uiData.schemaInfo,
+        errors: validationResult.uiData.errorDetails,
+        schema: validationResult.schema
+      }
+    }
+
+    await addApiCardToUI(requestData, responseData, page, true)
+  } catch (error) {
+    await getLogger().warning(
+      `Failed to display validation UI: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+}
 
 /** Detect schema format based on input */
 export function detectSchemaFormat(
@@ -54,6 +105,15 @@ export async function validateSchema(
     endpoint?: string
     method?: string
     status?: number
+    /** Enable UI display for this validation (or set API_E2E_UI_MODE=true) */
+    uiMode?: boolean
+    /** Validation mode - 'throw' (default) or 'return' */
+    mode?: 'throw' | 'return'
+    /**
+     * Internal flag to skip UI display (used by chained API to avoid duplicates).
+     * @internal Do not use directly; automatically set by response-extension.ts
+     */
+    _skipUI?: boolean
   } = {}
 ): Promise<ValidationResult> {
   const startTime = Date.now()
@@ -80,14 +140,33 @@ export async function validateSchema(
 
     const validationTime = Date.now() - startTime
 
-    return buildValidationResult(
+    const result = buildValidationResult(
       validationErrors,
       schemaFormat,
       validationTime,
       schemaForResult
     )
+
+    // Display UI if enabled (via option or environment variable)
+    // Skip if _skipUI is set (used by chained API to avoid duplicate UI)
+    if (!options._skipUI && (options.uiMode || shouldDisplayValidationUI())) {
+      await displayValidationUI(result)
+    }
+
+    return result
   } catch (error) {
     const validationTime = Date.now() - startTime
-    return buildErrorResult(error, detectSchemaFormat(schema), validationTime)
+    const result = buildErrorResult(
+      error,
+      detectSchemaFormat(schema),
+      validationTime
+    )
+
+    // Display UI for errors too (skip if _skipUI is set)
+    if (!options._skipUI && (options.uiMode || shouldDisplayValidationUI())) {
+      await displayValidationUI(result)
+    }
+
+    return result
   }
 }
