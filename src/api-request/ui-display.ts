@@ -61,12 +61,15 @@ export const addApiCardToUI = async (
 
     // Open validation results in a new tab if this is a validation request
     if (requestData.validationInfo) {
-      // Create a new page/tab for validation results
-      const newPage = await page.context().newPage()
-      await newPage.setContent(html)
+      const { schemaFormat, success } = requestData.validationInfo
+      const statusIcon = success ? '✅' : '❌'
+      const stepName = `${statusIcon} Schema Validation (${schemaFormat})`
 
-      // Optional: Bring the new tab to front
-      await newPage.bringToFront()
+      await test.step(stepName, async () => {
+        const newPage = await page.context().newPage()
+        await newPage.setContent(html)
+        await newPage.bringToFront()
+      })
     } else {
       // For non-validation requests, use the original behavior
       await page.setContent(html)

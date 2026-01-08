@@ -2,6 +2,7 @@ import { test as base } from '@playwright/test'
 import { apiRequest as apiRequestFunction } from './api-request'
 import type { ApiRequestParams } from './api-request'
 import type { EnhancedApiPromise } from './schema-validation/internal/promise-extension'
+import { capturePageContext, clearPageContext } from '../internal/page-context'
 
 /**
  * Type for the apiRequest fixture parameters - exactly like ApiRequestParams but without the 'request' property
@@ -51,6 +52,9 @@ export const test = base.extend<{
   ) => EnhancedApiPromise<T>
 }>({
   apiRequest: async ({ request, baseURL, page }, use) => {
+    // Capture page context for plain function UI display support
+    capturePageContext(page)
+
     const apiRequest = <T = unknown>({
       method,
       path,
@@ -78,5 +82,8 @@ export const test = base.extend<{
     }
 
     await use(apiRequest)
+
+    // Clear page context to avoid stale references between tests
+    clearPageContext()
   }
 })

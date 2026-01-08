@@ -201,7 +201,7 @@ export function createEnhancedResponse<T>(
       const startTime = Date.now()
 
       try {
-        // Run core validation
+        // Run core validation (skip UI - we handle it here to avoid duplicates)
         const validationResult = await coreValidateSchema(
           originalResponse.body,
           schema,
@@ -210,7 +210,9 @@ export function createEnhancedResponse<T>(
             path: options.path,
             endpoint: options.endpoint,
             method: options.method,
-            status: options.status
+            status: options.status,
+            mode: options.mode,
+            _skipUI: true // Prevent core from displaying UI - we handle it below
           }
         )
 

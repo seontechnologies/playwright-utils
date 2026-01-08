@@ -1,5 +1,9 @@
 import { test as base } from '@playwright/test'
 import { validateSchema as validateSchemaFunction } from './core'
+import {
+  capturePageContext,
+  clearPageContext
+} from '../../internal/page-context'
 import type {
   SupportedSchema,
   ValidateSchemaOptions,
@@ -7,11 +11,13 @@ import type {
 } from './types'
 
 /**
- * Fixture that provides the validateSchema function for schema validation
+ * Fixture that provides the validateSchema function for schema validation.
+ * Displays validation results in Playwright UI when API_E2E_UI_MODE=true.
  */
 export const test = base.extend<{
   /**
-   * Validates data against a schema with optional shape assertions
+   * Validates data against a schema with optional shape assertions.
+   * Displays validation results in Playwright UI when API_E2E_UI_MODE=true.
    *
    * @example
    * test('validate response schema', async ({ validateSchema }) => {
@@ -28,15 +34,22 @@ export const test = base.extend<{
     options?: ValidateSchemaOptions
   ) => Promise<ValidationResult>
 }>({
-  validateSchema: async ({}, use) => {
+  validateSchema: async ({ page }, use) => {
+    // Capture page context for UI display support
+    capturePageContext(page)
+
     const validateSchema = async (
       schema: SupportedSchema,
       data: unknown,
       options?: ValidateSchemaOptions
     ): Promise<ValidationResult> => {
+      // Core function handles UI display via captured page context
       return await validateSchemaFunction(data, schema, options)
     }
 
     await use(validateSchema)
+
+    // Clear page context to avoid stale references between tests
+    clearPageContext()
   }
 })
