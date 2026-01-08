@@ -54,7 +54,9 @@ async function displayValidationUI(
 
     await addApiCardToUI(requestData, responseData, page, true)
   } catch (error) {
-    await getLogger().debug(`Validation UI display failed: ${error}`)
+    await getLogger().warning(
+      `Failed to display validation UI: ${error instanceof Error ? error.message : String(error)}`
+    )
   }
 }
 
@@ -107,7 +109,10 @@ export async function validateSchema(
     uiMode?: boolean
     /** Validation mode - 'throw' (default) or 'return' */
     mode?: 'throw' | 'return'
-    /** Internal flag to skip UI display (used by chained API to avoid duplicates) */
+    /**
+     * Internal flag to skip UI display (used by chained API to avoid duplicates).
+     * @internal Do not use directly; automatically set by response-extension.ts
+     */
     _skipUI?: boolean
   } = {}
 ): Promise<ValidationResult> {

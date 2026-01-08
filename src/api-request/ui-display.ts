@@ -61,7 +61,7 @@ export const addApiCardToUI = async (
 
     // Open validation results in a new tab if this is a validation request
     if (requestData.validationInfo) {
-      const { schemaFormat, success } = requestData.validationInfo
+      const { schemaFormat = 'Unknown', success } = requestData.validationInfo
       const statusIcon = success ? '✅' : '❌'
       const stepName = `${statusIcon} Schema Validation (${schemaFormat})`
 

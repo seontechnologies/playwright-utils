@@ -360,6 +360,8 @@ async function displayValidationUI(params: {
     }
   } catch (error) {
     // Silent failure for UI display issues
-    await getLogger().debug(`Validation UI display failed: ${error}`)
+    await getLogger().warning(
+      `Failed to display validation UI: ${error instanceof Error ? error.message : String(error)}`
+    )
   }
 }

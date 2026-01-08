@@ -6,6 +6,11 @@
  *
  * Similar to captureTestContext, this allows the plain validateSchema function
  * to display validation results in the Playwright UI.
+ *
+ * @note Test Isolation: Playwright runs parallel tests in separate worker processes,
+ * so global state is isolated per-worker. Serial tests in the same worker are handled
+ * by the fixtures which call clearPageContext() after each test. For manual usage
+ * outside of fixtures, ensure you're in an isolated test context.
  */
 
 import type { Page } from '@playwright/test'
@@ -34,9 +39,13 @@ export function capturePageContext(page: Page): void {
 
 /**
  * Get the currently captured page context.
- * Returns null if no page has been captured.
+ * Returns null if no page has been captured or if the page has been closed.
  */
 export function getPageContext(): Page | null {
+  // Defensive check: clear stale reference if page was closed
+  if (currentPage && currentPage.isClosed()) {
+    currentPage = null
+  }
   return currentPage
 }
 
