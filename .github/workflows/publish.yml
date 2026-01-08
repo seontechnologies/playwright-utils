@@ -172,7 +172,10 @@ jobs:
         if: steps.version.outputs.skip != 'true' && steps.github.outputs.exists != 'true'
         run: |
           echo "Publishing version ${{ steps.version.outputs.new_version }} to GitHub Packages..."
-          npm publish --ignore-scripts --registry=https://npm.pkg.github.com
+          # Override .npmrc to use GitHub Packages for @seontechnologies scope
+          echo "@seontechnologies:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+          npm publish --ignore-scripts
           echo "Successfully published ${{ steps.version.outputs.new_version }} to GitHub Packages"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
@@ -180,6 +183,11 @@ jobs:
       - name: Skip GitHub Packages publish (already exists)
         if: steps.version.outputs.skip != 'true' && steps.github.outputs.exists == 'true'
         run: echo "Version ${{ steps.version.outputs.new_version }} already exists on GitHub Packages, skipping publish."
+
+      # Restore original .npmrc for subsequent steps
+      - name: Restore .npmrc
+        if: steps.version.outputs.skip != 'true'
+        run: echo "@seontechnologies:registry=https://registry.npmjs.org" > .npmrc
 
       # 11. Verify both publishes succeeded
       - name: Verify publish on npmjs.org
