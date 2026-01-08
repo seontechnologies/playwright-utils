@@ -115,35 +115,41 @@ jobs:
         if: steps.version.outputs.skip != 'true'
         run: npm run build
 
-      # 9. Publish to public npm registry (npmjs.org)
+      # 9. Setup Node for npmjs.org and publish
+      - name: Setup Node.js for npmjs.org
+        if: steps.version.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@seontechnologies'
+
       - name: Publish to npmjs.org
         if: steps.version.outputs.skip != 'true'
         run: |
           echo "Publishing version ${{ steps.version.outputs.new_version }} to npmjs.org..."
-
-          # Configure .npmrc for npmjs.org
-          echo "@seontechnologies:registry=https://registry.npmjs.org" > .npmrc
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.PCKG_PUBLISHER }}" >> .npmrc
-
-          # Publish (--ignore-scripts since we already built in step 8)
           npm publish --ignore-scripts
-
           echo "Successfully published ${{ steps.version.outputs.new_version }} to npmjs.org"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PCKG_PUBLISHER }}
 
-      # 10. Publish to GitHub Package Registry
+      # 10. Setup Node for GitHub Packages and publish
+      - name: Setup Node.js for GitHub Packages
+        if: steps.version.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@seontechnologies'
+
       - name: Publish to GitHub Packages
         if: steps.version.outputs.skip != 'true'
         run: |
           echo "Publishing version ${{ steps.version.outputs.new_version }} to GitHub Packages..."
-
-          # Configure .npmrc for GitHub Packages
-          echo "@seontechnologies:registry=https://npm.pkg.github.com" > .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
-
-          # Publish (--ignore-scripts since we already built in step 8)
           npm publish --ignore-scripts
-
           echo "Successfully published ${{ steps.version.outputs.new_version }} to GitHub Packages"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 11. Verify both publishes succeeded
       - name: Verify publishes
