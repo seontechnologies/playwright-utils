@@ -361,21 +361,37 @@ const formatJson = (jsonObject: object): string => {
  * Inline CSS styles for the API display
  */
 const inlineStyles = `<style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; }
-    .pw-card { 
-        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.1); 
-        transition: 0.3s; 
-        border-radius: 8px;
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .pw-card {
+        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.1);
+        transition: 0.3s;
+        border-radius: 0;
         overflow: hidden;
+        height: 100%;
+        box-sizing: border-box;
     }
     .pw-card:hover { box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2); }
-    .pw-api-container { color: rgb(40, 40, 40); max-width: 1200px; margin: 0 auto; }
-    .pw-api-call { 
-        background-color: rgb(248, 250, 252); 
-        border: 1px solid rgb(226, 232, 240);
-        margin: 20px 0; 
-        padding: 20px; 
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; 
+    .pw-api-container {
+        color: rgb(40, 40, 40);
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        box-sizing: border-box;
+    }
+    .pw-api-call {
+        background-color: rgb(248, 250, 252);
+        border: none;
+        margin: 0;
+        padding: 20px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        min-height: 100%;
+        box-sizing: border-box;
+        overflow-y: auto;
     }
     .pw-api-request, .pw-api-response { margin-bottom: 20px; }
     .title { 
