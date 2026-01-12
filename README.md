@@ -2,6 +2,8 @@
 
 A collection of utilities for Playwright tests, designed to make testing more efficient and maintainable.
 
+📚 **[View the full documentation on GitHub Pages](https://seontechnologies.github.io/playwright-utils/)** or browse the [docs folder](./docs)
+
 ## One Pattern, Two Ways to Use
 
 Every utility follows the same design: **functional core, fixture shell**.
