@@ -1,3 +1,8 @@
+---
+title: API Request
+description: A typed HTTP client with schema validation for Playwright tests
+---
+
 # API Request Utility with Schema Validation
 
 The API Request utility provides a clean, typed interface for making HTTP requests in Playwright tests with **built-in schema validation capabilities**. It handles URL construction, header management, response parsing, and **single-line response validation** with proper TypeScript support.

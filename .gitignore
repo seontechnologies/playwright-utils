@@ -30,6 +30,10 @@ npm-debug.log*
 **/__screenshots__/
 downloads/
 
+# VitePress
+docs/.vitepress/cache
+docs/.vitepress/dist
+
 # Project specific
 !sample-app/*/.env
 sample-app/backend/test-events/movie-events.log

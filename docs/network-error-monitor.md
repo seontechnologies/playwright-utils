@@ -1,3 +1,8 @@
+---
+title: Network Error Monitor
+description: Automatically detect HTTP 4xx/5xx errors during test execution
+---
+
 # Network Error Monitor
 
 - [Network Error Monitor](#network-error-monitor)
