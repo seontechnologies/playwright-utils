@@ -1,3 +1,8 @@
+---
+title: Recurse (Polling)
+description: Cypress-style polling utility for waiting on asynchronous conditions
+---
+
 # Recurse (Polling) Utility
 
 The Recurse utility provides a powerful mechanism for polling and retrying operations using Playwright's `expect.poll`. It's perfect for testing asynchronous processes where you need to wait for a certain condition to be met.

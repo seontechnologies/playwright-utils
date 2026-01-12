@@ -1,36 +1,36 @@
 # Playwright Utils
 
-A collection of utilities for Playwright tests at SEON Technologies, designed to make testing more efficient and maintainable.
+A collection of utilities for Playwright tests, designed to make testing more efficient and maintainable.
 
-All utilities can be used as Playwright fixtures by importing the test object.
+## One Pattern, Two Ways to Use
 
-## Design Principles
+Every utility follows the same design: **functional core, fixture shell**.
 
-Why this library was created:
+```typescript
+// Direct function - explicit dependencies
+import { apiRequest } from '@seontechnologies/playwright-utils/api-request'
+const result = await apiRequest({ request, method: 'GET', path: '/api/users' })
 
-- To bring consistent reusable Playwright utilities to projects at SEON.
-- To implement common testing patterns as **standardized fixtures**, to avoid duplication and boilerplate.
-- To follow a **functional-first** design: the core logic is always a standalone function that can be used directly, while fixtures provide convenience.
-- To support **typed API requests**, **polling patterns**, **auth session management**, **logging**, and **network interception** with clear APIs.
-- To make it easy to adopt and extend the utilities in other projects, without coupling tightly to any single app.
+// Playwright fixture - injected, ready to use
+test('example', async ({ apiRequest }) => {
+  const result = await apiRequest({ method: 'GET', path: '/api/users' })
+})
+```
 
-Design patterns used:
+Use functions for scripts and simple cases. Use fixtures for test suites.
 
-- **Fixture pattern**: all utilities can be consumed as fixtures to provide maximum flexibility.
-- **Functional core, fixture shell**: utilities can be used both directly and as fixtures.
-- **Decoupled logging and reporting**: logging is built to integrate cleanly into Playwright reports.
-- **Composable auth sessions**: auth session utilities can handle complex multi-user auth in a reusable way.
-- **Test-focused network interception**: network interception is designed for real-world test needs, not just simple mocking.
-- **Typed API request utility**: apiRequest provides a reusable, typed client for API tests and Playwright request fixture usage.
+## Utilities
 
-This library is not a general-purpose Playwright wrapper. It is designed to cover the most common test automation needs at SEON and to serve as a foundation for further project-specific extensions.
+| Category     | Utilities                                                                                                                                                                                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Agnostic** | [API Request](./docs/api-request.md), [Auth Session](./docs/auth-session.md), [Recurse](./docs/recurse.md), [Log](./docs/log.md), [File Utils](./docs/file-utils.md), [Burn-in](./docs/burn-in.md) |
+| **Frontend** | [Network Interception](./docs/intercept-network-call.md), [Network Recorder](./docs/network-recorder.md), [Network Error Monitor](./docs/network-error-monitor.md)                                 |
 
 - [Playwright Utils](#playwright-utils)
-  - [Design Principles](#design-principles)
+  - [One Pattern, Two Ways to Use](#one-pattern-two-ways-to-use)
+  - [Utilities](#utilities)
   - [Installation](#installation)
-  - [Module Format Support](#module-format-support)
   - [Development](#development)
-    - [Testing Strategy](#testing-strategy)
   - [Available Utilities](#available-utilities)
     - [API Request](#api-request)
     - [Recurse (Polling)](#recurse-polling)
@@ -42,6 +42,8 @@ This library is not a general-purpose Playwright wrapper. It is designed to cove
     - [Network Recorder](#network-recorder)
     - [Burn-in](#burn-in)
     - [Network Error Monitor](#network-error-monitor)
+  - [Module Format Support](#module-format-support)
+    - [Testing Strategy in this repository](#testing-strategy-in-this-repository)
   - [Testing the Package Locally](#testing-the-package-locally)
   - [Release and Publishing](#release-and-publishing)
     - [Publishing via GitHub UI (Recommended)](#publishing-via-github-ui-recommended)
@@ -55,29 +57,6 @@ pnpm i -D @seontechnologies/playwright-utils
 ```
 
 > **Note:** This package requires `@playwright/test` as a peer dependency. It should already be installed in your repository.
-
-## Module Format Support
-
-This package supports both CommonJS and ES Modules formats:
-
-- **CommonJS**: For projects using `require()` syntax or CommonJS module resolution
-- **ES Modules**: For projects using `import` syntax with ES modules
-
-The package automatically detects which format to use based on your project's configuration. This means:
-
-- You can use this package in both legacy CommonJS projects and modern ESM projects
-- No need to change import paths or add file extensions
-- TypeScript type definitions work for both formats
-
-Example usage:
-
-```typescript
-// Works in both CommonJS and ESM environments
-import { log } from '@seontechnologies/playwright-utils'
-
-// Subpath imports also work in both formats
-import { recurse } from '@seontechnologies/playwright-utils/recurse'
-```
 
 ## Development
 
@@ -120,25 +99,6 @@ npm run start:sample-app
 npm run test:pw       # Run Playwright tests
 npm run test:pw-ui    # Run Playwright tests with UI
 ```
-
-### Testing Strategy
-
-The overall testing approach:
-
-1. **Deployed Apps Tests** - Some tests use Playwright's deployed apps to keep things familiar (`log`, `interceptNetworkCall`):
-   - `playwright/tests/network-mock-original.spec.ts`
-   - `playwright/tests/todo-with-logs.spec.ts`
-   - `playwright/tests/network-mock-intercept-network-call.spec.ts`
-
-1. **Sample App Tests** - The `./sample-app` provides a more complex environment to test:
-   - API request automation
-   - Recursion and retry patterns
-   - Authentication flows
-   - Future: feature flag testing, email testing, etc.
-
-To start the sample app backend and frontend; `npm run start:sample-app`.
-
-The sample app uses `"@seontechnologies/playwright-utils": "*"` in its package.json so that changes to the library are immediately available for testing without requiring republishing or package updates.
 
 ## Available Utilities
 
@@ -675,6 +635,50 @@ test(
 ```
 
 Inspired by [Checkly's network monitoring pattern](https://github.com/checkly/checkly-playwright-examples/tree/main/network-monitoring). See [full docs](./docs/network-error-monitor.md).
+
+## Module Format Support
+
+This package supports both CommonJS and ES Modules formats:
+
+- **CommonJS**: For projects using `require()` syntax or CommonJS module resolution
+- **ES Modules**: For projects using `import` syntax with ES modules
+
+The package automatically detects which format to use based on your project's configuration. This means:
+
+- You can use this package in both legacy CommonJS projects and modern ESM projects
+- No need to change import paths or add file extensions
+- TypeScript type definitions work for both formats
+
+Example usage:
+
+```typescript
+// Works in both CommonJS and ESM environments
+import { log } from '@seontechnologies/playwright-utils'
+
+// Subpath imports also work in both formats
+import { recurse } from '@seontechnologies/playwright-utils/recurse'
+```
+
+### Testing Strategy in this repository
+
+We showcase how to use the utilities in this repository through tests, often comparing and contrasting to vanilla Playwright patterns. We are using a backend and a frontend application to demonstrate more complex scenarios.
+
+The overall testing approach:
+
+1. **Deployed Apps Tests** - Some tests use Playwright's deployed apps to keep things familiar (`log`, `interceptNetworkCall`):
+   - `playwright/tests/network-mock-original.spec.ts`
+   - `playwright/tests/todo-with-logs.spec.ts`
+   - `playwright/tests/network-mock-intercept-network-call.spec.ts`
+
+1. **Sample App Tests** - The `./sample-app` provides a more complex environment to test:
+   - API request automation
+   - Recursion and retry patterns
+   - Authentication flows
+   - Future: feature flag testing, email testing, etc.
+
+To start the sample app backend and frontend; `npm run start:sample-app`.
+
+The sample app uses `"@seontechnologies/playwright-utils": "*"` in its package.json so that changes to the library are immediately available for testing without requiring republishing or package updates.
 
 ## Testing the Package Locally
 

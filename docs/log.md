@@ -1,3 +1,8 @@
+---
+title: Logging
+description: Structured logging that integrates with Playwright test reports
+---
+
 # Logging Utility
 
 A logging utility for Playwright tests that integrates with test reports, supports object logging, and provides step decorators.

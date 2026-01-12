@@ -1,3 +1,8 @@
+---
+title: Burn-in Testing
+description: Smart test burn-in utility with intelligent filtering based on file changes
+---
+
 # Burn-in Test Runner
 
 A smart test burn-in utility for Playwright that intelligently filters which tests to run based on file changes, reducing unnecessary test execution while maintaining reliability.

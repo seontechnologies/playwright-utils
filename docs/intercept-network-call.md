@@ -1,3 +1,8 @@
+---
+title: Network Interception
+description: Intercept, observe, and mock network requests in Playwright tests
+---
+
 # Network Interception Utility
 
 - [Network Interception Utility](#network-interception-utility)

@@ -1,3 +1,8 @@
+---
+title: File Utilities
+description: Read and validate CSV, XLSX, PDF, and ZIP files in Playwright tests
+---
+
 # File Utilities
 
 - [File Utilities](#file-utilities)

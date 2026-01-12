@@ -47,6 +47,9 @@ jobs:
       - name: Verify build process
         run: npm run build
 
+      - name: Build documentation
+        run: npm run docs:build
+
       - name: Run unit test for backend
         run: npm run test:backend
 

@@ -1,3 +1,9 @@
+---
+title: Auth Session
+description: Persistent authentication management with token caching for Playwright tests
+outline: deep
+---
+
 # Playwright Auth Session Library
 
 Playwright is unopinionated by design, providing developers with powerful tools and flexible patterns while leaving the implementation details and developer experience up to you.

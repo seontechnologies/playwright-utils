@@ -1,3 +1,9 @@
+---
+title: Network Recorder
+description: HAR-based network traffic recording and playback for offline testing
+outline: deep
+---
+
 # Network Traffic Recording & Replay Utility
 
 The Network Traffic Recording & Replay utility provides HAR-based network traffic recording and playback capabilities that allow frontend tests to run in complete isolation from backend services. This utility captures HTTP requests/responses during "record" mode and replays them from disk during "playback" mode.
@@ -589,7 +595,6 @@ The recorder includes built-in file locking for safe parallel execution. Each te
 
 - [Comparison with Native Playwright](#comparison-with-native-playwright-detailed)
 - [How Stateful CRUD Detection Works](#how-stateful-crud-detection-works)
-- [Integration Examples](./examples/network-recorder-examples.md)
 
 ---
 

@@ -165,7 +165,10 @@
     "test:pw:burn-in": "PW_BURN_IN=true npx playwright test --repeat-each=3 --retries=0",
     "test:pw:burn-in-changed-classic": "PW_BURN_IN=true npx playwright test --only-changed=main --repeat-each=3 --retries=0",
     "test:pw:burn-in-changed": "tsx playwright/scripts/burn-in-changed.ts",
-    "show:report": "npx playwright show-report --port 9324"
+    "show:report": "npx playwright show-report --port 9324",
+    "docs:dev": "DOCS_BASE=/ vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "DOCS_BASE=/ vitepress preview docs"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.54.1",
@@ -221,13 +224,13 @@
     "tsx": "4.20.6",
     "typescript": "5.9.3",
     "vite": "6.4.1",
+    "vitepress": "^1.6.4",
     "zod": "4.1.12"
   },
   "dependencies": {
     "adm-zip": "0.5.16",
     "deepmerge": "4.3.1",
     "exceljs": "4.4.0",
-    "js-yaml": "4.1.0",
     "madge": "7.0.0",
     "papaparse": "5.5.3",
     "picomatch": "4.0.3",
