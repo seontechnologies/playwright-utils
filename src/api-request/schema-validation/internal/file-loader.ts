@@ -9,7 +9,6 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import * as yaml from 'js-yaml'
 
 /**
  * Allowed file extensions for schema files
@@ -34,7 +33,7 @@ const ALLOWED_EXTENSIONS = ['.json', '.yaml', '.yml'] as const
  * // Load JSON schema
  * const jsonSchema = await loadSchemaFromFile('./schemas/user.json')
  *
- * // Load YAML OpenAPI spec
+ * // Load YAML OpenAPI spec (requires js-yaml: npm install js-yaml)
  * const yamlSchema = await loadSchemaFromFile('./openapi/api.yaml')
  * ```
  *
@@ -69,8 +68,16 @@ export async function loadSchemaFromFile(filePath: string): Promise<object> {
 
     // Parse based on file extension
     if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
-      // Security: yaml.load() is safe by default in js-yaml v4+ (no code execution)
-      return yaml.load(content) as object
+      // Dynamic import - js-yaml is an optional peer dependency
+      try {
+        const yaml = await import('js-yaml')
+        // Security: yaml.load() is safe by default in js-yaml v4+ (no code execution)
+        return yaml.load(content) as object
+      } catch {
+        throw new Error(
+          'YAML schema support requires js-yaml. Install it with: npm install js-yaml'
+        )
+      }
     } else {
       return JSON.parse(content)
     }

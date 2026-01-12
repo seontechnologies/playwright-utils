@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Playwright Utils
-  text: Powerful utilities for Playwright testing
-  tagline: A collection of production-ready utilities designed to make Playwright testing more efficient and maintainable.
+  text: Powerful utilities for Playwright testing from SEON
+  tagline: A collection of production-ready utilities from SEON Technologies, designed to make Playwright testing more efficient and maintainable.
   image:
     src: /logo.svg
     alt: Playwright Utils
