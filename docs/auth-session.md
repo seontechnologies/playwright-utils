@@ -1,6 +1,7 @@
 ---
 title: Auth Session
 description: Persistent authentication management with token caching for Playwright tests
+outline: deep
 ---
 
 # Playwright Auth Session Library

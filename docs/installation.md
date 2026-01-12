@@ -135,6 +135,10 @@ test('my test', async ({ apiRequest, networkRecorder, page }) => {
 })
 ```
 
+::: tip TypeScript Autocomplete
+When using merged fixtures, your IDE will provide autocomplete for all fixture properties (`apiRequest`, `networkRecorder`, etc.) in your test parameters.
+:::
+
 ## Next Steps
 
 - [API Request](/api-request) - HTTP client with schema validation

@@ -1,6 +1,7 @@
 ---
 title: API Request
 description: A typed HTTP client with schema validation for Playwright tests
+outline: deep
 ---
 
 # API Request Utility with Schema Validation

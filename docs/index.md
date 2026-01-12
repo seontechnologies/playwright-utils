@@ -93,3 +93,11 @@ test('offline CRUD testing', async ({ page, context, networkRecorder }) => {
   await page.click('#submit')
 })
 ```
+
+::: info Fixture Import Options
+You can import fixtures in multiple ways:
+
+- **Combined**: `import { test } from '@seontechnologies/playwright-utils/fixtures'` - includes all fixtures
+- **Individual**: `import { test } from '@seontechnologies/playwright-utils/network-recorder/fixtures'` - specific utility only
+- **Merged**: Use `mergeTests()` to combine fixtures from multiple sources (see [Installation](/installation#merging-fixtures))
+  :::

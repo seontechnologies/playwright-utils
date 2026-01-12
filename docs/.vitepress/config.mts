@@ -1,13 +1,16 @@
 import { defineConfig } from 'vitepress'
 
-// Use /playwright-utils/ for GitHub Pages, / for local dev
-const base = process.env.DOCS_BASE ?? (process.env.CI ? '/playwright-utils/' : '/')
+// GitHub Pages requires /repo-name/ base path
+// Override with DOCS_BASE env var for custom domains or local dev
+// Local dev: DOCS_BASE=/ npm run docs:dev (or use docs:dev script)
+const base = process.env.DOCS_BASE || '/playwright-utils/'
 
 export default defineConfig({
   title: 'Playwright Utils',
   description: 'A collection of utilities for Playwright testing',
 
   base,
+  lastUpdated: true,
 
   head: [
     // VitePress automatically prepends base to href
@@ -20,17 +23,22 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       {
-        text: 'Utilities',
+        text: 'Agnostic',
         items: [
           { text: 'API Request', link: '/api-request' },
           { text: 'Auth Session', link: '/auth-session' },
           { text: 'Recurse (Polling)', link: '/recurse' },
           { text: 'Logging', link: '/log' },
-          { text: 'Network Interception', link: '/intercept-network-call' },
-          { text: 'Network Recorder', link: '/network-recorder' },
-          { text: 'Network Error Monitor', link: '/network-error-monitor' },
           { text: 'File Utilities', link: '/file-utils' },
           { text: 'Burn-in', link: '/burn-in' }
+        ]
+      },
+      {
+        text: 'Frontend',
+        items: [
+          { text: 'Network Interception', link: '/intercept-network-call' },
+          { text: 'Network Recorder', link: '/network-recorder' },
+          { text: 'Network Error Monitor', link: '/network-error-monitor' }
         ]
       },
       {
@@ -48,30 +56,24 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Core Utilities',
+        text: 'Agnostic Utilities',
         collapsed: false,
         items: [
           { text: 'API Request', link: '/api-request' },
           { text: 'Auth Session', link: '/auth-session' },
           { text: 'Recurse (Polling)', link: '/recurse' },
-          { text: 'Logging', link: '/log' }
+          { text: 'Logging', link: '/log' },
+          { text: 'File Utilities', link: '/file-utils' },
+          { text: 'Burn-in', link: '/burn-in' }
         ]
       },
       {
-        text: 'Network Utilities',
+        text: 'Frontend Utilities',
         collapsed: false,
         items: [
           { text: 'Network Interception', link: '/intercept-network-call' },
           { text: 'Network Recorder', link: '/network-recorder' },
           { text: 'Network Error Monitor', link: '/network-error-monitor' }
-        ]
-      },
-      {
-        text: 'Testing Utilities',
-        collapsed: false,
-        items: [
-          { text: 'File Utilities', link: '/file-utils' },
-          { text: 'Burn-in', link: '/burn-in' }
         ]
       }
     ],

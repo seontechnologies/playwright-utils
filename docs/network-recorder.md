@@ -1,6 +1,7 @@
 ---
 title: Network Recorder
 description: HAR-based network traffic recording and playback for offline testing
+outline: deep
 ---
 
 # Network Traffic Recording & Replay Utility
