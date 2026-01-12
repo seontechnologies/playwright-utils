@@ -35,6 +35,7 @@
     "@types/sinon": "17.0.3",
     "@vitejs/plugin-react": "4.7.0",
     "@vitest/browser": "3.2.4",
+    "vitest": "3.2.4",
     "happy-dom": "16.8.1",
     "identity-obj-proxy": "3.0.0",
     "msw": "2.12.1",
