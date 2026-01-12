@@ -55,15 +55,22 @@ features:
     link: /burn-in
 ---
 
-## Design Principles
+## One Pattern, Two Ways to Use
 
-This library follows these core design patterns:
+Every utility follows the same design: **functional core, fixture shell**.
 
-- **Fixture Pattern** - All utilities can be consumed as Playwright fixtures
-- **Functional Core, Fixture Shell** - Use utilities directly or as fixtures
-- **Decoupled Logging** - Logging integrates cleanly into Playwright reports
-- **Composable Auth Sessions** - Handle complex multi-user auth scenarios
-- **Test-Focused Network Interception** - Real-world test needs, not simple mocking
+```typescript
+// Direct function - explicit dependencies
+import { apiRequest } from '@seontechnologies/playwright-utils/api-request'
+const result = await apiRequest({ request, method: 'GET', path: '/api/users' })
+
+// Playwright fixture - injected, ready to use
+test('example', async ({ apiRequest }) => {
+  const result = await apiRequest({ method: 'GET', path: '/api/users' })
+})
+```
+
+Use functions for scripts and simple cases. Use fixtures for test suites.
 
 ## Quick Example
 

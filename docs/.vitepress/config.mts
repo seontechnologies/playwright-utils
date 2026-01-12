@@ -13,12 +13,11 @@ export default defineConfig({
   lastUpdated: true,
 
   head: [
-    // VitePress automatically prepends base to href
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }]
   ],
 
   themeConfig: {
-    logo: '/logo.svg',
+    logo: `${base}logo.svg`,
 
     nav: [
       { text: 'Home', link: '/' },
