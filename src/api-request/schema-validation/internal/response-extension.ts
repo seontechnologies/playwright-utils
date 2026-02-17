@@ -43,8 +43,9 @@ function mapRequestContext(context?: {
 }
 
 /** Enhanced API response with validateSchema method */
-export interface EnhancedApiResponse<T = unknown>
-  extends ApiRequestResponse<T> {
+export interface EnhancedApiResponse<
+  T = unknown
+> extends ApiRequestResponse<T> {
   validateSchema<TValidated = T>(
     schema: SupportedSchema,
     options?: ValidateSchemaOptions

@@ -71,6 +71,38 @@ export type ApiRequestParams = {
   retryConfig?: ApiRetryConfig
 }
 
+/** Structural shape for operation definitions — works with any code generator (duck typing) */
+export type OperationShape = {
+  path: string
+  method: 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD'
+  response: unknown
+  request: unknown
+  query?: unknown
+}
+
+/**
+ * Parameters for the operation-based apiRequest overload.
+ * Mutually exclusive with classic params: method/path are forbidden here.
+ */
+export type OperationRequestParams<Op extends OperationShape> = {
+  request: APIRequestContext
+  operation: Op
+  body?: Op['request']
+  query?: Op['query']
+  /** Raw params escape hatch — merged with serialized query (params wins on conflict) */
+  params?: Record<string, string | boolean | number>
+  baseUrl?: string
+  configBaseUrl?: string
+  headers?: Record<string, string>
+  testStep?: boolean
+  uiMode?: boolean
+  page?: Page
+  retryConfig?: ApiRetryConfig
+  /** Forbidden in operation mode — enforced at type level */
+  method?: never
+  path?: never
+}
+
 export type ApiRequestResponse<T = unknown> = {
   status: number
   body: T
@@ -422,37 +454,126 @@ const displayApiUI = async (params: {
  *   expect(status).toBe(500);
  * });
  */
-export const apiRequest = <T = unknown>(
-  options: ApiRequestParams
+type ApiRequestFn = {
+  /** Operation-based overload: types inferred from operation definition */
+  <Op extends OperationShape>(
+    options: OperationRequestParams<Op>
+  ): EnhancedApiPromise<Op['response']>
+  /** Classic overload: manual method/path/body (unchanged) */
+  <T = unknown>(options: ApiRequestParams): EnhancedApiPromise<T>
+}
+
+export const apiRequest: ApiRequestFn = (<T = unknown>(
+  options: ApiRequestParams | OperationRequestParams<OperationShape>
 ): EnhancedApiPromise<T> => {
+  const normalizedOptions: ApiRequestParams = isOperationRequest(options)
+    ? normalizeOperationParams(options)
+    : (options as ApiRequestParams)
+
   // By default, wrap in test.step unless explicitly disabled
-  const useTestStep = options.testStep !== false
+  const useTestStep = normalizedOptions.testStep !== false
 
   const promise = (async (): Promise<EnhancedApiResponse<T>> => {
     let baseResponse: ApiRequestResponse<T>
 
     if (useTestStep) {
-      baseResponse = await test.step(createStepName(options), async () =>
-        apiRequestBase<T>(options)
+      baseResponse = await test.step(
+        createStepName(normalizedOptions),
+        async () => apiRequestBase<T>(normalizedOptions)
       )
     } else {
       // When used outside of test context (e.g., global setup)
-      baseResponse = await apiRequestBase<T>(options)
+      baseResponse = await apiRequestBase<T>(normalizedOptions)
     }
 
     // Create enhanced response with validateSchema method
     return createEnhancedResponse(baseResponse, {
-      method: options.method,
-      path: options.path,
-      body: options.body,
-      headers: options.headers,
-      page: options.page,
-      uiMode: options.uiMode
+      method: normalizedOptions.method,
+      path: normalizedOptions.path,
+      body: normalizedOptions.body,
+      headers: normalizedOptions.headers,
+      page: normalizedOptions.page,
+      uiMode: normalizedOptions.uiMode
     })
   })()
 
   // Return enhanced promise with validateSchema method
   return createEnhancedPromise(promise)
+}) as ApiRequestFn
+
+/** Serialize nested query object into flat bracket-notation params (best-effort) */
+const serializeQuery = (
+  obj: Record<string, unknown>,
+  prefix?: string
+): Record<string, string> => {
+  const result: Record<string, string> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === null || value === undefined) continue
+    const fullKey = prefix ? `${prefix}[${key}]` : key
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        if (item === null || item === undefined) return
+        if (typeof item === 'object') {
+          Object.assign(
+            result,
+            serializeQuery(
+              item as Record<string, unknown>,
+              `${fullKey}[${index}]`
+            )
+          )
+        } else {
+          result[`${fullKey}[${index}]`] = String(item)
+        }
+      })
+    } else if (typeof value === 'object') {
+      Object.assign(
+        result,
+        serializeQuery(value as Record<string, unknown>, fullKey)
+      )
+    } else {
+      result[fullKey] = String(value)
+    }
+  }
+  return result
+}
+
+/** Runtime type guard with shape validation — classic fields win for backward compat */
+const isOperationRequest = (
+  options: ApiRequestParams | OperationRequestParams<OperationShape>
+): options is OperationRequestParams<OperationShape> => {
+  // If classic method+path are present as strings, always use classic path
+  // (protects against variable-based calls that might have extra properties)
+  const opts = options as Record<string, unknown>
+  if (typeof opts.method === 'string' && typeof opts.path === 'string')
+    return false
+
+  if (!('operation' in options) || options.operation == null) return false
+  const op = options.operation
+  return (
+    typeof op === 'object' &&
+    typeof op.path === 'string' &&
+    typeof op.method === 'string'
+  )
+}
+
+/** Convert operation params to classic ApiRequestParams (only reads method/path, never response/request) */
+const normalizeOperationParams = (
+  options: OperationRequestParams<OperationShape>
+): ApiRequestParams => {
+  const { operation, body, query, params: rawParams, ...rest } = options
+  const serializedQuery = query
+    ? serializeQuery(query as Record<string, unknown>)
+    : {}
+  const mergedParams = { ...serializedQuery, ...rawParams }
+  const hasParams = Object.keys(mergedParams).length > 0
+
+  return {
+    ...rest,
+    method: operation.method,
+    path: operation.path,
+    body,
+    params: hasParams ? mergedParams : undefined
+  } as ApiRequestParams
 }
 
 /** URL normalization to handle edge cases with slashes */
