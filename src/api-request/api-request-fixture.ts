@@ -1,6 +1,10 @@
 import { test as base } from '@playwright/test'
 import { apiRequest as apiRequestFunction } from './api-request'
-import type { ApiRequestParams } from './api-request'
+import type {
+  ApiRequestParams,
+  OperationShape,
+  OperationRequestParams
+} from './api-request'
 import type { EnhancedApiPromise } from './schema-validation/internal/promise-extension'
 import { capturePageContext, clearPageContext } from '../internal/page-context'
 
@@ -10,21 +14,38 @@ import { capturePageContext, clearPageContext } from '../internal/page-context'
  */
 export type ApiRequestFixtureParams = Omit<ApiRequestParams, 'request'>
 
+/** Operation fixture params — like OperationRequestParams but without 'request' (injected by fixture) */
+export type OperationRequestFixtureParams<Op extends OperationShape> = Omit<
+  OperationRequestParams<Op>,
+  'request'
+>
+
+type ApiRequestFixtureFn = {
+  <Op extends OperationShape>(
+    params: OperationRequestFixtureParams<Op>
+  ): EnhancedApiPromise<Op['response']>
+  <T = unknown>(params: ApiRequestFixtureParams): EnhancedApiPromise<T>
+}
+
 export const test = base.extend<{
   /**
    * Simplified helper for making API requests and returning the status and JSON body.
    * This helper automatically performs the request based on the provided method, path, body, and headers.
    * It handles URL construction with proper slash handling and response parsing based on content type.
    *
+   * Supports two overloads:
+   * - Classic: pass method, path, body, headers directly
+   * - Operation-based: pass an operation object for automatic type inference
+   *
    * IMPORTANT: When using the fixture version, you do NOT need to provide the 'request' parameter,
    * as it's automatically injected by the fixture.
    *
    * @example
-   * // GET request to an endpoint
+   * // Classic: GET request to an endpoint
    * test('fetch user data', async ({ apiRequest }) => {
    *   const { status, body } = await apiRequest<UserResponse>({
    *     method: 'GET',
-   *     path: '/api/users/123',  // Note: use 'path' not 'url'
+   *     path: '/api/users/123',
    *     headers: { 'Authorization': 'Bearer token' }
    *   });
    *
@@ -33,53 +54,37 @@ export const test = base.extend<{
    * });
    *
    * @example
-   * // POST request with a body
-   * test('create new item', async ({ apiRequest }) => {
-   *   const { status, body } = await apiRequest<CreateItemResponse>({
-   *     method: 'POST',
-   *     path: '/api/items',  // Note: use 'path' not 'url'
-   *     baseUrl: 'https://api.example.com', // override default baseURL
-   *     body: { name: 'New Item', price: 19.99 },
-   *     headers: { 'Content-Type': 'application/json' }
+   * // Operation-based: types inferred from the operation
+   * test('create person', async ({ apiRequest }) => {
+   *   const { status, body } = await apiRequest({
+   *     operation: upsertPersonv2({ customerId }),
+   *     headers: getHeaders(customerId),
+   *     body: personInput,
    *   });
-   *
-   *   expect(status).toBe(201);
-   *   expect(body.id).toBeDefined();
+   *   // body is typed as the operation's response type
    * });
    */
-  apiRequest: <T = unknown>(
-    params: ApiRequestFixtureParams
-  ) => EnhancedApiPromise<T>
+  apiRequest: ApiRequestFixtureFn
 }>({
   apiRequest: async ({ request, baseURL, page }, use) => {
     // Capture page context for plain function UI display support
     capturePageContext(page)
 
-    const apiRequest = <T = unknown>({
-      method,
-      path,
-      baseUrl,
-      configBaseUrl = baseURL,
-      body = null,
-      headers,
-      params,
-      uiMode = false,
-      testStep
-    }: ApiRequestFixtureParams): EnhancedApiPromise<T> => {
-      return apiRequestFunction<T>({
+    const apiRequest: ApiRequestFixtureFn = ((
+      params:
+        | ApiRequestFixtureParams
+        | OperationRequestFixtureParams<OperationShape>
+    ) => {
+      return apiRequestFunction({
+        ...params,
         request,
-        method,
-        path,
-        baseUrl,
-        configBaseUrl,
-        body,
-        headers,
-        params,
-        uiMode,
-        testStep,
-        page // Pass page context for UI mode
-      })
-    }
+        configBaseUrl:
+          (params as ApiRequestFixtureParams).configBaseUrl ?? baseURL,
+        body: (params as ApiRequestFixtureParams).body ?? null,
+        uiMode: params.uiMode ?? false,
+        page
+      } as ApiRequestParams)
+    }) as ApiRequestFixtureFn
 
     await use(apiRequest)
 

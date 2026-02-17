@@ -16,6 +16,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
   - [API Reference](#api-reference)
     - [apiRequest Function](#apirequest-function)
     - [Parameters](#parameters)
+    - [Operation-Based Parameters](#operation-based-parameters)
     - [Return Type](#return-type)
   - [Examples](#examples)
     - [GET Request with Authentication](#get-request-with-authentication)
@@ -31,7 +32,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
       - [Disable Retry for Error Testing](#disable-retry-for-error-testing)
       - [Custom Retry Configuration](#custom-retry-configuration)
     - [Why Only 5xx Errors?](#why-only-5xx-errors)
-  - [🆕 Schema Validation](#-schema-validation)
+  - [Schema Validation](#schema-validation)
     - [Peer Dependencies](#peer-dependencies)
     - [Import Options](#import-options)
     - [Quick Start - Schema Validation](#quick-start---schema-validation)
@@ -44,6 +45,19 @@ The API Request utility provides a clean, typed interface for making HTTP reques
       - [Return Mode (Non-Throwing Validation)](#return-mode-non-throwing-validation)
       - [Advanced Shape Validation with Functions](#advanced-shape-validation-with-functions)
     - [URL Resolution Strategy](#url-resolution-strategy)
+  - [🆕 Operation-Based Usage (OpenAPI / Code Generators)](#-operation-based-usage-openapi--code-generators)
+    - [The Problem](#the-problem)
+    - [The Solution: Operation Overload](#the-solution-operation-overload)
+    - [The OperationShape Contract](#the-operationshape-contract)
+    - [Operation-Based Examples](#operation-based-examples)
+      - [GET Request with Operation](#get-request-with-operation)
+      - [POST/PUT with Typed Body](#postput-with-typed-body)
+      - [Typed Query Parameters](#typed-query-parameters)
+      - [Query Params Escape Hatch](#query-params-escape-hatch)
+      - [Schema Validation with Operations](#schema-validation-with-operations)
+    - [Query Serialization](#query-serialization)
+    - [Migration Guide](#migration-guide)
+    - [Generator Compatibility](#generator-compatibility)
   - [UI Mode for API E2E Testing](#ui-mode-for-api-e2e-testing)
     - [Enable UI Mode](#enable-ui-mode)
     - [Example](#example)
@@ -63,8 +77,9 @@ The API Request utility provides a clean, typed interface for making HTTP reques
 - Content-type based response parsing
 - Support for all common HTTP methods
 - **Enhanced UI Mode**: Visual display with schema validation results
-- **🆕 Schema Validation**: Single-line response validation with multiple format support
-- **🆕 Multi-Format Schemas**: JSON Schema, YAML files, OpenAPI specifications, Zod schemas
+- **🆕 Operation-Based Overload**: Pass OpenAPI operation definitions directly — types inferred automatically, no `typeof` needed
+- **Schema Validation**: Single-line response validation with multiple format support
+- **Multi-Format Schemas**: JSON Schema, YAML files, OpenAPI specifications, Zod schemas
 
 ## Usage
 
@@ -154,6 +169,36 @@ async function apiRequest<T = unknown>({
   maxDelayMs: 5000,
   enableJitter: true, // Adds random jitter to backoff delays
   retryStatusCodes: [500, 502, 503, 504]
+}
+```
+
+### Operation-Based Parameters
+
+When using the operation overload, the following parameters apply:
+
+| Parameter     | Type                                                   | Description                                                                                   |
+| ------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| operation     | OperationShape                                         | The operation definition object (provides method, path, and type inference)                   |
+| body          | Op['request'] (optional)                               | Request body, typed from the operation's request type                                         |
+| query         | Op['query'] (optional)                                 | Query parameters, typed from the operation's query type (auto-serialized to bracket notation) |
+| params        | Record<string, string \| boolean \| number> (optional) | Raw query params escape hatch (merged with serialized query; wins on conflict)                |
+| headers       | Record<string, string> (optional)                      | HTTP headers                                                                                  |
+| baseUrl       | string (optional)                                      | Base URL to prepend to the operation's path                                                   |
+| configBaseUrl | string (optional)                                      | Fallback base URL from Playwright config                                                      |
+| testStep      | boolean (optional)                                     | Whether to wrap the call in test.step() (defaults to true)                                    |
+| uiMode        | boolean (optional)                                     | Enable rich UI display in Playwright UI (defaults to false)                                   |
+| retryConfig   | ApiRetryConfig (optional)                              | Retry configuration for server errors                                                         |
+
+**Mutually exclusive fields**: When using `operation`, you cannot pass `method` or `path` — they are extracted from the operation object. TypeScript enforces this at compile time.
+
+```typescript
+// The OperationShape structural type
+type OperationShape = {
+  path: string
+  method: 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD'
+  response: unknown // type-level: infers return type
+  request: unknown // type-level: infers body type
+  query?: unknown // type-level: infers query type
 }
 ```
 
@@ -394,7 +439,7 @@ test('demonstrates retry behavior', async ({ apiRequest }) => {
 })
 ```
 
-## 🆕 Schema Validation
+## Schema Validation
 
 ### Peer Dependencies
 
@@ -1013,6 +1058,247 @@ test('awaited helper with shape functions', async ({
 > 2. `configBaseUrl` parameter in the function call
 > 3. Playwright config's `baseURL` from your `playwright.config.ts` file
 > 4. Absolute URLs in the `path` parameter are used as-is
+
+## 🆕 Operation-Based Usage (OpenAPI / Code Generators)
+
+If your project uses a code generator (custom scripts, [orval](https://orval.dev), [openapi-generator](https://openapi-generator.tech), or a published SDK) that produces typed operation definitions from an OpenAPI spec, `apiRequest` can accept these directly — eliminating boilerplate and giving you full type inference for request bodies, response types, and query parameters.
+
+### The Problem
+
+When using generated operation helpers with the classic `apiRequest` signature, every call requires manual extraction and `typeof` assertions:
+
+```typescript
+// Verbose: repeated in every test across every file
+const upsertPerson = upsertPersonv2({ customerId })
+
+const { status, body } = await apiRequest<typeof upsertPerson.response>({
+  method: upsertPerson.method,
+  path: upsertPerson.path,
+  headers: getHeaders(customerId),
+  body: personInput
+})
+
+// Query params lose type safety entirely
+const getPeople = getPeoplev2({ customerId })
+const { body } = await apiRequest<typeof getPeople.response>({
+  method: getPeople.method,
+  path: `${getPeople.path}?page=0&page_size=5`, // manual string concatenation
+  headers: getHeaders(customerId)
+})
+```
+
+### The Solution: Operation Overload
+
+Pass the operation object directly via the `operation` field. TypeScript infers all types automatically — no explicit generic parameter, no manual `method`/`path` extraction:
+
+```typescript
+// Clean: types fully inferred from the operation
+const { status, body } = await apiRequest({
+  operation: upsertPersonv2({ customerId }),
+  headers: getHeaders(customerId),
+  body: personInput // compile-time typed as Schemas.PersonInput
+})
+// body is automatically typed as Schemas.Person
+
+// Typed query params — no string concatenation
+const { body } = await apiRequest({
+  operation: getPeoplev2({ customerId }),
+  headers: getHeaders(customerId),
+  query: { page: 0, page_size: 5 } // typed from the operation's query definition
+})
+```
+
+Both overloads coexist — the classic `method`/`path` signature continues to work identically. Choose whichever style fits your project.
+
+### The OperationShape Contract
+
+The operation overload uses **structural typing** (duck typing). Your operation objects just need to match this shape — no imports from `playwright-utils` required in your generator:
+
+```typescript
+type OperationShape = {
+  path: string
+  method: 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD'
+  response: unknown // type-level only (used for return type inference)
+  request: unknown // type-level only (used for body type inference)
+  query?: unknown // type-level only (used for query type inference)
+}
+```
+
+Any code generator that produces objects with this shape will get full type inference for free. The `response`, `request`, and `query` fields are **type-level placeholders only** — their runtime values are never read.
+
+### Operation-Based Examples
+
+#### GET Request with Operation
+
+```typescript
+import { test, expect } from '@seontechnologies/playwright-utils/fixtures'
+
+test('fetch people list', async ({ apiRequest }) => {
+  const { status, body } = await apiRequest({
+    operation: getPeoplev2({ customerId: 123 }),
+    headers: getHeaders(123)
+  })
+  // body is typed as Array<Schemas.Person> — no typeof needed
+
+  expect(status).toBe(200)
+  expect(body.length).toBeGreaterThan(0)
+  expect(body[0].name).toBeDefined()
+})
+```
+
+#### POST/PUT with Typed Body
+
+```typescript
+test('create person', async ({ apiRequest }) => {
+  const { status, body } = await apiRequest({
+    operation: upsertPersonv2({ customerId: 123 }),
+    headers: getHeaders(123),
+    body: personInput // compile-time validated against Schemas.PersonInput
+  })
+  // body is typed as Schemas.Person
+
+  expect(status).toBe(200)
+  expect(body.id).toBeDefined()
+})
+```
+
+#### Typed Query Parameters
+
+When the operation defines a `query` type, use the `query` field for type-safe parameters. They are serialized to bracket-notation query strings automatically:
+
+```typescript
+test('search with typed query', async ({ apiRequest }) => {
+  const { body } = await apiRequest({
+    operation: getPeoplev2({ customerId: 123 }),
+    headers: getHeaders(123),
+    query: { page: 0, page_size: 5 } // typed from the operation
+  })
+  // Sends: GET /v2/123/people?page=0&page_size=5
+
+  expect(body.length).toBeLessThanOrEqual(5)
+})
+```
+
+Nested objects and arrays are serialized using bracket notation:
+
+```typescript
+query: {
+  filters: {
+    hits: ['sanctions', 'pep']
+  }
+}
+// Sends: ?filters[hits][0]=sanctions&filters[hits][1]=pep
+```
+
+#### Query Params Escape Hatch
+
+The built-in query serializer uses best-effort bracket notation. If your API requires a different format, or the generated query type is incomplete, use the `params` escape hatch alongside `operation`:
+
+```typescript
+test('mixed query strategies', async ({ apiRequest }) => {
+  const { body } = await apiRequest({
+    operation: getPeoplev2({ customerId: 123 }),
+    headers: getHeaders(123),
+    query: { page: 0, page_size: 5 }, // typed, auto-serialized
+    params: { 'filters[hits][0]': 'sanctions' } // raw, passed directly
+  })
+  // Both are merged into query params (params wins on key conflict)
+})
+```
+
+When `query` and `params` are both provided, serialized `query` entries are merged with raw `params` entries. If the same key appears in both, `params` takes precedence.
+
+#### Schema Validation with Operations
+
+The `.validateSchema()` chain works identically with operation-based calls:
+
+```typescript
+test('operation + schema validation', async ({ apiRequest }) => {
+  const { status, body } = await apiRequest({
+    operation: upsertPersonv2({ customerId: 123 }),
+    headers: getHeaders(123),
+    body: personInput
+  }).validateSchema(PersonResponseSchema, {
+    shape: {
+      id: expect.any(String),
+      name: personInput.name
+    }
+  })
+
+  expect(status).toBe(200)
+})
+```
+
+### Query Serialization
+
+The operation overload includes a built-in query serializer that converts nested objects to bracket-notation query parameters. This is **best-effort** and covers common patterns:
+
+| Input                               | Serialized Output                       |
+| ----------------------------------- | --------------------------------------- |
+| `{ page: 1 }`                       | `page=1`                                |
+| `{ active: true }`                  | `active=true`                           |
+| `{ filters: { type: 'pep' } }`      | `filters[type]=pep`                     |
+| `{ ids: [10, 20] }`                 | `ids[0]=10&ids[1]=20`                   |
+| `{ filters: { hits: ['a', 'b'] } }` | `filters[hits][0]=a&filters[hits][1]=b` |
+| `null` / `undefined` values         | Skipped                                 |
+
+If your API requires a different serialization style (e.g., comma-separated arrays, repeated keys), use the `params` escape hatch to provide pre-formatted query parameters.
+
+### Migration Guide
+
+Migrating from the classic pattern to the operation overload:
+
+```typescript
+// Step 1: Remove the intermediate variable and typeof
+// BEFORE
+const op = upsertPersonv2({ customerId })
+const { body } = await apiRequest<typeof op.response>({
+  method: op.method,
+  path: op.path,
+  headers: getHeaders(customerId),
+  body: personInput
+})
+
+// AFTER
+const { body } = await apiRequest({
+  operation: upsertPersonv2({ customerId }),
+  headers: getHeaders(customerId),
+  body: personInput
+})
+```
+
+```typescript
+// Step 2: Replace string concatenation with typed query
+// BEFORE
+const op = getPeoplev2({ customerId })
+const { body } = await apiRequest<typeof op.response>({
+  method: op.method,
+  path: `${op.path}?page=0&page_size=5`,
+  headers: getHeaders(customerId)
+})
+
+// AFTER
+const { body } = await apiRequest({
+  operation: getPeoplev2({ customerId }),
+  headers: getHeaders(customerId),
+  query: { page: 0, page_size: 5 }
+})
+```
+
+**Important**: When using the operation overload, **do not pass an explicit generic** (`apiRequest<SomeType>({ operation: ... })`). The return type is inferred from the operation's `response` field automatically. Adding an explicit generic will conflict with the type inference.
+
+### Generator Compatibility
+
+The operation overload works with **any code generator** that produces objects matching the `OperationShape` interface. Tested patterns include:
+
+| Generator                                           | Compatible | Notes                                                      |
+| --------------------------------------------------- | ---------- | ---------------------------------------------------------- |
+| Custom scripts                                      | Yes        | Must produce `{ path, method, response, request, query? }` |
+| [orval](https://orval.dev)                          | Yes        | Configure output to match the structural shape             |
+| [openapi-generator](https://openapi-generator.tech) | Yes        | TypeScript generators produce compatible types             |
+| Published SDK                                       | Yes        | As long as operation objects expose the required fields    |
+
+Since `OperationShape` uses structural typing, your generator does **not** need to import or extend any type from `playwright-utils`. If the object has the right fields with compatible types, it works.
 
 ## UI Mode for API E2E Testing
 

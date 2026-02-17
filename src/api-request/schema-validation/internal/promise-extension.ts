@@ -8,8 +8,9 @@ import type {
 import type { EnhancedApiResponse } from './response-extension'
 
 /** Enhanced Promise with validateSchema method */
-export interface EnhancedApiPromise<T = unknown>
-  extends Promise<EnhancedApiResponse<T>> {
+export interface EnhancedApiPromise<T = unknown> extends Promise<
+  EnhancedApiResponse<T>
+> {
   validateSchema<TValidated = T>(
     schema: SupportedSchema,
     options?: ValidateSchemaOptions

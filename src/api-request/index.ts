@@ -4,12 +4,17 @@ export {
   type ApiRequestParams,
   type ApiRequestResponse,
   type ApiRetryConfig,
+  type OperationShape,
+  type OperationRequestParams,
   ApiRequestError,
   ApiNetworkError
 } from './api-request'
 
-// Re-export the fixture-specific type
-export { type ApiRequestFixtureParams } from './api-request-fixture'
+// Re-export the fixture-specific types
+export {
+  type ApiRequestFixtureParams,
+  type OperationRequestFixtureParams
+} from './api-request-fixture'
 
 // Export schema validation types and functionality
 export type { EnhancedApiResponse } from './schema-validation/internal/response-extension'
