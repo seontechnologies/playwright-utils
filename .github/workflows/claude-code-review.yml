@@ -1,95 +1,76 @@
 name: Claude Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+  issue_comment:
+    types: [created]
 
-# if this branch is pushed back to back, cancel the older branch's workflow
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 jobs:
   claude-review:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: read
-      id-token: write
+    if: |
+      github.event.comment.user.type != 'Bot' &&
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude')
+    uses: seontechnologies/seon-gh-actions/.github/workflows/rwf-claude-code-review.yml@v2
+    with:
+      review_prompt: |
+        IMPORTANT: Skip reviewing any files in the bmad/ directory - these are BMAD-METHOD™ framework files for AI-assisted development planning and should not be reviewed for code quality.
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+        Perform a comprehensive code review for this Playwright utilities library with focus on:
 
-      - name: Run Claude Code Review
-        id: claude-review
-        uses: anthropics/claude-code-action@v1
-        with:
-          # Using API key for per-token billing plan
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        ## TypeScript & Code Quality
+        - **Type safety and proper TypeScript usage** - Strict typing, explicit return types, modern JS features
+        - **Clean code principles and best practices** - Follow established "functional core, fixture shell" patterns
+        - **Module exports and subpath exports correctness** - Dual CommonJS/ESM support, proper package.json exports
+        - **Proper error handling and edge cases** - Integration with Playwright assertions, comprehensive error scenarios
+        - **Performance considerations** - No significant test execution overhead
 
-          # Track progress creates a comment showing review progress
-          track_progress: true
+        ## Playwright Testing Best Practices
+        - **Adherence to Playwright best practices** - No hard waits, proper async handling, dynamic waiting
+        - **Test reliability and flakiness prevention** - Atomic test design, stateless execution
+        - **Proper use of fixtures vs direct functions** - Follow "functional core, fixture shell" pattern
+        - **Parallel test safety** - Tests run independently without shared state
 
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
+        ## Library Design & Architecture
+        - **API consistency across modules** - Uniform patterns across all utility modules
+        - **Proper fixture pattern implementation** - Dual interface support (direct function + fixture)
+        - **Documentation completeness** - Comprehensive docs with real-world examples
+        - **Breaking changes identification** - Backward compatibility with existing repositories
+        - **Separation of concerns** - Clean utility boundaries and responsibilities
 
-            IMPORTANT: Skip reviewing any files in the bmad/ directory - these are BMAD-METHOD™ framework files for AI-assisted development planning and should not be reviewed for code quality.
+        ## Testing Coverage
+        - **Test accompaniment** - When adding new source code, check for tests being updated or added; hopefully unit and/or e2e - preferably both
+        - **Coverage adequacy** - Sufficient test coverage for new utilities
+        - **Test quality** - Edge cases, error scenarios, integration patterns
+        - **Sample-app validation** - End-to-end testing with real applications
 
-            Perform a comprehensive code review for this Playwright utilities library with focus on:
+        ## Performance & Security
+        - **Identify potential performance issues** - Memory leaks, inefficient patterns, test execution overhead
+        - **Check for security vulnerabilities** - Hardcoded secrets, unsafe dependencies, exposure risks
+        - **Validate input sanitization in utilities** - Proper validation, safe data handling, injection prevention
+        - **Review network recording/mocking safety** - HAR file security, mock data handling, credential exposure
+        - **Dependencies** - Minimal external dependencies, appropriate and secure versions
 
-            ## TypeScript & Code Quality
-            - **Type safety and proper TypeScript usage** - Strict typing, explicit return types, modern JS features
-            - **Clean code principles and best practices** - Follow established "functional core, fixture shell" patterns
-            - **Module exports and subpath exports correctness** - Dual CommonJS/ESM support, proper package.json exports
-            - **Proper error handling and edge cases** - Integration with Playwright assertions, comprehensive error scenarios
-            - **Performance considerations** - No significant test execution overhead
+        ## Review Guidelines
+        - Use the repository's CLAUDE.md for guidance on project-specific conventions
+        - Follow the testing best practices defined in the global CLAUDE.md
+        - Provide specific, actionable feedback with code examples where helpful
+        - Prioritize issues by severity: **Critical** → **High** → **Medium** → **Low**
+        - Be constructive and focus on maintainability and reliability
 
-            ## Playwright Testing Best Practices
-            - **Adherence to Playwright best practices** - No hard waits, proper async handling, dynamic waiting
-            - **Test reliability and flakiness prevention** - Atomic test design, stateless execution
-            - **Proper use of fixtures vs direct functions** - Follow "functional core, fixture shell" pattern
-            - **Parallel test safety** - Tests run independently without shared state
+        ## Specific Playwright-Utils Checks
+        - Validate "functional core, fixture shell" pattern implementation
+        - Check dual interface support (direct function + fixture)
+        - Ensure utilities integrate cleanly with Playwright reports
+        - Verify subpath exports are correctly configured
+        - Review sample-app integration and real-world usage patterns
 
-            ## Library Design & Architecture
-            - **API consistency across modules** - Uniform patterns across all utility modules
-            - **Proper fixture pattern implementation** - Dual interface support (direct function + fixture)
-            - **Documentation completeness** - Comprehensive docs with real-world examples
-            - **Breaking changes identification** - Backward compatibility with existing repositories
-            - **Separation of concerns** - Clean utility boundaries and responsibilities
-
-            ## Testing Coverage
-            - **Test accompaniment** - When adding new source code, check for tests being updated or added; hopefully unit and/or e2e - preferably both
-            - **Coverage adequacy** - Sufficient test coverage for new utilities
-            - **Test quality** - Edge cases, error scenarios, integration patterns
-            - **Sample-app validation** - End-to-end testing with real applications
-
-            ## Performance & Security
-            - **Identify potential performance issues** - Memory leaks, inefficient patterns, test execution overhead
-            - **Check for security vulnerabilities** - Hardcoded secrets, unsafe dependencies, exposure risks
-            - **Validate input sanitization in utilities** - Proper validation, safe data handling, injection prevention
-            - **Review network recording/mocking safety** - HAR file security, mock data handling, credential exposure
-            - **Dependencies** - Minimal external dependencies, appropriate and secure versions
-
-            ## Review Guidelines
-            - Use the repository's CLAUDE.md for guidance on project-specific conventions
-            - Follow the testing best practices defined in the global CLAUDE.md
-            - Provide specific, actionable feedback with code examples where helpful
-            - Prioritize issues by severity: **Critical** → **High** → **Medium** → **Low**
-            - Be constructive and focus on maintainability and reliability
-
-            ## Specific Playwright-Utils Checks
-            - Validate "functional core, fixture shell" pattern implementation
-            - Check dual interface support (direct function + fixture)
-            - Ensure utilities integrate cleanly with Playwright reports
-            - Verify subpath exports are correctly configured
-            - Review sample-app integration and real-world usage patterns
-
-            Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
-
-          # Using claude-sonnet-4.5 model with GitHub CLI tools for PR interaction
-          claude_args: '--model claude-sonnet-4-5-20250929 --allowed-tools "mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+      main_branch: 'main'
+      skip_draft_prs: true
+      skip_backports: true
+      skip_epic_to_main: true
+    secrets:
+      anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}

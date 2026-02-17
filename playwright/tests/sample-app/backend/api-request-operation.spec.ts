@@ -179,16 +179,16 @@ test.describe('apiRequest operation-based overload', () => {
 
       const movieId = createBody.data.id
 
-      // GET with operation + schema validation
-      await apiRequest({
+      // GET with operation + schema-only validation (union schemas use schema-only)
+      const { body: getBody } = await apiRequest({
         operation: getMovieByIdOp(movieId),
         baseUrl: API_URL,
         headers: commonHeaders(authToken)
-      }).validateSchema(GetMovieResponseUnionSchema, {
-        shape: {
-          status: 200,
-          data: expect.objectContaining({ id: movieId, name: movie.name })
-        }
+      }).validateSchema(GetMovieResponseUnionSchema)
+
+      expect(getBody).toMatchObject({
+        status: 200,
+        data: { id: movieId, name: movie.name }
       })
 
       // DELETE with operation + schema validation
