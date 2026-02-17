@@ -2,6 +2,7 @@ import { test, expect } from '../../../support/merged-fixtures'
 import { generateMovieWithoutId } from '../../../support/utils/movie-factories'
 import type { OperationShape } from '../../../../src/api-request'
 import { API_URL } from '@playwright/config/local.config'
+import { log } from 'src/log'
 import {
   CreateMovieResponseSchema,
   GetMovieResponseUnionSchema,
@@ -63,7 +64,7 @@ test.describe('apiRequest operation-based overload', () => {
     async ({ apiRequest, authToken }) => {
       const movie = generateMovieWithoutId()
 
-      // CREATE with operation overload + typed body
+      await log.step('CREATE with operation overload + typed body')
       const { status: createStatus, body: createBody } = await apiRequest({
         operation: createMovieOp,
         baseUrl: API_URL,
@@ -75,7 +76,7 @@ test.describe('apiRequest operation-based overload', () => {
       expect(createBody.data.name).toBe(movie.name)
       const movieId = createBody.data.id
 
-      // GET by ID with operation overload
+      await log.step('GET by ID with operation overload')
       const { status: getStatus, body: getBody } = await apiRequest({
         operation: getMovieByIdOp(movieId),
         baseUrl: API_URL,
@@ -88,7 +89,7 @@ test.describe('apiRequest operation-based overload', () => {
         data: { id: movieId, name: movie.name }
       })
 
-      // GET all with query params via operation (name filter)
+      await log.step('GET all with query params via operation (name filter)')
       const { status: queryStatus, body: queryBody } = await apiRequest({
         operation: getAllMoviesOp,
         baseUrl: API_URL,
@@ -102,7 +103,7 @@ test.describe('apiRequest operation-based overload', () => {
         data: expect.objectContaining({ name: movie.name })
       })
 
-      // DELETE with operation overload
+      await log.step('DELETE with operation overload')
       const { status: deleteStatus, body: deleteBody } = await apiRequest({
         operation: deleteMovieOp(movieId),
         baseUrl: API_URL,
@@ -120,7 +121,7 @@ test.describe('apiRequest operation-based overload', () => {
     async ({ apiRequest, authToken }) => {
       const movie = generateMovieWithoutId()
 
-      // Create a movie first
+      await log.step('Create a movie first')
       const { body: createBody } = await apiRequest({
         operation: createMovieOp,
         baseUrl: API_URL,
@@ -130,7 +131,7 @@ test.describe('apiRequest operation-based overload', () => {
 
       const movieId = createBody.data.id
 
-      // Use raw params escape hatch for the name query
+      await log.step('Use raw params escape hatch for the name query')
       const { status, body } = await apiRequest({
         operation: getAllMoviesOp,
         baseUrl: API_URL,
@@ -144,7 +145,7 @@ test.describe('apiRequest operation-based overload', () => {
         data: expect.objectContaining({ name: movie.name })
       })
 
-      // Cleanup
+      await log.step('Cleanup')
       await apiRequest({
         operation: deleteMovieOp(movieId),
         baseUrl: API_URL,
@@ -159,7 +160,7 @@ test.describe('apiRequest operation-based overload', () => {
     async ({ apiRequest, authToken }) => {
       const movie = generateMovieWithoutId()
 
-      // CREATE with operation + schema validation
+      await log.step('CREATE with operation + schema validation')
       const { body: createBody } = await apiRequest({
         operation: createMovieOp,
         baseUrl: API_URL,
@@ -179,7 +180,9 @@ test.describe('apiRequest operation-based overload', () => {
 
       const movieId = createBody.data.id
 
-      // GET with operation + schema-only validation (union schemas use schema-only)
+      await log.step(
+        'GET with operation + schema-only validation (union schemas use schema-only)'
+      )
       const { body: getBody } = await apiRequest({
         operation: getMovieByIdOp(movieId),
         baseUrl: API_URL,
@@ -191,7 +194,7 @@ test.describe('apiRequest operation-based overload', () => {
         data: { id: movieId, name: movie.name }
       })
 
-      // DELETE with operation + schema validation
+      await log.step('DELETE with operation + schema validation')
       await apiRequest({
         operation: deleteMovieOp(movieId),
         baseUrl: API_URL,
@@ -208,7 +211,7 @@ test.describe('apiRequest operation-based overload', () => {
     async ({ apiRequest, authToken }) => {
       const movie = generateMovieWithoutId()
 
-      // Classic style: method + path
+      await log.step('Classic style: method + path')
       const { status, body } = await apiRequest<CreateMovieResponse>({
         method: 'POST',
         path: '/movies',
@@ -220,7 +223,7 @@ test.describe('apiRequest operation-based overload', () => {
       expect(status).toBe(200)
       expect(body.data.name).toBe(movie.name)
 
-      // Cleanup with classic style
+      await log.step('Cleanup with classic style')
       await apiRequest<DeleteMovieResponse>({
         method: 'DELETE',
         path: `/movies/${body.data.id}`,
