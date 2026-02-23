@@ -25,6 +25,8 @@ runs:
     - name: Get installed Playwright version
       id: playwright-version
       shell: bash
+      env:
+        BROWSER_CACHE_BUST: ${{ inputs.browser-cache-bust }}
       run: |
         # Auto-detect package manager from lock files
         if [ -f "pnpm-lock.yaml" ]; then
@@ -59,7 +61,7 @@ runs:
         echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
 
         # Add cache busting timestamp if requested
-        if [ "${{ inputs.browser-cache-bust }}" == "true" ]; then
+        if [ "$BROWSER_CACHE_BUST" == "true" ]; then
           echo "CACHE_BUSTER=$(date +%s)" >> $GITHUB_ENV
           echo "Cache busting enabled for browser installation"
         else

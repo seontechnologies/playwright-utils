@@ -28,14 +28,18 @@ runs:
       id: start-kafka
       continue-on-error: ${{ inputs.continue-on-error == 'true' }}
       shell: bash
+      env:
+        KAFKA_COMPOSE_FILE: ${{ inputs.kafka-compose-file }}
       run: |
-        docker compose -f ${{ inputs.kafka-compose-file }} up -d --no-recreate
+        docker compose -f "$KAFKA_COMPOSE_FILE" up -d --no-recreate
 
     # 2. Wait for Kafka to be ready with health checks
     - name: Wait for Kafka to be ready
       id: health-check
       continue-on-error: ${{ inputs.continue-on-error == 'true' }}
       shell: bash
+      env:
+        HEALTH_CHECK_SCRIPT: ${{ inputs.health-check-script }}
       run: |
         echo "ready=false" >> $GITHUB_OUTPUT
         echo "Waiting for Kafka containers to initialize..."
@@ -53,7 +57,7 @@ runs:
         # Now wait for Kafka to be responsive (allow up to 3 failures)
         for i in {1..3}; do
           echo "Attempt $i: Checking Kafka connectivity..."
-          if node ${{ inputs.health-check-script }}; then
+          if node "$HEALTH_CHECK_SCRIPT"; then
             echo "✅ Kafka is ready!"
             echo "ready=true" >> $GITHUB_OUTPUT
             break
@@ -70,6 +74,8 @@ runs:
     - name: Register Kafka cleanup
       id: register-cleanup
       shell: bash
+      env:
+        KAFKA_COMPOSE_FILE: ${{ inputs.kafka-compose-file }}
       run: |
-        echo "::save-state name=kafka_compose_file::${{ inputs.kafka-compose-file }}"
+        echo "::save-state name=kafka_compose_file::$KAFKA_COMPOSE_FILE"
         echo "Kafka cleanup will be performed at the end of the workflow"

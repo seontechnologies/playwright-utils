@@ -24,9 +24,9 @@ runs:
     - name: Detect package manager
       id: detect-pm
       shell: bash
+      env:
+        INSTALL_CMD: ${{ inputs.install-command }}
       run: |
-        INSTALL_CMD="${{ inputs.install-command }}"
-        
         if [[ "$INSTALL_CMD" == *"pnpm"* ]]; then
           echo "detected=pnpm" >> $GITHUB_OUTPUT
         else
@@ -53,12 +53,15 @@ runs:
     # Note: Still need to run install even with cache hit to run scripts, lifecycle hooks, and build binaries
     - name: Install dependencies
       shell: bash
+      env:
+        DETECTED_PM: ${{ steps.detect-pm.outputs.detected }}
+        INSTALL_CMD: ${{ inputs.install-command }}
       run: |
         # First ensure the package manager is installed if using pnpm
-        if [ "${{ steps.detect-pm.outputs.detected }}" == "pnpm" ] && ! command -v pnpm &> /dev/null; then
+        if [ "$DETECTED_PM" == "pnpm" ] && ! command -v pnpm &> /dev/null; then
           echo "Installing pnpm..."
           npm install -g pnpm
         fi
-        
+
         # Then run the provided install command
-        ${{ inputs.install-command }}
+        eval "$INSTALL_CMD"
