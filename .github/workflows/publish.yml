@@ -48,9 +48,12 @@ jobs:
 
       # 5. Validate custom version input if provided
       - name: Validate inputs
+        env:
+          VERSION_TYPE: ${{ github.event.inputs.version_type }}
+          CUSTOM_VERSION: ${{ github.event.inputs.custom_version }}
         run: |
-          if [[ "${{ github.event.inputs.version_type }}" == "custom" ]]; then
-            if [[ -z "${{ github.event.inputs.custom_version }}" ]]; then
+          if [[ "$VERSION_TYPE" == "custom" ]]; then
+            if [[ -z "$CUSTOM_VERSION" ]]; then
               echo "ERROR: custom_version must be provided when version_type=custom"
               exit 1
             fi
@@ -65,6 +68,9 @@ jobs:
       # 7. Calculate and set version
       - name: Calculate version
         id: version
+        env:
+          VERSION_TYPE: ${{ github.event.inputs.version_type }}
+          CUSTOM_VERSION: ${{ github.event.inputs.custom_version }}
         run: |
           # Get current version
           CURRENT_VERSION=$(npm pkg get version | tr -d '"')
@@ -72,25 +78,25 @@ jobs:
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
           # Determine version
-          if [[ "${{ github.event.inputs.version_type }}" == "custom" ]]; then
-            NEW_VERSION="${{ github.event.inputs.custom_version }}"
+          if [[ "$VERSION_TYPE" == "custom" ]]; then
+            NEW_VERSION="$CUSTOM_VERSION"
             echo "Setting custom version: $NEW_VERSION"
           else
             # Use standard semver with a robust increment approach
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
             PATCH_BASE="${PATCH%%-*}" # Remove anything after a dash
-            
-            if [[ "${{ github.event.inputs.version_type }}" == "major" ]]; then
+
+            if [[ "$VERSION_TYPE" == "major" ]]; then
               NEW_MAJOR=$((MAJOR + 1))
               NEW_VERSION="$NEW_MAJOR.0.0"
-            elif [[ "${{ github.event.inputs.version_type }}" == "minor" ]]; then
+            elif [[ "$VERSION_TYPE" == "minor" ]]; then
               NEW_MINOR=$((MINOR + 1))
               NEW_VERSION="$MAJOR.$NEW_MINOR.0"
             else
               NEW_PATCH=$((PATCH_BASE + 1))
               NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
             fi
-            
+
             echo "Setting semver version: $NEW_VERSION"
           fi
 
