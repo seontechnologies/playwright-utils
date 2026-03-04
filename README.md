@@ -23,10 +23,10 @@ Use functions for scripts and simple cases. Use fixtures for test suites.
 
 ## Utilities
 
-| Category     | Utilities                                                                                                                                                                                          |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Agnostic** | [API Request](./docs/api-request.md), [Auth Session](./docs/auth-session.md), [Recurse](./docs/recurse.md), [Log](./docs/log.md), [File Utils](./docs/file-utils.md), [Burn-in](./docs/burn-in.md) |
-| **Frontend** | [Network Interception](./docs/intercept-network-call.md), [Network Recorder](./docs/network-recorder.md), [Network Error Monitor](./docs/network-error-monitor.md)                                 |
+| Category     | Utilities                                                                                                                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Agnostic** | [API Request](./docs/api-request.md), [Auth Session](./docs/auth-session.md), [Recurse](./docs/recurse.md), [Log](./docs/log.md), [File Utils](./docs/file-utils.md), [Test Burn-in](./docs/burn-in.md) |
+| **Frontend** | [Network Interception](./docs/intercept-network-call.md), [Network Recorder](./docs/network-recorder.md), [Network Error Monitor](./docs/network-error-monitor.md)                                      |
 
 - [Playwright Utils](#playwright-utils)
   - [One Pattern, Two Ways to Use](#one-pattern-two-ways-to-use)
@@ -42,7 +42,7 @@ Use functions for scripts and simple cases. Use fixtures for test suites.
       - [Implementation Steps](#implementation-steps)
     - [File Utilities](#file-utilities)
     - [Network Recorder](#network-recorder)
-    - [Burn-in](#burn-in)
+    - [Test Burn-in](#test-burn-in)
     - [Network Error Monitor](#network-error-monitor)
   - [Module Format Support](#module-format-support)
     - [Testing Strategy in this repository](#testing-strategy-in-this-repository)
@@ -528,15 +528,19 @@ PW_NET_MODE=playback npm run test:pw # Playback from existing HAR files
 
 [→ Network Recorder Documentation](./docs/network-recorder.md)
 
-### [Burn-in](./docs/burn-in.md)
+### [Test Burn-in](./docs/burn-in.md)
 
-A **smart test burn-in utility** that enhances Playwright's `--only-changed` using a process of elimination to reduce unnecessary test runs.
+A **test reliability verification tool** that finds tests affected by your code changes and runs each one multiple times to prove they pass consistently — catching flaky tests before they reach your main branch.
 
-**Key Benefits**:
+> **Not a test skipper.** The goal is not to run fewer tests. It is to run the _right_ tests _more_ times so you can merge with confidence.
 
-- 🚫 **Skip irrelevant changes**: Config/type files don't trigger tests
-- 📊 **Volume control**: Run a percentage of tests AFTER filtering
-- 🎯 **Process of elimination**: Start with all, filter out irrelevant, control volume
+**How it works**:
+
+1. `git diff` finds changed files in your branch
+2. Skip patterns filter out noise (configs, types, docs)
+3. `madge` dependency graph traces exactly which tests are affected
+4. Each affected test runs multiple times (`repeatEach: 3` by default)
+5. All pass? Safe to merge. Any fail? Flaky test caught early.
 
 **Quick Setup**:
 
@@ -570,7 +574,7 @@ main().catch(console.error)
 import type { BurnInConfig } from '@seontechnologies/playwright-utils/burn-in'
 
 const config: BurnInConfig = {
-  // Files that should never trigger tests (first filter)
+  // Files that should never trigger tests
   skipBurnInPatterns: [
     '**/config/**',
     '**/*constants*',
@@ -578,26 +582,17 @@ const config: BurnInConfig = {
     '**/*.md'
   ],
 
-  // Control test volume AFTER skip filtering (0.3 = 30% of remaining tests)
-  burnInTestPercentage: process.env.CI ? 0.2 : 0.3,
-
-  // Burn-in repetition settings
+  // Burn-in repetition settings (the core of burn-in)
   burnIn: {
-    repeatEach: process.env.CI ? 2 : 3,
+    repeatEach: process.env.CI ? 2 : 3, // Run each test N times
     retries: process.env.CI ? 0 : 1
-  }
+  },
+
+  // Optional: sample a percentage of affected tests in CI for large changesets
+  burnInTestPercentage: process.env.CI ? 0.5 : 1
 }
 export default config
 ```
-
-**How it works (Custom Dependency Analysis)**:
-
-1. **Git diff analysis** identifies all changed files (e.g., 21 files)
-2. **Skip patterns** filter out irrelevant files (e.g., 6 config files → 15 remaining files)
-3. **Custom dependency analyzer** finds tests that actually depend on those 15 files (e.g., 3 tests)
-4. **Volume control** runs a percentage of the found tests (e.g., 100% of 3 = 3 tests)
-
-Result: Run 3 targeted tests instead of 147 with Playwright's `--only-changed`!
 
 [→ Burn-in Documentation](./docs/burn-in.md)
 

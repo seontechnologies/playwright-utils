@@ -1,15 +1,20 @@
 ---
-title: Burn-in Testing
-description: Smart test burn-in utility with intelligent filtering based on file changes
+title: Test Burn-in
+description: Repeatedly run tests affected by your changes to prove they are reliable before merging
 ---
 
-# Burn-in Test Runner
+# Test Burn-in
 
-A smart test burn-in utility for Playwright that intelligently filters which tests to run based on file changes, reducing unnecessary test execution while maintaining reliability.
+**What burn-in is:** A reliability verification tool. It identifies tests affected by your code changes, then runs each one multiple times (`repeatEach`) to prove they pass consistently — not just once by luck. If a test is flaky, burn-in will catch it before it reaches your main branch.
 
-- [Burn-in Test Runner](#burn-in-test-runner)
+**What burn-in is NOT:** It is _not_ a selective test runner or a test-skipping optimization. The goal is not to run fewer tests — it is to run the _right_ tests _more_ times so you can merge with confidence.
+
+**Why "burn-in"?** The term comes from hardware manufacturing, where new components are stressed under load before shipping to surface early failures. Similarly, test burn-in stress-tests your changed code paths by repeating affected tests, surfacing intermittent failures that a single run would miss.
+
+- [Test Burn-in](#test-burn-in)
   - [The Problem](#the-problem)
   - [The Solution](#the-solution)
+  - [How It Works](#how-it-works)
   - [Installation \& Usage](#installation--usage)
     - [Create Burn-in Script](#create-burn-in-script)
     - [Package.json Script](#packagejson-script)
@@ -25,27 +30,45 @@ A smart test burn-in utility for Playwright that intelligently filters which tes
     - [GitHub Actions Integration](#github-actions-integration)
       - [Step 1: Create Your Burn-in Workflow](#step-1-create-your-burn-in-workflow)
       - [Step 2: Create Your E2E Workflow](#step-2-create-your-e2e-workflow)
-    - [How It Works](#how-it-works)
+    - [CI Flow Summary](#ci-flow-summary)
     - [Key Configuration Points](#key-configuration-points)
 
 ## The Problem
 
-Playwright's built-in `--only-changed` feature triggers all affected tests when any file changes, leading to:
+Flaky tests erode confidence in your test suite. A test that passes once might fail on the next run due to race conditions, timing issues, or shared state. You only find out after merging — when the damage is done.
 
-- **Excessive test runs**: Changes to config files or type definitions trigger hundreds of tests unnecessarily
-- **Slow CI/CD pipelines**: Full test suites run even for changes that don't affect test behavior
-- **No volume control**: It's all or nothing - you can't run a subset for safety
+Running your _entire_ test suite repeatedly is wasteful. What you need is to repeatedly run only the tests affected by your changes, so you can catch flakiness early without burning CI time on unrelated tests.
+
+Playwright's built-in `--only-changed` is a step in the right direction, but it's imprecise — changes to config files or type definitions can trigger hundreds of unrelated tests, and there's no way to repeat-run the results for reliability verification.
 
 ## The Solution
 
-The burn-in utility uses custom dependency analysis with two simple controls:
+Test burn-in combines **precise dependency analysis** with **repeated execution** to verify reliability:
 
-1. **Build dependency graph** via `madge` and map changed files to affected tests (direct and transitive imports). This is more precise than `--only-changed` because it follows real dependency edges instead of assuming every touched file should trigger all tests.
-
-2. **Skip patterns** (`skipBurnInPatterns`) → Files that should never trigger tests (configs, types, docs)
-3. **Volume control** (`burnInTestPercentage`) → Run a percentage of affected tests after dependency analysis
+1. **Identify what changed** — `git diff` finds changed files in your branch
+2. **Filter noise** — `skipBurnInPatterns` removes files that shouldn't trigger tests (configs, types, docs)
+3. **Trace dependencies** — `madge` builds an import graph and finds exactly which tests depend on the changed files
+4. **Repeat for confidence** — Each affected test runs multiple times (`repeatEach: 3` by default) to surface intermittent failures
+5. **Volume control** — `burnInTestPercentage` optionally samples a percentage of affected tests (useful in CI for very large change sets)
 
 > Under the hood, dependency analysis uses `madge` to build a project-wide import graph (including type imports). The burn-in runner walks that graph to find tests that directly or indirectly depend on changed files, then filters with `skipBurnInPatterns`. If dependency analysis fails, it falls back to Playwright's `--only-changed` mode.
+
+## How It Works
+
+```
+git diff → changed files (e.g. 21 files)
+    ↓
+skip patterns → filter out configs, types, docs (e.g. 15 remaining)
+    ↓
+madge dependency graph → find affected tests (e.g. 3 tests)
+    ↓
+volume control → sample percentage (e.g. 100% = 3 tests)
+    ↓
+repeatEach: 3 → run each test 3 times (9 total executions)
+    ↓
+All pass? → Safe to merge ✅
+Any fail? → Flaky test caught before merge ❌
+```
 
 ## Installation & Usage
 
@@ -342,7 +365,7 @@ jobs:
           npm run test:e2e  # Your actual E2E test command
 ```
 
-### How It Works
+### CI Flow Summary
 
 Your burn-in workflow will:
 
