@@ -197,7 +197,7 @@
     "@types/js-yaml": "4.0.9",
     "@types/lodash": "4.17.24",
     "@types/madge": "5.0.3",
-    "@types/node": "22.19.13",
+    "@types/node": "22.19.15",
     "@types/papaparse": "5.5.2",
     "@types/picomatch": "4.0.2",
     "@types/proper-lockfile": "4.1.4",
