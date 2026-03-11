@@ -62,8 +62,8 @@ jobs:
       # 6. Configure git
       - name: Configure git
         run: |
-          git config --global user.name "SEON CI Bot"
-          git config --global user.email "ci-bot@seon.io"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       # 7. Calculate and set version
       - name: Calculate version
