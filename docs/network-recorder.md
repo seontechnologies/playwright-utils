@@ -437,27 +437,30 @@ await networkRecorder.setup(context, {
       // Static mapping for known environments
       hostMapping: {
         // Local development
-        'localhost:3000': 'admin.seondev.space',
+        'localhost:3000': 'admin.example-dev.space',
 
         // Staging environments
-        'admin-staging.seon.io': 'admin.seondev.space',
-        'admin-staging.us-east-1-main.seon.io': 'admin.seondev.space',
+        'admin-staging.example.com': 'admin.example-dev.space',
+        'admin-staging.us-east-1-main.example.com': 'admin.example-dev.space',
 
         // Production environments
-        'admin.seon.io': 'admin.seondev.space',
-        'admin.us-east-1-main.seon.io': 'admin.seondev.space',
-        'admin.ap-southeast-1-main.seon.io': 'admin.seondev.space'
+        'admin.example.com': 'admin.example-dev.space',
+        'admin.us-east-1-main.example.com': 'admin.example-dev.space',
+        'admin.ap-southeast-1-main.example.com': 'admin.example-dev.space'
       },
 
       // Pattern matching for dynamic environments
       patterns: [
-        // PR preview environments (admin-1234.seondev.space)
-        { match: /admin-\d+\.seondev\.space/, replace: 'admin.seondev.space' },
+        // PR preview environments (admin-1234.example-dev.space)
+        {
+          match: /admin-\d+\.example-dev\.space/,
+          replace: 'admin.example-dev.space'
+        },
 
         // Staging PR previews
         {
-          match: /admin-staging-pr-\w+-\d\.seon\.io/,
-          replace: 'admin.seondev.space'
+          match: /admin-staging-pr-\w+-\d\.example\.com/,
+          replace: 'admin.example-dev.space'
         }
       ]
     }

@@ -6,7 +6,7 @@
     "sample-app/*"
   ],
   "author": "Murat Ozcan",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/types/index.d.ts",
