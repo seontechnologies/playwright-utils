@@ -786,7 +786,7 @@ import { test } from '../support/auth/auth-fixture'
 test('authenticated API request', async ({ authToken, request }) => {
   // Use the token as a cookie for API requests
   const response = await request.get('/api/protected', {
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   })
   expect(response.status()).toBe(200)
 })
@@ -1002,12 +1002,12 @@ test('admin and regular user interaction', async ({ request }) => {
 
   // Use extracted tokens for API requests
   const adminResponse = await request.get('/api/admin-only-resource', {
-    headers: { Cookie: `seon-jwt=${adminToken}` }
+    headers: { Cookie: `app-jwt=${adminToken}` }
   })
   expect(adminResponse.ok()).toBeTruthy()
 
   const userResponse = await request.get('/api/user-resource', {
-    headers: { Cookie: `seon-jwt=${userToken}` }
+    headers: { Cookie: `app-jwt=${userToken}` }
   })
   expect(userResponse.ok()).toBeTruthy()
 

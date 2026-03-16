@@ -101,7 +101,7 @@ test.describe('CRUD movie with schema validation', () => {
           name: movie.name
         },
         headers: {
-          Cookie: `seon-jwt=${authToken}`
+          Cookie: `app-jwt=${authToken}`
         }
       }).validateSchema<GetMovieResponse>(GetMovieResponseUnionSchema)
 
@@ -120,7 +120,7 @@ test.describe('CRUD movie with schema validation', () => {
       baseUrl: API_URL,
       body: updatedMovie,
       headers: {
-        Cookie: `seon-jwt=${authToken}`
+        Cookie: `app-jwt=${authToken}`
       }
     }).validateSchema(UpdateMovieResponseSchema, {
       shape: {
@@ -154,7 +154,7 @@ test.describe('CRUD movie with schema validation', () => {
         path: `/movies/${movieId}`,
         baseUrl: API_URL,
         headers: {
-          Cookie: `seon-jwt=${authToken}`
+          Cookie: `app-jwt=${authToken}`
         }
       }
     ).validateSchema<DeleteMovieResponse>(DeleteMovieResponseSchema, {
@@ -190,7 +190,7 @@ test.describe('CRUD movie with schema validation', () => {
         path: `/movies/${movieId}`,
         baseUrl: API_URL,
         headers: {
-          Cookie: `seon-jwt=${authToken}`
+          Cookie: `app-jwt=${authToken}`
         }
       }).validateSchema<MovieNotFoundResponse>(MovieNotFoundResponseSchema, {
         shape: {

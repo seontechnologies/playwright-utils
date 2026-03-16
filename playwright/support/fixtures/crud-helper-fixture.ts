@@ -45,7 +45,7 @@ type AddMovieParams = {
 
 // Server expects auth in a cookie, not Authorization header
 const commonHeaders = (token: string) => ({
-  Cookie: `seon-jwt=${token}`
+  Cookie: `app-jwt=${token}`
 })
 
 export const test = baseApiRequestFixture.extend<AddMovieParams>({

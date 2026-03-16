@@ -11,7 +11,7 @@ test.describe('Schema Validation - Comprehensive E2E Tests', () => {
   const movieData = generateMovieWithoutId()
   // Server expects auth in a cookie, not Authorization header
   const commonHeaders = (token: string) => ({
-    Cookie: `seon-jwt=${token}`
+    Cookie: `app-jwt=${token}`
   })
 
   test('JSON Schema validation basics', async ({ apiRequest, authToken }) => {

@@ -592,7 +592,7 @@ test('schema validation basics', async ({
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   })
   expect(response.status).toBe(200)
   expect(response.body.data.name).toBe('Test Movie')
@@ -604,7 +604,7 @@ test('schema validation basics', async ({
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   }).validateSchema(CreateMovieResponseSchema, {
     shape: { status: 200, data: { name: 'Test Movie' } }
   })
@@ -663,7 +663,7 @@ test('JSON Schema validation basics', async ({ apiRequest, authToken }) => {
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   }).validateSchema(jsonSchema, {
     shape: {
       status: 200,
@@ -759,7 +759,7 @@ test('Zod schema validation with TypeScript inference', async ({
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   }).validateSchema(CreateMovieResponseSchema)
   // Fixture style:
   // const { body } = await apiRequest({ ... })
@@ -802,7 +802,7 @@ test('OpenAPI JSON specification validation', async ({
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   }).validateSchema(openApiJson, {
     endpoint: '/movies',
     method: 'POST',
@@ -844,7 +844,7 @@ test('awaited OpenAPI JSON validation', async ({
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   })
 
   const result = await validateSchema(openApiJson, body, {
@@ -867,7 +867,7 @@ test('OpenAPI YAML file validation', async ({ apiRequest, authToken }) => {
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   }).validateSchema('./api-docs/openapi.yml', {
     path: '/movies', // 'path' and 'endpoint' are interchangeable
     method: 'POST',
@@ -903,7 +903,7 @@ test('schema validation without shape assertions', async ({
   const response = await apiRequest({
     method: 'GET',
     path: `/movies/123`,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   }).validateSchema(GetMovieResponseUnionSchema)
   // Fixture style:
   // const { body } = await apiRequest({ ... })
@@ -931,7 +931,7 @@ test('return mode validation with awaited helper', async ({
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   })
 
   const result = await validateSchema('./api-docs/openapi.yml', body, {
@@ -959,7 +959,7 @@ test('return mode validation - does not throw on failure', async ({
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   }).validateSchema(
     z.object({
       status: z.literal(999), // This will fail - API returns 200
@@ -1001,7 +1001,7 @@ test('combined schema + shape validation with functions', async ({
     method: 'POST',
     path: '/movies',
     body: movieData,
-    headers: { Cookie: `seon-jwt=${authToken}` }
+    headers: { Cookie: `app-jwt=${authToken}` }
   }).validateSchema(CreateMovieResponseSchema, {
     shape: {
       status: 200,
@@ -1343,7 +1343,7 @@ test('API test with UI display', async ({ apiRequest }) => {
 
 ### CRUD Operations with Typed Fixtures
 
-The API request utility shines when used with fixtures for CRUD operations. This example shows a real implementation using proper typing and SEON's functional approach:
+The API request utility shines when used with fixtures for CRUD operations. This example shows a real implementation using proper typing and a functional approach:
 
 ```typescript
 // From playwright/support/fixtures/crud-helper-fixture.ts

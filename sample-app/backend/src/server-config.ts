@@ -37,7 +37,7 @@ server.post('/auth/fake-token', (_req, res) => {
   const refreshExpiresDate = new Date(refreshExpires * 1000)
 
   // Set both cookies
-  res.cookie('seon-jwt', jwtToken, {
+  res.cookie('app-jwt', jwtToken, {
     domain: 'localhost',
     path: '/',
     expires: jwtExpiresDate,
@@ -46,7 +46,7 @@ server.post('/auth/fake-token', (_req, res) => {
     sameSite: 'lax'
   })
 
-  res.cookie('seon-refresh', refreshToken, {
+  res.cookie('app-refresh', refreshToken, {
     domain: 'localhost',
     path: '/',
     expires: refreshExpiresDate,
@@ -106,7 +106,7 @@ server.post('/auth/identity-token', (req, res) => {
   const refreshExpiresDate = new Date(refreshExpires * 1000)
 
   // Set both cookies
-  res.cookie('seon-jwt', jwtToken, {
+  res.cookie('app-jwt', jwtToken, {
     domain: 'localhost',
     path: '/',
     expires: jwtExpiresDate,
@@ -115,7 +115,7 @@ server.post('/auth/identity-token', (req, res) => {
     sameSite: 'lax'
   })
 
-  res.cookie('seon-refresh', refreshToken, {
+  res.cookie('app-refresh', refreshToken, {
     domain: 'localhost',
     path: '/',
     expires: refreshExpiresDate,
@@ -138,7 +138,7 @@ server.post('/auth/identity-token', (req, res) => {
 
 // Validate authentication endpoint
 server.get('/auth/validate', (req, res) => {
-  const jwtToken = req.cookies?.['seon-jwt']
+  const jwtToken = req.cookies?.['app-jwt']
 
   if (!jwtToken) {
     return res.status(200).json({
@@ -218,7 +218,7 @@ server.get('/auth/validate', (req, res) => {
 })
 
 server.post('/auth/renew', (req, res) => {
-  const refreshToken = req.cookies?.['seon-refresh']
+  const refreshToken = req.cookies?.['app-refresh']
 
   if (!refreshToken) {
     return res.status(401).json({
@@ -292,7 +292,7 @@ server.post('/auth/renew', (req, res) => {
   const jwtExpiresDate = new Date(jwtExpires * 1000)
 
   // Set the JWT cookie
-  res.cookie('seon-jwt', jwtToken, {
+  res.cookie('app-jwt', jwtToken, {
     domain: 'localhost',
     path: '/',
     expires: jwtExpiresDate,
@@ -314,7 +314,7 @@ server.post('/auth/renew', (req, res) => {
 // Logout endpoint - clears authentication cookies
 server.post('/auth/logout', (_req, res) => {
   // Clear both cookies by setting them with immediate expiration
-  res.cookie('seon-jwt', '', {
+  res.cookie('app-jwt', '', {
     domain: 'localhost',
     path: '/',
     expires: new Date(0), // Expire immediately
@@ -323,7 +323,7 @@ server.post('/auth/logout', (_req, res) => {
     sameSite: 'lax'
   })
 
-  res.cookie('seon-refresh', '', {
+  res.cookie('app-refresh', '', {
     domain: 'localhost',
     path: '/',
     expires: new Date(0), // Expire immediately

@@ -5,7 +5,7 @@ import { tokenService } from '../services/token-service'
 
 /**
  * Custom hook for handling authentication
- * Follows SEON's functional programming principles with:
+ * Follows functional programming principles with:
  * - Pure functions
  * - Immutable state
  * - Separation of concerns

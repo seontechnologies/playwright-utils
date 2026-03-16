@@ -14,7 +14,7 @@ process.env.API_E2E_UI_MODE = 'true'
 test.describe('Multi-Format Schema Validation', () => {
   const movieData = generateMovieWithoutId()
   const commonHeaders = (token: string) => ({
-    Cookie: `seon-jwt=${token}`
+    Cookie: `app-jwt=${token}`
   })
 
   test('YAML OpenAPI schema validation with path parameter', async ({
