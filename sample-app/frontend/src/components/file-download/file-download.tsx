@@ -79,7 +79,7 @@ const availableFiles: FileItem[] = [
   {
     id: 5,
     name: 'Excel Spreadsheet',
-    filename: 'seon_transactions_export_1750243320497.xlsx',
+    filename: 'transactions_export.xlsx',
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     size: '1.4 MB'
   }

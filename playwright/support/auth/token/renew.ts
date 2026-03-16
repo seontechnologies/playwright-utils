@@ -79,11 +79,11 @@ export function needsTokenRenewal(
 
   // Find the JWT and refresh tokens
   const jwtCookie = storageState.cookies.find(
-    (cookie: Cookie) => cookie.name === 'seon-jwt'
+    (cookie: Cookie) => cookie.name === 'app-jwt'
   )
 
   const refreshCookie = storageState.cookies.find(
-    (cookie: Cookie) => cookie.name === 'seon-refresh'
+    (cookie: Cookie) => cookie.name === 'app-refresh'
   )
 
   // JWT is expired but refresh token is valid

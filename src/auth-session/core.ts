@@ -1,7 +1,7 @@
 /**
  * Core authentication functionality for the auth session library
  * This file is the single source of truth for the public API
- * following SEON's functional programming principles
+ * following functional programming principles
  */
 
 import type { APIRequestContext } from '@playwright/test'

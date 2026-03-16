@@ -16,7 +16,7 @@ Content-Type: application/json
 # @name validateAuthWithToken
 # Test the authentication validation endpoint with token
 GET {{baseUrl}}/auth/validate
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 ###
 # @name renewToken
@@ -36,7 +36,7 @@ GET {{baseUrl}}
 # @name addMovie
 POST {{baseUrl}}/movies
 Content-Type: application/json
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 {
     "name": "Inception",
@@ -52,23 +52,23 @@ Cookie: seon-jwt={{token}}
 ###
 # @name getAllMovies
 GET {{baseUrl}}/movies
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 ###
 # @name getMovieById
 GET {{baseUrl}}/movies/{{movieId}}
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 ###
 # @name getMovieByName
 GET {{baseUrl}}/movies?name={{movieName}}
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 ###
 # @name addDuplicateMovie
 POST {{baseUrl}}/movies/
 Content-Type: application/json
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 {
     "name": "Inception",
@@ -81,7 +81,7 @@ Cookie: seon-jwt={{token}}
 # @name addMovieInvalidYear
 POST {{baseUrl}}/movies
 Content-Type: application/json
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 {
     "name": "Invalid Year Movie",
@@ -94,7 +94,7 @@ Cookie: seon-jwt={{token}}
 # @name updateMovie
 PUT {{baseUrl}}/movies/{{movieId}}
 Content-Type: application/json
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 {
     "name": "Inception Updated",
@@ -106,19 +106,19 @@ Cookie: seon-jwt={{token}}
 ###
 # @name deleteMovie
 DELETE {{baseUrl}}/movies/{{movieId}}
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 
 ###
 # @name getNonExistentMovie
 GET {{baseUrl}}/movies/999
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 Authorization: {{token}}
 
 
 ###
 # @name deleteNonExistentMovie
 DELETE {{baseUrl}}/movies/999
-Cookie: seon-jwt={{token}}
+Cookie: app-jwt={{token}}
 Authorization: {{token}}
 
 

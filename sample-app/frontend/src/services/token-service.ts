@@ -105,12 +105,12 @@ export class StorageStateTokenService implements TokenService {
 
     // Store identity in localStorage from the JWT cookie if available
     try {
-      const jwtCookie = state.cookies.find((c) => c.name === 'seon-jwt')
+      const jwtCookie = state.cookies.find((c) => c.name === 'app-jwt')
       if (jwtCookie && jwtCookie.value.includes(':')) {
         const [, identityPart] = jwtCookie.value.split(':')
         if (identityPart) {
           const identity = JSON.parse(identityPart)
-          localStorage.setItem('seon-user-identity', JSON.stringify(identity))
+          localStorage.setItem('app-user-identity', JSON.stringify(identity))
           console.log(
             'Identity extracted from token and saved to localStorage:',
             identity
@@ -306,7 +306,7 @@ export class StorageStateTokenService implements TokenService {
       return false
     }
 
-    const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
+    const cookie = token.cookies.find((c) => c.name === 'app-jwt')
     if (!cookie) {
       return false
     }
@@ -419,7 +419,7 @@ export class StorageStateTokenService implements TokenService {
 
     try {
       // Find the refresh token cookie
-      const cookie = token.cookies.find((c) => c.name === 'seon-refresh')
+      const cookie = token.cookies.find((c) => c.name === 'app-refresh')
       if (!cookie) {
         console.debug('No refresh token cookie found')
         return false
@@ -453,7 +453,7 @@ export class StorageStateTokenService implements TokenService {
       return ''
     }
 
-    const cookie = token.cookies.find((c) => c.name === 'seon-jwt')
+    const cookie = token.cookies.find((c) => c.name === 'app-jwt')
     if (!cookie) return ''
 
     // Remove Bearer prefix if present
@@ -518,13 +518,13 @@ export class StorageStateTokenService implements TokenService {
       if (identity) {
         // Store user identity in localStorage for persistence
         try {
-          localStorage.setItem('seon-user-identity', JSON.stringify(identity))
+          localStorage.setItem('app-user-identity', JSON.stringify(identity))
           this.currentUser = identity
 
           // Update the JWT token to include the user identity if it exists
           if (this.currentToken) {
             const jwtCookie = this.currentToken.cookies.find(
-              (c) => c.name === 'seon-jwt'
+              (c) => c.name === 'app-jwt'
             )
             if (jwtCookie) {
               // Only append identity if not already present
@@ -541,7 +541,7 @@ export class StorageStateTokenService implements TokenService {
           console.error('Failed to store user identity in localStorage', e)
         }
       } else {
-        localStorage.removeItem('seon-user-identity')
+        localStorage.removeItem('app-user-identity')
         this.currentUser = null
       }
     }
@@ -560,7 +560,7 @@ export class StorageStateTokenService implements TokenService {
     // Try to restore from localStorage
     if (typeof window !== 'undefined') {
       try {
-        const storedIdentity = localStorage.getItem('seon-user-identity')
+        const storedIdentity = localStorage.getItem('app-user-identity')
         if (storedIdentity) {
           this.currentUser = JSON.parse(storedIdentity)
           return this.currentUser
@@ -621,7 +621,7 @@ export class StorageStateTokenService implements TokenService {
     // Clear browser cookies if in browser
     if (typeof window !== 'undefined') {
       // Clear localStorage items
-      localStorage.removeItem('seon-user-identity')
+      localStorage.removeItem('app-user-identity')
 
       // Use the setCookie helper to properly clear cookies with all attributes
       const cookieOptions = {
@@ -633,19 +633,19 @@ export class StorageStateTokenService implements TokenService {
       }
 
       // Clear JWT and refresh token cookies with proper attributes
-      setCookie('seon-jwt', '', cookieOptions)
-      setCookie('seon-refresh', '', cookieOptions)
+      setCookie('app-jwt', '', cookieOptions)
+      setCookie('app-refresh', '', cookieOptions)
 
       // Double-check cookies were cleared
-      if (getCookie('seon-jwt') || getCookie('seon-refresh')) {
+      if (getCookie('app-jwt') || getCookie('app-refresh')) {
         console.warn(
           'Failed to clear auth cookies on first attempt, trying alternate method'
         )
         // Fallback: Try standard document.cookie method as well for better compatibility
         document.cookie =
-          'seon-jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+          'app-jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
         document.cookie =
-          'seon-refresh=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+          'app-refresh=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
       }
     }
   }
@@ -660,8 +660,8 @@ export class StorageStateTokenService implements TokenService {
       console.debug('All document cookies:', document.cookie)
 
       // Check for JWT cookie in browser
-      const jwtValue = getCookie('seon-jwt')
-      const refreshValue = getCookie('seon-refresh')
+      const jwtValue = getCookie('app-jwt')
+      const refreshValue = getCookie('app-refresh')
 
       console.debug('Restoring cookies from browser:', {
         jwtValue,
@@ -709,7 +709,7 @@ export class StorageStateTokenService implements TokenService {
         }
 
         cookies.push({
-          name: 'seon-jwt',
+          name: 'app-jwt',
           value: normalizedValue,
           domain: window.location.hostname,
           path: '/',
@@ -723,7 +723,7 @@ export class StorageStateTokenService implements TokenService {
       if (refreshValue) {
         console.log('Found refresh cookie, adding to storage state')
         cookies.push({
-          name: 'seon-refresh',
+          name: 'app-refresh',
           value: refreshValue,
           domain: window.location.hostname,
           path: '/',

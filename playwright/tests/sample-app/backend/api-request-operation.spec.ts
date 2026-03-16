@@ -20,7 +20,7 @@ import type {
 // (no imports from playwright-utils needed for the shape)
 
 const commonHeaders = (token: string) => ({
-  Cookie: `seon-jwt=${token}`
+  Cookie: `app-jwt=${token}`
 })
 
 const createMovieOp = {

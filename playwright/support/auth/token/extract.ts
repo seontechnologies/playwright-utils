@@ -31,7 +31,7 @@ export const extractToken = (
   ) {
     // Find the auth cookie
     const authCookie = tokenData.cookies.find(
-      (cookie) => cookie.name === 'seon-jwt'
+      (cookie) => cookie.name === 'app-jwt'
     )
 
     // Return the token value if found
@@ -72,7 +72,7 @@ export const extractCookies = (
   if (token) {
     return [
       {
-        name: 'seon-jwt',
+        name: 'app-jwt',
         value: token,
         domain: 'localhost',
         path: '/'

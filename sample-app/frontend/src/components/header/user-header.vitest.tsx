@@ -18,7 +18,7 @@ describe('<UserHeader />', () => {
     Object.defineProperty(window, 'localStorage', {
       value: {
         getItem: vi.fn((key) => {
-          if (key === 'seon-user-identity') {
+          if (key === 'app-user-identity') {
             return JSON.stringify({ username, userIdentifier })
           }
           return null

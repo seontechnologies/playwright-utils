@@ -12,7 +12,7 @@ test.describe('Schema Validation - Error Scenarios', () => {
   const validMovieData = generateMovieWithoutId()
   // Server expects auth in a cookie, not Authorization header
   const commonHeaders = (token: string) => ({
-    Cookie: `seon-jwt=${token}`
+    Cookie: `app-jwt=${token}`
   })
 
   test('Schema validation failure with detailed context', async ({

@@ -19,7 +19,7 @@ type Token = {
 }
 
 // Cookie name that contains the authentication token
-const AUTH_COOKIE_NAME = 'seon-jwt'
+const AUTH_COOKIE_NAME = 'app-jwt'
 
 // Function to check if the token's timestamp is valid
 // In development environment, we're completely lenient to make testing easier
