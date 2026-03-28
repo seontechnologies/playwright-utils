@@ -293,6 +293,8 @@ test('demonstrates query parameters', async ({ apiRequest }) => {
 
 ### Overriding Request Timeout
 
+By default, Playwright's request methods time out after 30 seconds. Pass `timeout` (in milliseconds) to override this for slow endpoints. Use `timeout: 0` to disable the timeout entirely. Negative values are ignored, falling back to Playwright's default.
+
 ```typescript
 test('handles slow endpoint', async ({ apiRequest }) => {
   // Override Playwright's default 30s timeout for a slow endpoint

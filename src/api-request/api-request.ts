@@ -262,7 +262,7 @@ const apiRequestBase = async <T = unknown>({
     body && { data: body }, // Map 'body' to 'data' for Playwright
     headers && { headers },
     params && { params },
-    timeout && { timeout }
+    timeout !== undefined && timeout >= 0 && { timeout }
   )
 
   // Three-tier URL resolution strategy:
