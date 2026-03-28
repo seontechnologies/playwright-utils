@@ -1,17 +1,20 @@
-name: Security Scan (Gitleaks)
+name: Gitleaks (secrets scan)
 
 on:
   pull_request:
-    branches: ["main"]
-  push:
-    branches: ["main"]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 jobs:
-  call-gitleaks-workflow:
-    uses: seontechnologies/internal-tools-security/.github/workflows/gitleaks-actions.yml@master
-    secrets:
-      slackwebhook: ${{ secrets.CREDENTIAL_LEAK_SLACK_WEBHOOK }}
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install and run gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz
+          sudo mv gitleaks /usr/local/bin/
+          gitleaks detect --source . --redact -v
