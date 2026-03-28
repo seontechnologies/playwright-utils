@@ -232,4 +232,84 @@ test.describe('apiRequest operation-based overload', () => {
       })
     }
   )
+
+  test(
+    'should accept timeout option on operation overload',
+    { annotation: { type: 'skipNetworkMonitoring' } },
+    async ({ apiRequest, authToken }) => {
+      const movie = generateMovieWithoutId()
+
+      await log.step('CREATE with operation overload + timeout option')
+      const { status: createStatus, body: createBody } = await apiRequest({
+        operation: createMovieOp,
+        baseUrl: API_URL,
+        headers: commonHeaders(authToken),
+        body: movie,
+        timeout: 10_000
+      })
+
+      expect(createStatus).toBe(200)
+      expect(createBody.data.name).toBe(movie.name)
+
+      await log.step('Cleanup')
+      const { status: deleteStatus } = await apiRequest({
+        operation: deleteMovieOp(createBody.data.id),
+        baseUrl: API_URL,
+        headers: commonHeaders(authToken)
+      })
+
+      expect(deleteStatus).toBe(200)
+    }
+  )
+
+  test(
+    'should reject with timeout error for extremely short timeout',
+    { annotation: { type: 'skipNetworkMonitoring' } },
+    async ({ apiRequest, authToken }) => {
+      const movie = generateMovieWithoutId()
+
+      await log.step(
+        'CREATE with absurdly short timeout should throw a timeout error'
+      )
+      await expect(
+        apiRequest({
+          operation: createMovieOp,
+          baseUrl: API_URL,
+          headers: commonHeaders(authToken),
+          body: movie,
+          timeout: 1,
+          retryConfig: { maxRetries: 0 }
+        })
+      ).rejects.toThrow(/timed?\s*out/i)
+    }
+  )
+
+  test(
+    'should accept timeout option on classic style',
+    { annotation: { type: 'skipNetworkMonitoring' } },
+    async ({ apiRequest, authToken }) => {
+      const movie = generateMovieWithoutId()
+
+      await log.step('Classic style: method + path + timeout')
+      const { status, body } = await apiRequest<CreateMovieResponse>({
+        method: 'POST',
+        path: '/movies',
+        baseUrl: API_URL,
+        body: movie,
+        headers: commonHeaders(authToken),
+        timeout: 10_000
+      })
+
+      expect(status).toBe(200)
+      expect(body.data.name).toBe(movie.name)
+
+      await log.step('Cleanup with classic style')
+      await apiRequest<DeleteMovieResponse>({
+        method: 'DELETE',
+        path: `/movies/${body.data.id}`,
+        baseUrl: API_URL,
+        headers: commonHeaders(authToken)
+      })
+    }
+  )
 })
