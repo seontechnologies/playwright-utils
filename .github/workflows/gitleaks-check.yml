@@ -13,8 +13,5 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install and run gitleaks
-        run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz
-          sudo mv gitleaks /usr/local/bin/
-          gitleaks detect --source . --redact -v
+      - name: Run gitleaks scan
+        uses: DariuszPorowski/github-action-gitleaks@v2
