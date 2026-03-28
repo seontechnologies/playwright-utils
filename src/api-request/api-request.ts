@@ -69,6 +69,8 @@ export type ApiRequestParams = {
   page?: Page // Page context for UI display (automatically provided by fixtures)
   /** Retry configuration for handling failed requests (enabled by default like Cypress - set maxRetries: 0 to disable) */
   retryConfig?: ApiRetryConfig
+  /** Request timeout in milliseconds (overrides Playwright's default of 30000ms) */
+  timeout?: number
 }
 
 /** Structural shape for operation definitions — works with any code generator (duck typing) */
@@ -98,6 +100,8 @@ export type OperationRequestParams<Op extends OperationShape> = {
   uiMode?: boolean
   page?: Page
   retryConfig?: ApiRetryConfig
+  /** Request timeout in milliseconds (overrides Playwright's default of 30000ms) */
+  timeout?: number
   /** Forbidden in operation mode — enforced at type level */
   method?: never
   path?: never
@@ -248,7 +252,8 @@ const apiRequestBase = async <T = unknown>({
   params,
   uiMode = false,
   page,
-  retryConfig
+  retryConfig,
+  timeout
 }: ApiRequestParams): Promise<ApiRequestResponse<T>> => {
   // common options; if there's a prop, add it to the options object
   // Note: Playwright expects 'data' for the request body, not 'body'
@@ -256,7 +261,8 @@ const apiRequestBase = async <T = unknown>({
     {},
     body && { data: body }, // Map 'body' to 'data' for Playwright
     headers && { headers },
-    params && { params }
+    params && { params },
+    timeout && { timeout }
   )
 
   // Three-tier URL resolution strategy:
