@@ -22,6 +22,7 @@ The API Request utility provides a clean, typed interface for making HTTP reques
     - [GET Request with Authentication](#get-request-with-authentication)
       - [POST Request with Body](#post-request-with-body)
     - [Handling Query Parameters](#handling-query-parameters)
+    - [Overriding Request Timeout](#overriding-request-timeout)
     - [Handling Different Response Types](#handling-different-response-types)
     - [Using in Non-Test Contexts (Global Setup, Helpers)](#using-in-non-test-contexts-global-setup-helpers)
   - [Retry Logic (Cypress-Style)](#retry-logic-cypress-style)
@@ -158,6 +159,7 @@ async function apiRequest<T = unknown>({
 | testStep      | boolean (optional)                                        | Whether to wrap the call in test.step() (defaults to true)                             |
 | uiMode        | boolean (optional)                                        | Enable rich UI display in Playwright UI (defaults to false)                            |
 | retryConfig   | ApiRetryConfig (optional)                                 | Retry configuration for server errors (defaults enabled, set maxRetries: 0 to disable) |
+| timeout       | number (optional)                                         | Request timeout in milliseconds (overrides Playwright's default of 30000ms)            |
 
 **retryConfig details (defaults):**
 
@@ -188,6 +190,7 @@ When using the operation overload, the following parameters apply:
 | testStep      | boolean (optional)                                     | Whether to wrap the call in test.step() (defaults to true)                                    |
 | uiMode        | boolean (optional)                                     | Enable rich UI display in Playwright UI (defaults to false)                                   |
 | retryConfig   | ApiRetryConfig (optional)                              | Retry configuration for server errors                                                         |
+| timeout       | number (optional)                                      | Request timeout in milliseconds (overrides Playwright's default of 30000ms)                   |
 
 **Mutually exclusive fields**: When using `operation`, you cannot pass `method` or `path` — they are extracted from the operation object. TypeScript enforces this at compile time.
 
@@ -285,6 +288,23 @@ test('demonstrates query parameters', async ({ apiRequest }) => {
     }
   })
   // Makes a request to /search?q=search%20term&page=1&active=true
+})
+```
+
+### Overriding Request Timeout
+
+By default, Playwright's request methods time out after 30 seconds. Pass `timeout` (in milliseconds) to override this for slow endpoints. Use `timeout: 0` to disable the timeout entirely. Negative values are ignored, falling back to Playwright's default.
+
+```typescript
+test('handles slow endpoint', async ({ apiRequest }) => {
+  // Override Playwright's default 30s timeout for a slow endpoint
+  const { status, body } = await apiRequest<ReportData>({
+    method: 'GET',
+    path: '/api/reports/generate',
+    timeout: 60000 // 60 seconds
+  })
+
+  expect(status).toBe(200)
 })
 ```
 
