@@ -26,7 +26,9 @@ export async function initializeAuthForGlobalSetup(
     log.debugSync('Auth token initialized successfully')
     // Function returns void, no need to return the token
   } catch (error) {
-    log.errorSync(`Failed to initialize auth token: ${error}`)
+    log.errorSync(
+      `Failed to initialize auth token: ${error instanceof Error ? error.stack || error.message : error}`
+    )
     throw error
   }
 }

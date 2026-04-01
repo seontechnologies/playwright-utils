@@ -103,7 +103,9 @@ export function getGlobalAuthOptions(): AuthSessionOptions | null {
       }
     }
   } catch (error) {
-    log.errorSync(`Error accessing auth configuration: ${error}`)
+    log.errorSync(
+      `Error accessing auth configuration: ${error instanceof Error ? error.stack || error.message : error}`
+    )
   }
   return null
 }
