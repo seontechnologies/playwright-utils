@@ -4,6 +4,7 @@
  */
 import type { APIRequestContext } from '@playwright/test'
 import { getAuthToken } from './core'
+import { log } from '../log'
 
 /**
  * Initialize authentication token during Playwright's global setup.
@@ -17,15 +18,17 @@ export async function initializeAuthForGlobalSetup(
   request: APIRequestContext,
   options?: { environment?: string; userIdentifier?: string }
 ): Promise<void> {
-  console.log('Initializing auth token')
+  log.debugSync('Initializing auth token')
 
   try {
     // Fetch and store the token
     await getAuthToken(request, options)
-    console.log('Auth token initialized successfully')
+    log.debugSync('Auth token initialized successfully')
     // Function returns void, no need to return the token
   } catch (error) {
-    console.error('Failed to initialize auth token:', error)
+    log.errorSync(
+      `Failed to initialize auth token: ${error instanceof Error ? error.stack || error.message : error}`
+    )
     throw error
   }
 }
