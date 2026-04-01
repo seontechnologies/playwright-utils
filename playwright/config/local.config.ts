@@ -54,6 +54,9 @@ export default defineConfig(
       {
         command: 'npm run start:backend',
         url: API_URL,
+        wait: {
+          stdout: /Listening on port \d+\.\.\./
+        },
         reuseExistingServer: !process.env.CI,
         stdout: 'pipe',
         stderr: 'pipe',
@@ -63,6 +66,9 @@ export default defineConfig(
       {
         command: 'npm run start:frontend',
         url: BASE_URL,
+        wait: {
+          stdout: /Local:\s+http:\/\/localhost:\d+\//
+        },
         reuseExistingServer: !process.env.CI,
         stdout: 'pipe',
         stderr: 'pipe',

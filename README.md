@@ -78,9 +78,10 @@ npm install
 npm run start:sample-app
 
 # open a new tab, and run a test
-# run with UI, with headless, and if you want also the IDE
+# run with UI, with headless, or with the Playwright Inspector
 npm run test:pw-ui
 npm run test:pw
+npm run test:pw:debug
 ```
 
 ```bash
@@ -99,7 +100,33 @@ npm run start:sample-app
 
 # Playwright tests
 npm run test:pw       # Run Playwright tests
+npm run test:pw:debug # Run with Playwright Inspector
 npm run test:pw-ui    # Run Playwright tests with UI
+npm run show:trace -- test-results/<run>/trace.zip
+```
+
+Modern Playwright debugging tips used in this repo:
+
+```bash
+# Inspector
+npm run test:pw:debug -- --project=chromium
+
+# UI Mode
+npm run test:pw-ui
+
+# Trace Viewer
+npm run show:trace -- test-results/<run>/trace.zip
+```
+
+```typescript
+// Recent Playwright page diagnostics pair well with these utilities
+const consoleMessages = await page.consoleMessages({
+  filter: 'since-navigation'
+})
+const pageErrors = await page.pageErrors({
+  filter: 'since-navigation'
+})
+const requests = await page.requests()
 ```
 
 ## Available Utilities
