@@ -14,13 +14,13 @@
     "vitest:open": "vitest --config vitest.browser.config.ts"
   },
   "dependencies": {
-    "@tanstack/react-query": "5.95.0",
-    "axios": "1.13.6",
+    "@tanstack/react-query": "5.95.2",
+    "axios": "1.14.0",
     "jsdom": "26.1.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-error-boundary": "5.0.0",
-    "react-router-dom": "7.13.1",
+    "react-router-dom": "7.13.2",
     "styled-components": "6.3.12"
   },
   "devDependencies": {
