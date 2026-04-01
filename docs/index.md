@@ -72,6 +72,25 @@ test('example', async ({ apiRequest }) => {
 
 Use functions for scripts and simple cases. Use fixtures for test suites.
 
+::: tip Playwright 1.59 Debugging Flow
+
+- `npm run test:pw:debug` opens the Playwright Inspector for step-through debugging
+- `npm run test:pw-ui` uses Playwright UI Mode for interactive runs and filtering
+- `npm run show:trace -- test-results/<run>/trace.zip` opens the trace viewer for a captured run
+
+:::
+
+```typescript
+// Recent Playwright page diagnostics fit nicely alongside playwright-utils helpers
+const consoleMessages = await page.consoleMessages({
+  filter: 'since-navigation'
+})
+const pageErrors = await page.pageErrors({
+  filter: 'since-navigation'
+})
+const requests = await page.requests()
+```
+
 ## Quick Example
 
 ```typescript

@@ -63,7 +63,7 @@ export const baseConfig = defineConfig({
 
   /* Shared settings for all the projects below */
   use: {
-    trace: 'retain-on-first-failure',
+    trace: 'retain-on-failure-and-retries',
     testIdAttribute: 'data-testid'
   },
 
