@@ -14,63 +14,204 @@ jobs:
       github.event.comment.user.type != 'Bot' &&
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude')
-    uses: seontechnologies/seon-gh-actions/.github/workflows/rwf-claude-code-review.yml@v2
-    with:
-      review_prompt: |
-        IMPORTANT: Skip reviewing any files in the bmad/ directory - these are BMAD-METHOD™ framework files for AI-assisted development planning and should not be reviewed for code quality.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
 
-        Perform a comprehensive code review for this Playwright utilities library with focus on:
+    steps:
+      - name: Validate PR context
+        id: validate
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const contextNumber = context.issue.number;
 
-        ## TypeScript & Code Quality
-        - **Type safety and proper TypeScript usage** - Strict typing, explicit return types, modern JS features
-        - **Clean code principles and best practices** - Follow established "functional core, fixture shell" patterns
-        - **Module exports and subpath exports correctness** - Dual CommonJS/ESM support, proper package.json exports
-        - **Proper error handling and edge cases** - Integration with Playwright assertions, comprehensive error scenarios
-        - **Performance considerations** - No significant test execution overhead
+            if (!contextNumber) {
+              core.setFailed(
+                'No PR number available. This workflow must be called from an issue_comment event.'
+              );
+              return;
+            }
 
-        ## Playwright Testing Best Practices
-        - **Adherence to Playwright best practices** - No hard waits, proper async handling, dynamic waiting
-        - **Test reliability and flakiness prevention** - Atomic test design, stateless execution
-        - **Proper use of fixtures vs direct functions** - Follow "functional core, fixture shell" pattern
-        - **Parallel test safety** - Tests run independently without shared state
+            const prNumber = contextNumber;
 
-        ## Library Design & Architecture
-        - **API consistency across modules** - Uniform patterns across all utility modules
-        - **Proper fixture pattern implementation** - Dual interface support (direct function + fixture)
-        - **Documentation completeness** - Comprehensive docs with real-world examples
-        - **Breaking changes identification** - Backward compatibility with existing repositories
-        - **Separation of concerns** - Clean utility boundaries and responsibilities
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed('Invalid PR number: ' + contextNumber);
+              return;
+            }
 
-        ## Testing Coverage
-        - **Test accompaniment** - When adding new source code, check for tests being updated or added; hopefully unit and/or e2e - preferably both
-        - **Coverage adequacy** - Sufficient test coverage for new utilities
-        - **Test quality** - Edge cases, error scenarios, integration patterns
-        - **Sample-app validation** - End-to-end testing with real applications
+            core.setOutput('pr_number', prNumber);
 
-        ## Performance & Security
-        - **Identify potential performance issues** - Memory leaks, inefficient patterns, test execution overhead
-        - **Check for security vulnerabilities** - Hardcoded secrets, unsafe dependencies, exposure risks
-        - **Validate input sanitization in utilities** - Proper validation, safe data handling, injection prevention
-        - **Review network recording/mocking safety** - HAR file security, mock data handling, credential exposure
-        - **Dependencies** - Minimal external dependencies, appropriate and secure versions
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const prNumber = ${{ steps.validate.outputs.pr_number }};
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('base_ref', pr.data.base.ref);
+            core.setOutput('draft', pr.data.draft);
+            core.setOutput('number', pr.data.number);
 
-        ## Review Guidelines
-        - Use the repository's CLAUDE.md for guidance on project-specific conventions
-        - Follow the testing best practices defined in the global CLAUDE.md
-        - Provide specific, actionable feedback with code examples where helpful
-        - Prioritize issues by severity: **Critical** → **High** → **Medium** → **Low**
-        - Be constructive and focus on maintainability and reliability
+      - name: Check skip conditions
+        id: skip
+        run: |
+          HEAD_REF="${{ steps.pr.outputs.head_ref }}"
+          BASE_REF="${{ steps.pr.outputs.base_ref }}"
+          DRAFT="${{ steps.pr.outputs.draft }}"
 
-        ## Specific Playwright-Utils Checks
-        - Validate "functional core, fixture shell" pattern implementation
-        - Check dual interface support (direct function + fixture)
-        - Ensure utilities integrate cleanly with Playwright reports
-        - Verify subpath exports are correctly configured
-        - Review sample-app integration and real-world usage patterns
+          # Skip draft PRs
+          if [ "$DRAFT" = "true" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "reason=Draft PR" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
-      main_branch: 'main'
-      skip_draft_prs: true
-      skip_backports: true
-      skip_epic_to_main: true
-    secrets:
-      anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Skip backport branches
+          if [[ "$HEAD_REF" == backport/* ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "reason=Backport branch" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Skip epic→main PRs
+          if [[ "$HEAD_REF" == epic/* ]] && [ "$BASE_REF" = "main" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "reason=Epic to main PR" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+      - name: Post skip message
+        if: steps.skip.outputs.skip == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr.outputs.number }},
+              body: `⏭️ Skipping review: ${{ steps.skip.outputs.reason }}`
+            });
+
+      - name: Acknowledge review request
+        if: steps.skip.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            if (context.payload.comment && context.payload.comment.id) {
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: 'eyes'
+              });
+            }
+
+      - name: Checkout PR branch
+        if: steps.skip.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ steps.pr.outputs.number }}/merge
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Run Claude Code Review
+        if: steps.skip.outputs.skip != 'true'
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ steps.pr.outputs.number }}
+
+            USER REQUEST: ${{ github.event.comment.body }}
+
+            ## CRITICAL: Review Scope
+            You MUST focus your review ONLY on the changes in this PR. Do NOT review the entire repository.
+
+            Start by running these commands FIRST to understand the PR changes:
+            ```bash
+            gh pr diff ${{ steps.pr.outputs.number }} --repo ${{ github.repository }}
+            ```
+            ```bash
+            gh pr diff ${{ steps.pr.outputs.number }} --repo ${{ github.repository }} --name-only
+            ```
+
+            Review ONLY the changed code. You may read full files for additional context when needed,
+            but all review comments must be about code that appears in the PR diff.
+
+            ## Test Coverage Review
+            Check whether the PR removes, reduces, or bypasses existing unit or e2e test coverage.
+            - If source code is added or modified, verify corresponding tests are added or updated.
+            - If tests are deleted or weakened, flag it and explain what coverage is lost.
+            - If coverage gaps are found, recommend a specific prompt the author can use to generate the missing tests.
+
+            IMPORTANT: Skip reviewing any files in the bmad/ directory - these are BMAD-METHOD framework files for AI-assisted development planning and should not be reviewed for code quality.
+
+            Perform a comprehensive code review for this Playwright utilities library with focus on:
+
+            ## TypeScript & Code Quality
+            - **Type safety and proper TypeScript usage** - Strict typing, explicit return types, modern JS features
+            - **Clean code principles and best practices** - Follow established "functional core, fixture shell" patterns
+            - **Module exports and subpath exports correctness** - Dual CommonJS/ESM support, proper package.json exports
+            - **Proper error handling and edge cases** - Integration with Playwright assertions, comprehensive error scenarios
+            - **Performance considerations** - No significant test execution overhead
+
+            ## Playwright Testing Best Practices
+            - **Adherence to Playwright best practices** - No hard waits, proper async handling, dynamic waiting
+            - **Test reliability and flakiness prevention** - Atomic test design, stateless execution
+            - **Proper use of fixtures vs direct functions** - Follow "functional core, fixture shell" pattern
+            - **Parallel test safety** - Tests run independently without shared state
+
+            ## Library Design & Architecture
+            - **API consistency across modules** - Uniform patterns across all utility modules
+            - **Proper fixture pattern implementation** - Dual interface support (direct function + fixture)
+            - **Documentation completeness** - Comprehensive docs with real-world examples
+            - **Breaking changes identification** - Backward compatibility with existing repositories
+            - **Separation of concerns** - Clean utility boundaries and responsibilities
+
+            ## Testing Coverage
+            - **Test accompaniment** - When adding new source code, check for tests being updated or added; hopefully unit and/or e2e - preferably both
+            - **Coverage adequacy** - Sufficient test coverage for new utilities
+            - **Test quality** - Edge cases, error scenarios, integration patterns
+            - **Sample-app validation** - End-to-end testing with real applications
+
+            ## Performance & Security
+            - **Identify potential performance issues** - Memory leaks, inefficient patterns, test execution overhead
+            - **Check for security vulnerabilities** - Hardcoded secrets, unsafe dependencies, exposure risks
+            - **Validate input sanitization in utilities** - Proper validation, safe data handling, injection prevention
+            - **Review network recording/mocking safety** - HAR file security, mock data handling, credential exposure
+            - **Dependencies** - Minimal external dependencies, appropriate and secure versions
+
+            ## Review Guidelines
+            - Use the repository's CLAUDE.md for guidance on project-specific conventions
+            - Follow the testing best practices defined in the global CLAUDE.md
+            - Provide specific, actionable feedback with code examples where helpful
+            - Prioritize issues by severity: **Critical** → **High** → **Medium** → **Low**
+            - Be constructive and focus on maintainability and reliability
+
+            ## Specific Playwright-Utils Checks
+            - Validate "functional core, fixture shell" pattern implementation
+            - Check dual interface support (direct function + fixture)
+            - Ensure utilities integrate cleanly with Playwright reports
+            - Verify subpath exports are correctly configured
+            - Review sample-app integration and real-world usage patterns
