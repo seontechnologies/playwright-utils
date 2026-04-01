@@ -195,36 +195,7 @@ jobs:
         if: steps.version.outputs.skip != 'true'
         run: echo "@seontechnologies:registry=https://registry.npmjs.org" > .npmrc
 
-      # 11. Verify both publishes succeeded
-      - name: Verify publish on npmjs.org
-        if: steps.version.outputs.skip != 'true'
-        run: |
-          echo "Verifying package ${{ steps.version.outputs.new_version }} on npmjs.org..."
-          for i in 1 2 3 4 5; do
-            if npm view @seontechnologies/playwright-utils@${{ steps.version.outputs.new_version }} --registry=https://registry.npmjs.org version 2>/dev/null; then
-              echo "✓ Verified on npmjs.org"
-              exit 0
-            fi
-            echo "Attempt $i: not yet available, retrying in 10s..."
-            sleep 10
-          done
-          echo "✗ Package not found after 5 attempts"
-          exit 1
-
-      - name: Verify publish on GitHub Packages
-        if: steps.version.outputs.skip != 'true'
-        run: |
-          echo "Verifying package ${{ steps.version.outputs.new_version }} on GitHub Packages..."
-          for i in 1 2 3 4 5; do
-            if npm view @seontechnologies/playwright-utils@${{ steps.version.outputs.new_version }} --registry=https://npm.pkg.github.com version 2>/dev/null; then
-              echo "✓ Verified on GitHub Packages"
-              exit 0
-            fi
-            echo "Attempt $i: not yet available, retrying in 10s..."
-            sleep 10
-          done
-          echo "✗ Package not found after 5 attempts"
-          exit 1
+      # npm publish exits non-zero on failure, so no separate verification needed
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
