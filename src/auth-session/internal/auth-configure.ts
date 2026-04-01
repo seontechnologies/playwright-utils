@@ -8,6 +8,7 @@ import type { AuthSessionOptions, AuthStorageConfig } from './types'
 import fs from 'node:fs'
 // eslint-disable-next-line import/named
 import { v4 as uuidv4 } from 'uuid'
+import { log } from '../../log'
 
 // Load environment variables
 dotenvConfig({
@@ -67,7 +68,7 @@ export function configureAuthSession(
         }
       }
     } catch (error) {
-      console.warn(
+      log.warningSync(
         `Error reading existing storage state: ${error}, creating new file`
       )
     }
@@ -75,7 +76,7 @@ export function configureAuthSession(
 
   // Write the storage state file
   fs.writeFileSync(storageStatePath, JSON.stringify(storageState, null, 2))
-  console.log(`Auth configuration saved to ${storageStatePath}`)
+  log.debugSync(`Auth configuration saved to ${storageStatePath}`)
 }
 
 /**
@@ -98,11 +99,11 @@ export function getGlobalAuthOptions(): AuthSessionOptions | null {
           return parsedStorage._authConfig
         }
       } catch (storageError) {
-        console.warn(`Error reading storage state file: ${storageError}`)
+        log.warningSync(`Error reading storage state file: ${storageError}`)
       }
     }
   } catch (error) {
-    console.error('Error accessing auth configuration:', error)
+    log.errorSync(`Error accessing auth configuration: ${error}`)
   }
   return null
 }

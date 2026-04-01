@@ -58,7 +58,7 @@ export function createAuthFixtures() {
     ) => {
       // Skip auth token acquisition if auth session is disabled
       if (!authSessionEnabled) {
-        console.log('Auth session disabled - skipping token acquisition')
+        log.debugSync('Auth session disabled - skipping token acquisition')
         await use('') // Return empty token if auth is disabled
         return
       }
@@ -122,8 +122,8 @@ export function createAuthFixtures() {
         process.env.BASE_URL
 
       if (!effectiveBaseURL) {
-        console.warn(
-          'Warning: No baseURL found in authOptions, provider, Playwright config, or environment. ' +
+        log.warningSync(
+          'No baseURL found in authOptions, provider, Playwright config, or environment. ' +
             'Navigation to relative URLs may fail.'
         )
       }

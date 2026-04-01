@@ -194,7 +194,7 @@ export async function safeWriteJsonFile<T>(
       // Create an empty file if it doesn't exist yet
       realpath: false,
       onCompromised: (err) => {
-        console.warn(`Lock was compromised for ${filePath}:`, err.message)
+        log.warningSync(`Lock was compromised for ${filePath}: ${err.message}`)
       }
     })
 
@@ -264,7 +264,7 @@ export async function safeReadJsonFile<T>(
       },
       realpath: false,
       onCompromised: (err) => {
-        console.warn(`Lock was compromised for ${filePath}:`, err.message)
+        log.warningSync(`Lock was compromised for ${filePath}: ${err.message}`)
       }
     })
 
@@ -291,7 +291,7 @@ export async function safeReadJsonFile<T>(
     }
 
     // If read failed with lock, log the error
-    console.warn(`Error reading ${filePath}: ${lastError.message}`)
+    log.warningSync(`Error reading ${filePath}: ${lastError.message}`)
 
     // Create a fresh file with the default value to prevent future errors
     try {
