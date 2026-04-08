@@ -47,6 +47,9 @@ jobs:
       - name: Verify build process
         run: npm run build
 
+      - name: Check exports/typesVersions parity
+        run: npm run check:exports-parity
+
       - name: Build documentation
         run: npm run docs:build
 
