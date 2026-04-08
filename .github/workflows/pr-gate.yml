@@ -1,0 +1,25 @@
+# Single gate that waits for ALL other workflow jobs to complete.
+# This is the ONE required check in the branch ruleset.
+name: PR Gate
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  gate:
+    name: gate
+    runs-on: kubernetes-default
+    steps:
+      - uses: kachick/wait-other-jobs@v3
+        with:
+          skip-same-workflow: true
+          skip-list: |
+            [
+              {
+                "workflowFile": "claude-code-review.yml",
+                "jobName": "claude-review",
+                "jobMatchMode": "prefix"
+              }
+            ]
