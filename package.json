@@ -10,6 +10,61 @@
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/types/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "api-request": [
+        "./dist/types/api-request/index.d.ts"
+      ],
+      "api-request/fixtures": [
+        "./dist/types/api-request/fixtures.d.ts"
+      ],
+      "api-request/schema-validation": [
+        "./dist/types/api-request/schema-validation/index.d.ts"
+      ],
+      "intercept-network-call": [
+        "./dist/types/intercept-network-call/index.d.ts"
+      ],
+      "intercept-network-call/fixtures": [
+        "./dist/types/intercept-network-call/fixtures.d.ts"
+      ],
+      "log": [
+        "./dist/types/log/index.d.ts"
+      ],
+      "log/fixtures": [
+        "./dist/types/log/fixtures.d.ts"
+      ],
+      "recurse": [
+        "./dist/types/recurse/index.d.ts"
+      ],
+      "recurse/fixtures": [
+        "./dist/types/recurse/fixtures.d.ts"
+      ],
+      "auth-session": [
+        "./dist/types/auth-session/index.d.ts"
+      ],
+      "auth-session/fixtures": [
+        "./dist/types/auth-session/fixtures.d.ts"
+      ],
+      "file-utils": [
+        "./dist/types/file-utils/index.d.ts"
+      ],
+      "file-utils/fixtures": [
+        "./dist/types/file-utils/fixtures.d.ts"
+      ],
+      "network-recorder": [
+        "./dist/types/network-recorder/index.d.ts"
+      ],
+      "network-recorder/fixtures": [
+        "./dist/types/network-recorder/fixtures.d.ts"
+      ],
+      "burn-in": [
+        "./dist/types/burn-in/index.d.ts"
+      ],
+      "network-error-monitor/fixtures": [
+        "./dist/types/network-error-monitor/fixtures.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
