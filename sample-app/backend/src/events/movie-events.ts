@@ -8,6 +8,7 @@ import { Kafka } from 'kafkajs'
 import fs from 'node:fs/promises'
 import type { MovieEvent, MovieAction, Movie } from '@shared/types'
 import { logFilePath } from './log-file-path'
+import { sendWebhook } from '../webhook-receiver'
 
 // Configure Kafka with improved connection handling
 const kafka = new Kafka({
@@ -103,6 +104,19 @@ export const produceMovieEvent = async (movie: Movie, action: MovieAction) => {
       // Ignore any final errors
     }
   }
+
+  // Send webhook to the built-in receiver (for E2E testing)
+  const webhookUrl = process.env.WEBHOOK_URL || 'http://localhost:3001/webhooks'
+  await sendWebhook(webhookUrl, {
+    event: `movie.${action}`,
+    timestamp: new Date().toISOString(),
+    data: {
+      id: movie.id,
+      name: movie.name,
+      year: movie.year,
+      rating: movie.rating
+    }
+  })
 
   // Always return the event, regardless of Kafka availability
   const parsedEvent = parseEvent(event)
