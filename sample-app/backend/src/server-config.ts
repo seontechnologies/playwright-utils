@@ -2,7 +2,7 @@ import cors from 'cors'
 import express, { json } from 'express'
 import cookieParser from 'cookie-parser'
 import { moviesRoute } from './routes'
-import { webhookReceiverRoute } from './webhook-receiver'
+import { webhookReceiverRoute, webhookJournal } from './webhook-receiver'
 
 const server = express()
 server.use(
@@ -26,18 +26,18 @@ server.use('/movies', moviesRoute)
 // Webhook receiver — acts as a mock webhook endpoint for E2E testing
 // Stores received webhooks in memory and exposes them via /__admin/requests (WireMock-compatible)
 server.use('/webhooks', webhookReceiverRoute)
-server.get('/__admin/requests', (req, res) => {
-  // Proxy to webhook receiver GET for WireMock API compatibility
-  req.url = '/'
-  webhookReceiverRoute.handle(req, res, () => {
-    res.status(404).end()
+
+// WireMock-compatible admin API for the webhook receiver
+server.get('/__admin/requests', (_req, res) => {
+  res.status(200).json({
+    requests: webhookJournal,
+    meta: { total: webhookJournal.length },
+    requestJournalDisabled: false
   })
 })
-server.delete('/__admin/requests', (req, res) => {
-  req.url = '/'
-  webhookReceiverRoute.handle(req, res, () => {
-    res.status(404).end()
-  })
+server.delete('/__admin/requests', (_req, res) => {
+  webhookJournal.length = 0
+  res.status(200).json({ status: 'ok' })
 })
 
 server.post('/auth/fake-token', (_req, res) => {

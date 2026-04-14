@@ -28,7 +28,7 @@ type StoredWebhook = {
   loggedDateString: string
 }
 
-const webhookJournal: StoredWebhook[] = []
+export const webhookJournal: StoredWebhook[] = []
 
 export const webhookReceiverRoute = Router()
 
