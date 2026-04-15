@@ -39,6 +39,9 @@ function createMockProvider(
     },
     getReceivedWebhooks: jest.fn(async () => state.webhooks),
     resetJournal: jest.fn(async () => {}),
+    deleteById: jest.fn(async (id: string) => {
+      state.webhooks = state.webhooks.filter((w) => w.id !== id)
+    }),
     getCount: jest.fn(async () => state.webhooks.length)
   }
   return provider

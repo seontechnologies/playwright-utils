@@ -22,6 +22,7 @@ import { recurse, RecurseTimeoutError } from '../recurse'
 export class WebhookRegistry {
   private readonly defaultTimeout: number
   private readonly defaultInterval: number
+  private readonly matchedIds: Set<string> = new Set()
 
   constructor(
     private readonly provider: WebhookProvider,
@@ -67,6 +68,7 @@ export class WebhookRegistry {
         }
       )
 
+      this.matchedIds.add(matched!.id)
       return matched!
     } catch (error) {
       if (error instanceof RecurseTimeoutError) {
@@ -86,9 +88,13 @@ export class WebhookRegistry {
     return this.provider.getReceivedWebhooks(filter)
   }
 
-  /** Reset the provider's request journal */
+  /** Delete only the webhooks matched by this registry instance */
   async cleanup(): Promise<void> {
-    await this.provider.resetJournal()
+    const deletions = [...this.matchedIds].map((id) =>
+      this.provider.deleteById(id)
+    )
+    await Promise.all(deletions)
+    this.matchedIds.clear()
   }
 }
 

@@ -18,6 +18,9 @@ export interface WebhookProvider {
   /** Reset the mock server's request journal */
   resetJournal(): Promise<void>
 
+  /** Delete a single webhook by ID */
+  deleteById(id: string): Promise<void>
+
   /** Count requests matching the given criteria (provider-specific filtering) */
   getCount(criteria?: Record<string, unknown>): Promise<number>
 }
