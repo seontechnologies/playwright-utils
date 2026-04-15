@@ -15,5 +15,5 @@ test('authenticated redirect works correctly', async ({ page }) => {
   await log.step('Verifying redirect to authenticated route')
   await expect(page).toHaveURL('/movies')
 
-  await expect(page.getByText('admin')).toBeVisible()
+  await expect(page.getByText('admin', { exact: true })).toBeVisible()
 })
