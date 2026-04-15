@@ -24,10 +24,10 @@ server.get('/', (_, res) => {
 server.use('/movies', moviesRoute)
 
 // Webhook receiver — acts as a mock webhook endpoint for E2E testing
-// Stores received webhooks in memory and exposes them via /__admin/requests (WireMock-compatible)
+// POST /webhooks stores incoming webhooks; /__admin/requests exposes the WireMock-compatible admin API
 server.use('/webhooks', webhookReceiverRoute)
 
-// WireMock-compatible admin API for the webhook receiver
+// WireMock-compatible admin API — all query/delete operations go through /__admin/requests
 server.get('/__admin/requests', (_req, res) => {
   res.status(200).json({
     requests: webhookJournal,
@@ -38,6 +38,28 @@ server.get('/__admin/requests', (_req, res) => {
 server.delete('/__admin/requests', (_req, res) => {
   webhookJournal.length = 0
   res.status(200).json({ status: 'ok' })
+})
+server.delete('/__admin/requests/:id', (req, res) => {
+  const index = webhookJournal.findIndex((w) => w.id === req.params.id)
+  if (index === -1) {
+    return res.status(404).json({ error: 'Webhook not found' })
+  }
+  webhookJournal.splice(index, 1)
+  return res.status(200).json({ status: 'ok' })
+})
+server.post('/__admin/requests/count', (_req, res) => {
+  res.status(200).json({ count: webhookJournal.length })
+})
+server.post('/__admin/requests/remove', (req, res) => {
+  const { url, method } = req.body || {}
+  const before = webhookJournal.length
+  for (let i = webhookJournal.length - 1; i >= 0; i--) {
+    const w = webhookJournal[i]!
+    if (url && !w.request.absoluteUrl.includes(url) && !w.request.url.includes(url)) continue
+    if (method && w.request.method !== method.toUpperCase()) continue
+    webhookJournal.splice(i, 1)
+  }
+  res.status(200).json({ status: 'ok', removed: before - webhookJournal.length })
 })
 
 server.post('/auth/fake-token', (_req, res) => {

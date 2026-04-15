@@ -73,8 +73,13 @@ export class WebhookRegistry {
         }
       )
 
-      this.matchedIds.add(matched!.id)
-      return matched!
+      if (!matched) {
+        throw new Error(
+          `Unexpected state: recurse resolved but no webhook matched template "${template.name}"`
+        )
+      }
+      this.matchedIds.add(matched.id)
+      return matched
     } catch (error) {
       if (error instanceof RecurseTimeoutError) {
         throw new WebhookTimeoutError(
