@@ -42,6 +42,8 @@ export const test = base.extend<WebhookFixtures & WebhookFixtureOptions>({
       )
     }
 
+    await webhookProvider.setup?.()
+
     const registry = new WebhookRegistry(webhookProvider, webhookConfig)
     await use(registry)
 
@@ -50,6 +52,14 @@ export const test = base.extend<WebhookFixtures & WebhookFixtureOptions>({
     } catch (error) {
       log.warningSync(
         `Webhook registry cleanup failed: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+
+    try {
+      await webhookProvider.teardown?.()
+    } catch (error) {
+      log.warningSync(
+        `Webhook provider teardown failed: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }

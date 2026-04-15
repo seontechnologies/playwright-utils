@@ -64,6 +64,15 @@ export class WebhookTemplateBuilder<TPayload = unknown> {
     return this
   }
 
+  /** Create a copy of this builder that can be extended independently */
+  clone(): WebhookTemplateBuilder<TPayload> {
+    const copy = new WebhookTemplateBuilder<TPayload>(this.name)
+    copy.matchers.push(...this.matchers)
+    copy.timeout = this.timeout
+    copy.interval = this.interval
+    return copy
+  }
+
   build(): WebhookTemplate<TPayload> {
     return {
       name: this.name,

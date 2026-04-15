@@ -193,6 +193,75 @@ describe('WebhookRegistry', () => {
     })
   })
 
+  describe('waitForCount', () => {
+    it('should return N matching webhooks when count is reached', async () => {
+      const w1 = makeWebhook('1', { event: 'finished', data: { id: 'a' } })
+      const w2 = makeWebhook('2', { event: 'finished', data: { id: 'b' } })
+      const w3 = makeWebhook('3', { event: 'other', data: { id: 'c' } })
+      const provider = createMockProvider([w1, w2, w3])
+      const registry = new WebhookRegistry(provider)
+
+      mockedRecurse.mockImplementationOnce(async (_fetcher, predicate) => {
+        predicate([w1, w2, w3])
+        return [w1, w2, w3]
+      })
+
+      const template: WebhookTemplate = {
+        name: 'batch',
+        matchers: [{ type: 'field', path: 'event', value: 'finished' }],
+        timeout: 5000,
+        interval: 250
+      }
+
+      const result = await registry.waitForCount(template, 2)
+
+      expect(result).toHaveLength(2)
+      expect(result[0].id).toBe('1')
+      expect(result[1].id).toBe('2')
+      expect(mockedRecurse).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function),
+        {
+          timeout: 5000,
+          interval: 250,
+          error: '2 webhook(s) "batch" not received within 5000ms'
+        }
+      )
+    })
+
+    it('should throw WebhookTimeoutError when not enough matches', async () => {
+      const w1 = makeWebhook('1', { event: 'finished' })
+      const provider = createMockProvider([w1])
+      const registry = new WebhookRegistry(provider)
+
+      mockedRecurse.mockRejectedValueOnce(
+        new RecurseTimeoutError('timeout', 5000, 10)
+      )
+
+      const template: WebhookTemplate = {
+        name: 'batch',
+        matchers: [{ type: 'field', path: 'event', value: 'finished' }],
+        timeout: 5000
+      }
+
+      await expect(registry.waitForCount(template, 3)).rejects.toThrow(
+        WebhookTimeoutError
+      )
+
+      mockedRecurse.mockRejectedValueOnce(
+        new RecurseTimeoutError('timeout', 5000, 10)
+      )
+
+      try {
+        await registry.waitForCount(template, 3)
+      } catch (error) {
+        const timeoutError = error as WebhookTimeoutError
+        expect(timeoutError.templateName).toBe('batch')
+        expect(timeoutError.timeoutMs).toBe(5000)
+      }
+    })
+  })
+
   describe('getReceived', () => {
     it('should pass through to provider', async () => {
       const webhook = makeWebhook('1', { event: 'test' })
@@ -214,11 +283,45 @@ describe('WebhookRegistry', () => {
   })
 
   describe('cleanup', () => {
-    it('should call provider resetJournal', async () => {
+    it('should reset entire journal by default (full-reset strategy)', async () => {
       const provider = createMockProvider()
       const registry = new WebhookRegistry(provider)
 
       await registry.cleanup()
+      expect(provider.resetJournal).toHaveBeenCalled()
+      expect(provider.deleteById).not.toHaveBeenCalled()
+    })
+
+    it('should delete only matched webhooks with matched-only strategy', async () => {
+      const webhook = makeWebhook('matched-1', { event: 'test' })
+      const provider = createMockProvider([webhook])
+      const registry = new WebhookRegistry(provider, {
+        cleanupStrategy: 'matched-only'
+      })
+
+      // Simulate a match by calling waitFor
+      mockedRecurse.mockImplementationOnce(async (_fetcher, predicate) => {
+        predicate([webhook])
+        return [webhook]
+      })
+
+      await registry.waitFor({
+        name: 'test',
+        matchers: [{ type: 'field', path: 'event', value: 'test' }]
+      })
+
+      await registry.cleanup()
+      expect(provider.deleteById).toHaveBeenCalledWith('matched-1')
+      expect(provider.resetJournal).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('resetJournal', () => {
+    it('should delegate to provider resetJournal and clear matched IDs', async () => {
+      const provider = createMockProvider()
+      const registry = new WebhookRegistry(provider)
+
+      await registry.resetJournal()
       expect(provider.resetJournal).toHaveBeenCalled()
     })
   })

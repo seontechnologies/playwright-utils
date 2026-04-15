@@ -23,6 +23,14 @@ export interface WebhookProvider {
 
   /** Count requests matching the given criteria (provider-specific filtering) */
   getCount(criteria?: Record<string, unknown>): Promise<number>
+
+  /** Remove requests matching provider-specific criteria */
+  removeByCriteria?(criteria: Record<string, unknown>): Promise<void>
+
+  /** Optional setup hook — called before the provider is used (e.g. health checks, stub registration) */
+  setup?(): Promise<void>
+  /** Optional teardown hook — called after the provider is done (e.g. cleanup resources) */
+  teardown?(): Promise<void>
 }
 
 // ─── Data Types ───────────────────────────────────────────────────────────────
@@ -33,6 +41,8 @@ export type ReceivedWebhook<TPayload = unknown> = {
   method: string
   headers: Record<string, string>
   body: TPayload
+  rawBody?: string
+  parseError?: boolean
   receivedAt: Date
 }
 
@@ -73,11 +83,15 @@ export type DeepPartial<T> = T extends object
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
+export type CleanupStrategy = 'matched-only' | 'full-reset'
+
 export type WebhookRegistryConfig = {
   /** Default timeout in ms for waitFor calls (default: 30000) */
   defaultTimeout?: number
   /** Default polling interval in ms (default: 1000) */
   defaultInterval?: number
+  /** Strategy for cleanup: 'matched-only' deletes only matched webhooks, 'full-reset' resets the entire journal (default: 'full-reset') */
+  cleanupStrategy?: CleanupStrategy
 }
 
 export const WEBHOOK_DEFAULTS = {
@@ -89,22 +103,37 @@ export const WEBHOOK_DEFAULTS = {
 
 export class WebhookTimeoutError extends Error {
   readonly name = 'WebhookTimeoutError'
+  readonly totalReceived: number
+  readonly receivedWebhooks: ReceivedWebhook[]
 
   constructor(
     public readonly templateName: string,
     public readonly timeoutMs: number,
-    public readonly receivedWebhooks: ReceivedWebhook[],
+    receivedWebhooks: ReceivedWebhook[],
     public readonly matcherDetails: string[] = []
   ) {
-    const received = receivedWebhooks.length
+    const total = receivedWebhooks.length
+    const truncated =
+      total > 10 ? receivedWebhooks.slice(-10) : receivedWebhooks
+    const countInfo =
+      total > 10
+        ? `${total} webhook(s) were received (showing last 10) but none matched.`
+        : `${total} webhook(s) were received but none matched.`
     const matcherInfo =
       matcherDetails.length > 0
         ? ` Matchers: ${matcherDetails.join(', ')}.`
         : ''
+    const parseFailures = truncated.filter((w) => w.parseError)
+    const parseInfo =
+      parseFailures.length > 0
+        ? ` ${parseFailures.length} webhook(s) failed to parse as JSON: ${parseFailures.map((w) => JSON.stringify(w.rawBody)).join(', ')}.`
+        : ''
     super(
       `Webhook "${templateName}" not received within ${timeoutMs}ms. ` +
-        `${received} webhook(s) were received but none matched.${matcherInfo}`
+        `${countInfo}${matcherInfo}${parseInfo}`
     )
+    this.totalReceived = total
+    this.receivedWebhooks = truncated
   }
 
   toJSON(): Record<string, unknown> {
@@ -113,6 +142,7 @@ export class WebhookTimeoutError extends Error {
       message: this.message,
       templateName: this.templateName,
       timeoutMs: this.timeoutMs,
+      totalReceived: this.totalReceived,
       receivedWebhooks: this.receivedWebhooks,
       matcherDetails: this.matcherDetails,
       stack: this.stack

@@ -47,8 +47,11 @@ export function getFieldValue(obj: unknown, path: string): unknown {
  * with an equal value in `actual`. Extra keys in `actual` are ignored.
  *
  * - Primitives are compared with strict equality.
- * - Arrays are compared element-by-element (length must match).
- * - Objects are compared recursively.
+ * - Arrays are compared element-by-element with **strict length matching** —
+ *   `expected` and `actual` must have the same number of elements. This means
+ *   `deepPartialMatch([1, 2, 3], [1, 2])` returns `false`. For subset array
+ *   matching, use a predicate matcher instead.
+ * - Objects are compared recursively (only keys present in `expected` are checked).
  * - null/undefined in expected must match exactly in actual.
  */
 export function deepPartialMatch(actual: unknown, expected: unknown): boolean {

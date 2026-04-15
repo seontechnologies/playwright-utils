@@ -5,7 +5,8 @@ export type {
   WebhookTemplate,
   PayloadMatcher,
   DeepPartial,
-  WebhookRegistryConfig
+  WebhookRegistryConfig,
+  CleanupStrategy
 } from './core'
 export { WEBHOOK_DEFAULTS, WebhookTimeoutError } from './core'
 export { matchesTemplate, getFieldValue, deepPartialMatch } from './core'

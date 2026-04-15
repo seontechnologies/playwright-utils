@@ -68,21 +68,23 @@ export class WireMockWebhookProvider implements WebhookProvider {
   async getReceivedWebhooks(
     filter?: WebhookQueryFilter
   ): Promise<ReceivedWebhook[]> {
+    const params = new URLSearchParams()
+    if (filter?.since) {
+      params.set('since', filter.since.toISOString())
+    }
+    const query = params.toString()
+    const path = query ? `/requests?${query}` : '/requests'
+
     const { body } = await apiRequest<WireMockRequestsResponse>({
       request: this.request,
       method: 'GET',
-      path: '/requests',
+      path,
       baseUrl: this.adminUrl,
       testStep: false,
       retryConfig: { maxRetries: 0 }
     })
 
     let webhooks = body.requests.map(mapWireMockRequest)
-
-    if (filter?.since) {
-      const since = filter.since.getTime()
-      webhooks = webhooks.filter((w) => w.receivedAt.getTime() >= since)
-    }
 
     if (filter?.method) {
       const method = filter.method.toUpperCase()
@@ -159,12 +161,15 @@ export class WireMockWebhookProvider implements WebhookProvider {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapWireMockRequest(wmRequest: WireMockRequest): ReceivedWebhook {
+  const rawBody = wmRequest.request.body
   let body: unknown
+  let parseError = false
   try {
-    body = JSON.parse(wmRequest.request.body)
+    body = JSON.parse(rawBody)
   } catch {
     log.warningSync(`Failed to parse webhook body as JSON for ${wmRequest.id}`)
-    body = { __raw: wmRequest.request.body, __parseError: true }
+    body = rawBody
+    parseError = true
   }
 
   return {
@@ -173,6 +178,8 @@ function mapWireMockRequest(wmRequest: WireMockRequest): ReceivedWebhook {
     method: wmRequest.request.method,
     headers: wmRequest.request.headers,
     body,
+    rawBody,
+    parseError,
     receivedAt: new Date(wmRequest.loggedDate)
   }
 }
