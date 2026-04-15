@@ -30,14 +30,15 @@ const test = mergeTests(
   providerFixture
 )
 
-// Auth helper — sample-app uses cookie-based auth
-async function getAuthToken(
+// Auth helper — sample-app uses cookie-based auth with identity
+async function getAdminAuthToken(
   apiRequest: Parameters<Parameters<typeof test>[2]>[0]['apiRequest']
 ): Promise<string> {
   const { body } = await apiRequest<{ token: string }>({
     method: 'POST',
-    path: '/auth/fake-token',
-    baseUrl: API_URL
+    path: '/auth/identity-token',
+    baseUrl: API_URL,
+    body: { username: 'admin', password: 'admin', userIdentifier: 'admin' }
   })
   return body.token
 }
@@ -64,7 +65,7 @@ test.describe('Webhook module E2E', () => {
     apiRequest,
     webhookRegistry
   }) => {
-    const token = await getAuthToken(apiRequest)
+    const token = await getAdminAuthToken(apiRequest)
     const movie = generateMovieWithoutId()
 
     // Create a movie via API
@@ -108,7 +109,7 @@ test.describe('Webhook module E2E', () => {
     apiRequest,
     webhookRegistry
   }) => {
-    const token = await getAuthToken(apiRequest)
+    const token = await getAdminAuthToken(apiRequest)
     const movie = generateMovieWithoutId()
 
     // Create a movie first
@@ -148,7 +149,7 @@ test.describe('Webhook module E2E', () => {
     apiRequest,
     webhookRegistry
   }) => {
-    const token = await getAuthToken(apiRequest)
+    const token = await getAdminAuthToken(apiRequest)
     const movie = generateMovieWithoutId()
 
     // Create a movie
