@@ -83,13 +83,21 @@ export function deepPartialMatch(actual: unknown, expected: unknown): boolean {
 
 function matchesSingle<T>(payload: T, matcher: PayloadMatcher<T>): boolean {
   switch (matcher.type) {
-    case 'field':
-      return getFieldValue(payload, matcher.path) === matcher.value
+    case 'field': {
+      const actual = getFieldValue(payload, matcher.path)
+      if (actual === undefined) return false
+      return actual === matcher.value
+    }
 
     case 'partial':
       return deepPartialMatch(payload, matcher.expected as DeepPartial<unknown>)
 
     case 'predicate':
       return matcher.fn(payload)
+
+    default:
+      throw new Error(
+        `Unknown matcher type: ${(matcher as { type: string }).type}`
+      )
   }
 }

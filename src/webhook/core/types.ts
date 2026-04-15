@@ -17,6 +17,9 @@ export interface WebhookProvider {
 
   /** Reset the mock server's request journal */
   resetJournal(): Promise<void>
+
+  /** Count requests matching the given criteria (provider-specific filtering) */
+  getCount(criteria?: Record<string, unknown>): Promise<number>
 }
 
 // ─── Data Types ───────────────────────────────────────────────────────────────
@@ -87,12 +90,29 @@ export class WebhookTimeoutError extends Error {
   constructor(
     public readonly templateName: string,
     public readonly timeoutMs: number,
-    public readonly receivedWebhooks: ReceivedWebhook[]
+    public readonly receivedWebhooks: ReceivedWebhook[],
+    public readonly matcherDetails: string[] = []
   ) {
     const received = receivedWebhooks.length
+    const matcherInfo =
+      matcherDetails.length > 0
+        ? ` Matchers: ${matcherDetails.join(', ')}.`
+        : ''
     super(
       `Webhook "${templateName}" not received within ${timeoutMs}ms. ` +
-        `${received} webhook(s) were received but none matched.`
+        `${received} webhook(s) were received but none matched.${matcherInfo}`
     )
+  }
+
+  toJSON(): Record<string, unknown> {
+    return {
+      name: this.name,
+      message: this.message,
+      templateName: this.templateName,
+      timeoutMs: this.timeoutMs,
+      receivedWebhooks: this.receivedWebhooks,
+      matcherDetails: this.matcherDetails,
+      stack: this.stack
+    }
   }
 }

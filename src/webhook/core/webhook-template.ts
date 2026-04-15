@@ -48,12 +48,18 @@ export class WebhookTemplateBuilder<TPayload = unknown> {
 
   /** Override the default timeout for this template */
   withTimeout(ms: number): this {
+    if (ms <= 0) {
+      throw new Error(`withTimeout(${ms}): timeout must be greater than 0`)
+    }
     this.timeout = ms
     return this
   }
 
   /** Override the default polling interval for this template */
   withInterval(ms: number): this {
+    if (ms <= 0) {
+      throw new Error(`withInterval(${ms}): interval must be greater than 0`)
+    }
     this.interval = ms
     return this
   }

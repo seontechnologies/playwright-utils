@@ -12,7 +12,8 @@ import type {
   WebhookTemplate,
   WebhookQueryFilter,
   ReceivedWebhook,
-  WebhookRegistryConfig
+  WebhookRegistryConfig,
+  PayloadMatcher
 } from './core/types'
 import { WEBHOOK_DEFAULTS, WebhookTimeoutError } from './core/types'
 import { matchesTemplate } from './core/matchers'
@@ -42,11 +43,23 @@ export class WebhookRegistry {
     const timeout = template.timeout ?? this.defaultTimeout
     const interval = template.interval ?? this.defaultInterval
 
+    let matched: ReceivedWebhook<T> | undefined
+    let lastSnapshot: ReceivedWebhook[] = []
+
     try {
-      const webhooks = await recurse<ReceivedWebhook[]>(
+      await recurse<ReceivedWebhook[]>(
         () => this.provider.getReceivedWebhooks(),
-        (received) =>
-          received.some((w) => matchesTemplate(w.body as T, template.matchers)),
+        (received) => {
+          lastSnapshot = received
+          const found = received.find((w) =>
+            matchesTemplate(w.body as T, template.matchers)
+          )
+          if (found) {
+            matched = found as ReceivedWebhook<T>
+            return true
+          }
+          return false
+        },
         {
           timeout,
           interval,
@@ -54,15 +67,15 @@ export class WebhookRegistry {
         }
       )
 
-      const match = webhooks.find((w) =>
-        matchesTemplate(w.body as T, template.matchers)
-      )
-
-      return match as ReceivedWebhook<T>
+      return matched!
     } catch (error) {
       if (error instanceof RecurseTimeoutError) {
-        const allWebhooks = await this.provider.getReceivedWebhooks()
-        throw new WebhookTimeoutError(template.name, timeout, allWebhooks)
+        throw new WebhookTimeoutError(
+          template.name,
+          timeout,
+          lastSnapshot,
+          formatMatcherDetails(template.matchers)
+        )
       }
       throw error
     }
@@ -77,4 +90,19 @@ export class WebhookRegistry {
   async cleanup(): Promise<void> {
     await this.provider.resetJournal()
   }
+}
+
+function formatMatcherDetails<T>(matchers: PayloadMatcher<T>[]): string[] {
+  return matchers.map((m) => {
+    switch (m.type) {
+      case 'field':
+        return `field(${m.path}=${JSON.stringify(m.value)})`
+      case 'partial':
+        return `partial(${JSON.stringify(m.expected)})`
+      case 'predicate':
+        return `predicate(${m.description})`
+      default:
+        return 'unknown'
+    }
+  })
 }

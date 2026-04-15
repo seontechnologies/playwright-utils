@@ -28,6 +28,11 @@ type StoredWebhook = {
   loggedDateString: string
 }
 
+/**
+ * In-memory journal. Safe for single-worker Playwright configs only.
+ * If using multiple workers, set `workers: 1` in playwright.config.ts
+ * for any project that hits this receiver.
+ */
 export const webhookJournal: StoredWebhook[] = []
 
 export const webhookReceiverRoute = Router()

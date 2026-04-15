@@ -11,6 +11,7 @@
 
 import type { APIRequestContext } from '@playwright/test'
 import { apiRequest } from '../../api-request'
+import { log } from '../../log'
 import type {
   WebhookProvider,
   ReceivedWebhook,
@@ -88,6 +89,7 @@ export class WireMockWebhookProvider implements WebhookProvider {
       webhooks = webhooks.filter((w) => w.method === method)
     }
 
+    // Empty string creates a catch-all RegExp('') — skip it like undefined
     if (filter?.urlPattern) {
       let pattern: RegExp
       try {
@@ -161,7 +163,8 @@ function mapWireMockRequest(wmRequest: WireMockRequest): ReceivedWebhook {
   try {
     body = JSON.parse(wmRequest.request.body)
   } catch {
-    body = wmRequest.request.body
+    log.warningSync(`Failed to parse webhook body as JSON for ${wmRequest.id}`)
+    body = { __raw: wmRequest.request.body, __parseError: true }
   }
 
   return {

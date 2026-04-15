@@ -18,10 +18,11 @@
 
 import { test as base } from '@playwright/test'
 import { WebhookRegistry } from './webhook-registry'
+import { log } from '../log'
 import type { WebhookProvider, WebhookRegistryConfig } from './core/types'
 
 export type WebhookFixtureOptions = {
-  webhookProvider: WebhookProvider
+  webhookProvider: WebhookProvider | undefined
   webhookConfig: WebhookRegistryConfig
 }
 
@@ -30,7 +31,7 @@ export type WebhookFixtures = {
 }
 
 export const test = base.extend<WebhookFixtures & WebhookFixtureOptions>({
-  webhookProvider: [undefined as unknown as WebhookProvider, { option: true }],
+  webhookProvider: [undefined, { option: true }],
   webhookConfig: [{}, { option: true }],
 
   webhookRegistry: async ({ webhookProvider, webhookConfig }, use) => {
@@ -43,6 +44,13 @@ export const test = base.extend<WebhookFixtures & WebhookFixtureOptions>({
 
     const registry = new WebhookRegistry(webhookProvider, webhookConfig)
     await use(registry)
-    await registry.cleanup()
+
+    try {
+      await registry.cleanup()
+    } catch (error) {
+      log.warningSync(
+        `Webhook registry cleanup failed: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
   }
 })
