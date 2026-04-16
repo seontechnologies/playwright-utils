@@ -51,7 +51,10 @@ The fixture calls `provider.setup()` before the test and `registry.cleanup()` + 
 ### 2. As a Plain Class
 
 ```typescript
-import { WireMockWebhookProvider, WebhookRegistry } from '@seontechnologies/playwright-utils/webhook'
+import {
+  WireMockWebhookProvider,
+  WebhookRegistry
+} from '@seontechnologies/playwright-utils/webhook'
 
 const provider = new WireMockWebhookProvider('http://localhost:8080', request)
 const registry = new WebhookRegistry(provider, { defaultTimeout: 15_000 })
@@ -100,8 +103,10 @@ All three matcher types can be combined — a webhook must pass **every** matche
 Use `clone()` to create variations without mutating the original:
 
 ```typescript
-const base = webhookTemplate<OrderPayload>('order')
-  .matchField('event', 'order.completed')
+const base = webhookTemplate<OrderPayload>('order').matchField(
+  'event',
+  'order.completed'
+)
 
 const forOrderA = base.clone().matchField('data.orderId', 'A').build()
 const forOrderB = base.clone().matchField('data.orderId', 'B').build()
@@ -146,10 +151,10 @@ const postOnly = await webhookRegistry.getReceived({ method: 'POST' })
 
 Configure via `WebhookRegistryConfig.cleanupStrategy`:
 
-| Strategy | Behaviour | When to use |
-|---|---|---|
-| `'full-reset'` (default) | Deletes the entire request journal after each test | Single-worker configs or when you don't share the mock server |
-| `'matched-only'` | Deletes only the webhooks that `waitFor`/`waitForCount` matched | Multi-worker configs where other tests may share the journal |
+| Strategy                 | Behaviour                                                       | When to use                                                   |
+| ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------- |
+| `'full-reset'` (default) | Deletes the entire request journal after each test              | Single-worker configs or when you don't share the mock server |
+| `'matched-only'`         | Deletes only the webhooks that `waitFor`/`waitForCount` matched | Multi-worker configs where other tests may share the journal  |
 
 ```typescript
 const test = base.extend({
@@ -170,6 +175,7 @@ WebhookTimeoutError: Webhook "order.completed" not received within 10000ms.
 ```
 
 The error includes:
+
 - `templateName` — which template timed out
 - `timeoutMs` — the timeout value
 - `totalReceived` — how many webhooks arrived (but didn't match)
@@ -228,13 +234,13 @@ The built-in `WireMockWebhookProvider` works with any server that implements Wir
 
 <!-- wiremock-provider.ts:57-159 -->
 
-| Method | WireMock endpoint | Description |
-|---|---|---|
-| `getReceivedWebhooks()` | `GET /__admin/requests` | Query received webhooks with optional `since`, `method`, and `urlPattern` filters |
-| `resetJournal()` | `DELETE /__admin/requests` | Clear all stored requests |
-| `deleteById(id)` | `DELETE /__admin/requests/{id}` | Remove a single request |
-| `getCount(criteria)` | `POST /__admin/requests/count` | Count matching requests |
-| `removeByCriteria(criteria)` | `POST /__admin/requests/remove` | Remove requests matching criteria |
+| Method                       | WireMock endpoint               | Description                                                                       |
+| ---------------------------- | ------------------------------- | --------------------------------------------------------------------------------- |
+| `getReceivedWebhooks()`      | `GET /__admin/requests`         | Query received webhooks with optional `since`, `method`, and `urlPattern` filters |
+| `resetJournal()`             | `DELETE /__admin/requests`      | Clear all stored requests                                                         |
+| `deleteById(id)`             | `DELETE /__admin/requests/{id}` | Remove a single request                                                           |
+| `getCount(criteria)`         | `POST /__admin/requests/count`  | Count matching requests                                                           |
+| `removeByCriteria(criteria)` | `POST /__admin/requests/remove` | Remove requests matching criteria                                                 |
 
 ### Custom Provider
 
@@ -243,17 +249,32 @@ Implement `WebhookProvider` for any mock server:
 <!-- types.ts:14-34 -->
 
 ```typescript
-import type { WebhookProvider, ReceivedWebhook } from '@seontechnologies/playwright-utils/webhook'
+import type {
+  WebhookProvider,
+  ReceivedWebhook
+} from '@seontechnologies/playwright-utils/webhook'
 
 class MyCustomProvider implements WebhookProvider {
-  async getReceivedWebhooks(filter?) { /* ... */ }
-  async resetJournal() { /* ... */ }
-  async deleteById(id) { /* ... */ }
-  async getCount(criteria?) { /* ... */ }
+  async getReceivedWebhooks(filter?) {
+    /* ... */
+  }
+  async resetJournal() {
+    /* ... */
+  }
+  async deleteById(id) {
+    /* ... */
+  }
+  async getCount(criteria?) {
+    /* ... */
+  }
 
   // Optional hooks
-  async setup() { /* health check, register stubs */ }
-  async teardown() { /* release connections */ }
+  async setup() {
+    /* health check, register stubs */
+  }
+  async teardown() {
+    /* release connections */
+  }
 }
 ```
 
@@ -283,7 +304,9 @@ test('movie creation triggers a webhook with correct payload', async ({
   const movie = generateMovieWithoutId()
 
   // Create a movie via API
-  const { body: created } = await apiRequest<{ data: { id: number; name: string } }>({
+  const { body: created } = await apiRequest<{
+    data: { id: number; name: string }
+  }>({
     method: 'POST',
     path: '/movies',
     baseUrl: API_URL,
@@ -320,30 +343,30 @@ test('movie creation triggers a webhook with correct payload', async ({
 
 ### WebhookTemplate
 
-| Property | Type | Description |
-|---|---|---|
-| `name` | `string` | Human-readable name for logs and error messages |
-| `matchers` | `PayloadMatcher[]` | All matchers must pass for a webhook to match |
-| `timeout` | `number?` | Override default timeout (ms) |
-| `interval` | `number?` | Override default polling interval (ms) |
+| Property   | Type               | Description                                     |
+| ---------- | ------------------ | ----------------------------------------------- |
+| `name`     | `string`           | Human-readable name for logs and error messages |
+| `matchers` | `PayloadMatcher[]` | All matchers must pass for a webhook to match   |
+| `timeout`  | `number?`          | Override default timeout (ms)                   |
+| `interval` | `number?`          | Override default polling interval (ms)          |
 
 ### WebhookRegistryConfig
 
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `defaultTimeout` | `number` | `30000` | Default timeout for `waitFor` calls |
-| `defaultInterval` | `number` | `1000` | Default polling interval |
-| `cleanupStrategy` | `CleanupStrategy` | `'full-reset'` | `'full-reset'` or `'matched-only'` |
+| Property          | Type              | Default        | Description                         |
+| ----------------- | ----------------- | -------------- | ----------------------------------- |
+| `defaultTimeout`  | `number`          | `30000`        | Default timeout for `waitFor` calls |
+| `defaultInterval` | `number`          | `1000`         | Default polling interval            |
+| `cleanupStrategy` | `CleanupStrategy` | `'full-reset'` | `'full-reset'` or `'matched-only'`  |
 
 ### ReceivedWebhook
 
-| Property | Type | Description |
-|---|---|---|
-| `id` | `string` | Unique ID from the mock server |
-| `url` | `string` | Request URL |
-| `method` | `string` | HTTP method |
-| `headers` | `Record<string, string>` | Request headers |
-| `body` | `TPayload` | Parsed JSON body (or raw string if parse failed) |
-| `rawBody` | `string?` | Original body string |
-| `parseError` | `boolean?` | `true` if JSON parsing failed |
-| `receivedAt` | `Date` | Timestamp when the webhook was received |
+| Property     | Type                     | Description                                      |
+| ------------ | ------------------------ | ------------------------------------------------ |
+| `id`         | `string`                 | Unique ID from the mock server                   |
+| `url`        | `string`                 | Request URL                                      |
+| `method`     | `string`                 | HTTP method                                      |
+| `headers`    | `Record<string, string>` | Request headers                                  |
+| `body`       | `TPayload`               | Parsed JSON body (or raw string if parse failed) |
+| `rawBody`    | `string?`                | Original body string                             |
+| `parseError` | `boolean?`               | `true` if JSON parsing failed                    |
+| `receivedAt` | `Date`                   | Timestamp when the webhook was received          |

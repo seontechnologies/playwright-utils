@@ -55,11 +55,18 @@ server.post('/__admin/requests/remove', (req, res) => {
   const before = webhookJournal.length
   for (let i = webhookJournal.length - 1; i >= 0; i--) {
     const w = webhookJournal[i]!
-    if (url && !w.request.absoluteUrl.includes(url) && !w.request.url.includes(url)) continue
+    if (
+      url &&
+      !w.request.absoluteUrl.includes(url) &&
+      !w.request.url.includes(url)
+    )
+      continue
     if (method && w.request.method !== method.toUpperCase()) continue
     webhookJournal.splice(i, 1)
   }
-  res.status(200).json({ status: 'ok', removed: before - webhookJournal.length })
+  res
+    .status(200)
+    .json({ status: 'ok', removed: before - webhookJournal.length })
 })
 
 server.post('/auth/fake-token', (_req, res) => {

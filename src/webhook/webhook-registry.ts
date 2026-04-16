@@ -185,7 +185,7 @@ function formatMatcherDetails<T>(matchers: PayloadMatcher<T>[]): string[] {
       case 'predicate':
         return `predicate(${m.description})`
       default:
-        return 'unknown'
+        throw new Error(`Unknown matcher type: ${(m as { type: string }).type}`)
     }
   })
 }
