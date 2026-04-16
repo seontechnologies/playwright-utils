@@ -11,11 +11,14 @@ import { generateMovieWithoutId } from '../../support/utils/movie-factories'
 import { log } from 'src/log'
 
 // Template factories for movie webhooks
+// 15s timeout: the Kafka → HTTP webhook delivery pipeline can back up under
+// high CI concurrency (burn-in with many parallel workers). 10s was occasionally
+// not enough; 15s gives the pipeline headroom without slowing normal runs.
 const movieCreated = (movieId: number) =>
   webhookTemplate<{ event: string; data: { id: number } }>('movie.created')
     .matchField('event', 'movie.created')
     .matchField('data.id', movieId)
-    .withTimeout(10_000)
+    .withTimeout(15_000)
     .withInterval(500)
     .build()
 
@@ -23,7 +26,7 @@ const movieDeleted = (movieId: number) =>
   webhookTemplate<{ event: string; data: { id: number } }>('movie.deleted')
     .matchField('event', 'movie.deleted')
     .matchField('data.id', movieId)
-    .withTimeout(10_000)
+    .withTimeout(15_000)
     .withInterval(500)
     .build()
 
