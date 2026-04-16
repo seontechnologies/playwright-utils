@@ -28,10 +28,20 @@ server.use('/movies', moviesRoute)
 server.use('/webhooks', webhookReceiverRoute)
 
 // WireMock-compatible admin API — all query/delete operations go through /__admin/requests
-server.get('/__admin/requests', (_req, res) => {
+server.get('/__admin/requests', (req, res) => {
+  let filtered = webhookJournal.slice()
+
+  const since = req.query.since
+  if (typeof since === 'string' && since) {
+    const sinceMs = new Date(since).getTime()
+    if (!isNaN(sinceMs)) {
+      filtered = filtered.filter((w) => w.loggedDate >= sinceMs)
+    }
+  }
+
   res.status(200).json({
-    requests: webhookJournal,
-    meta: { total: webhookJournal.length },
+    requests: filtered,
+    meta: { total: filtered.length },
     requestJournalDisabled: false
   })
 })

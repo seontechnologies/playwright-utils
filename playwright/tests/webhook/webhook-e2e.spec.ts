@@ -34,6 +34,11 @@ const test = mergeTests(
   providerFixture
 )
 
+// Use matched-only cleanup to prevent a concurrent test's full-reset from
+// wiping the journal between our two sequential waitFor calls (race condition
+// with fullyParallel: true). Each test only deletes the webhooks it matched.
+test.use({ webhookConfig: { cleanupStrategy: 'matched-only' } })
+
 // Auth helper — sample-app uses cookie-based auth with identity
 async function getAdminAuthToken(
   apiRequest: Parameters<Parameters<typeof test>[2]>[0]['apiRequest']
@@ -188,6 +193,55 @@ test.describe('Webhook module E2E', () => {
           movieId
       )
       expect(match).toBeDefined()
+
+      // Method filter — all sample-app webhooks are delivered via POST
+      const postOnly = await webhookRegistry.getReceived({ method: 'POST' })
+      expect(postOnly.length).toBeGreaterThanOrEqual(1)
+      expect(postOnly.every((w) => w.method === 'POST')).toBe(true)
+    } finally {
+      await apiRequest({
+        method: 'DELETE',
+        path: `/movies/${movieId}`,
+        baseUrl: API_URL,
+        headers: { Cookie: `app-jwt=${token}` }
+      })
+    }
+  })
+
+  test('matchPartial matches a subset of the webhook payload', async ({
+    apiRequest,
+    webhookRegistry
+  }) => {
+    const token = await getAdminAuthToken(apiRequest)
+    const movie = generateMovieWithoutId()
+
+    const { body: createResponse } = await apiRequest<{
+      data: { id: number }
+    }>({
+      method: 'POST',
+      path: '/movies',
+      baseUrl: API_URL,
+      body: movie,
+      headers: { Cookie: `app-jwt=${token}` }
+    })
+
+    const movieId = createResponse.data.id
+
+    // matchPartial checks a subset — extra fields in the payload are ignored
+    const partialTemplate = webhookTemplate<{
+      event: string
+      data: { id: number; name: string }
+    }>('movie.created.partial')
+      .matchPartial({ event: 'movie.created', data: { id: movieId } })
+      .withTimeout(10_000)
+      .withInterval(500)
+      .build()
+
+    try {
+      const webhook = await webhookRegistry.waitFor(partialTemplate)
+
+      expect(webhook.body.data.id).toBe(movieId)
+      expect(webhook.body.data.name).toBe(movie.name)
     } finally {
       await apiRequest({
         method: 'DELETE',
