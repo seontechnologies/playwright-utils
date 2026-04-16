@@ -57,6 +57,9 @@ export class WebhookRegistry {
         () => this.provider.getReceivedWebhooks({ since: this.startedAt }),
         (received) => {
           lastSnapshot = received
+          // w.body is stored as `unknown`; T is a caller-side type hint only.
+          // Runtime safety comes from the matchers — callers are responsible
+          // for ensuring T matches the actual payload shape.
           const found = received.find((w) =>
             matchesTemplate(w.body as T, template.matchers)
           )
@@ -113,6 +116,7 @@ export class WebhookRegistry {
         () => this.provider.getReceivedWebhooks({ since: this.startedAt }),
         (received) => {
           lastSnapshot = received
+          // Same caller-responsibility cast as waitFor — see comment above.
           const matches = received.filter((w) =>
             matchesTemplate(w.body as T, template.matchers)
           )

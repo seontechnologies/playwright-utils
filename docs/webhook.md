@@ -3,41 +3,36 @@ title: Webhook Testing
 description: Poll, match, and assert on webhooks received by a mock server during Playwright tests
 ---
 
-# Webhook Testing
+## Webhook Testing
 
-The webhook module lets you wait for webhooks during E2E tests the same way you wait for API responses — with polling, template matching, and clear timeout errors.
+Webhooks are outbound HTTP callbacks your application fires when events happen (`movie.created`, `payment.succeeded`). Instead of consumers polling for changes, your system pushes event data to subscribed endpoints as soon as the event occurs.
 
-It is provider-agnostic: a built-in WireMock provider is included, but you can plug in any mock server by implementing the `WebhookProvider` interface.
+This module is a provider-agnostic layer for waiting on those webhooks during E2E tests. Three built-in providers ship out of the box — WireMock, MockServer, and Mockoon — and you can plug in any backend by implementing the `WebhookProvider` interface.
 
-## Features
+## Why Webhook Tests Are Hard
 
-- Template-based matching with field paths, partial payloads, and custom predicates
-- Fluent builder for composing templates
-- Automatic polling via the library's [`recurse`](/recurse) utility
-- Two cleanup strategies: reset the whole journal or delete only matched webhooks
-- Rich timeout errors showing received payloads and which matchers failed
-- Playwright fixture with setup/teardown lifecycle
+Webhook delivery is eventually consistent — you can't assert immediately. Worse:
 
-## Usage
+- Parallel workers share the same mock server journal, so one worker's teardown can wipe records another test is still polling
+- Timeout failures tell you nothing without knowing what actually arrived
+- Cleanup is easy to get wrong, leaving leaked test data and flaky suites
 
-### 1. As a Playwright Fixture
+This module gives you deterministic polling, typed matchers, rich timeout errors, and cleanup strategies that are safe under `fullyParallel: true`.
 
-<!-- webhook-e2e.spec.ts:8-35 -->
+## Setup
+
+### As a Playwright Fixture (recommended)
+
+Wire the provider once in your central fixtures file. Tests that use `webhookRegistry` get setup and cleanup automatically; tests that don't pay nothing.
 
 ```typescript
-import { test as base, mergeTests, expect } from '@playwright/test'
-import { test as apiRequestFixture } from '../../../src/api-request/fixtures'
-import { test as webhookFixture } from '../../../src/webhook/fixtures'
-import {
-  WireMockWebhookProvider,
-  WebhookTimeoutError,
-  webhookTemplate
-} from '../../../src/webhook'
+import { test as base, mergeTests } from '@playwright/test'
+import { test as webhookFixture } from '../../src/webhook/fixtures'
+import { WireMockWebhookProvider } from '../../src/webhook'
+import { API_URL } from '../config/local.config'
 
-const API_URL = process.env.VITE_API_URL || 'http://localhost:3001'
-
-// Wire up the webhook provider pointing to the sample-app's built-in receiver
-const providerFixture = base.extend<{
+// Lazy-initialized by Playwright — no cost for tests that don't request webhookRegistry.
+const webhookProviderFixture = base.extend<{
   webhookProvider: WireMockWebhookProvider
 }>({
   webhookProvider: async ({ request }, use) => {
@@ -48,19 +43,165 @@ const providerFixture = base.extend<{
 
 const test = mergeTests(
   base,
-  apiRequestFixture,
+  // ...your other fixtures...
   webhookFixture,
-  providerFixture
+  webhookProviderFixture
 )
+
+// matched-only: each test only deletes the webhooks it matched.
+// full-reset races under fullyParallel: true — one worker's teardown can wipe
+// the journal while another test is still mid-poll.
+test.use({ webhookConfig: { cleanupStrategy: 'matched-only' } })
+
+export { test }
 ```
 
-The fixture calls `provider.setup()` before the test and `registry.cleanup()` + `provider.teardown()` after it — you don't need manual cleanup.
+The fixture calls `provider.setup()` before the test and `registry.cleanup()` + `provider.teardown()` after — no manual cleanup.
 
 For a complete test using this setup, see the [Full E2E Example](#full-e2e-example).
 
-### 2. As a Plain Class
+**With MockServer** — swap the provider class, everything else is identical:
 
-> **Note (theoretical):** Direct instantiation is valid in non-Playwright contexts (global setup helpers, Node scripts). In test files, prefer the fixture pattern above — it handles setup, teardown, and cleanup automatically. The `WebhookRegistry` class is defined in `webhook-registry.ts:23`.
+```typescript
+import { test as base, mergeTests } from '@playwright/test'
+import { test as webhookFixture } from '../../src/webhook/fixtures'
+import { MockServerWebhookProvider } from '@seontechnologies/playwright-utils/webhook'
+import { API_URL } from '../config/local.config'
+
+const webhookProviderFixture = base.extend<{
+  webhookProvider: MockServerWebhookProvider
+}>({
+  webhookProvider: async ({ request }, use) => {
+    await use(new MockServerWebhookProvider(API_URL, request))
+  }
+})
+
+const test = mergeTests(
+  base,
+  /* ...your other fixtures... */ webhookFixture,
+  webhookProviderFixture
+)
+
+// MockServer has no delete-by-ID on log entries — use full-reset for explicit cleanup
+test.use({ webhookConfig: { cleanupStrategy: 'full-reset' } })
+
+export { test }
+```
+
+**With Mockoon** — same pattern, admin API enabled by default in `@mockoon/cli`:
+
+```typescript
+import { test as base, mergeTests } from '@playwright/test'
+import { test as webhookFixture } from '../../src/webhook/fixtures'
+import { MockoonWebhookProvider } from '@seontechnologies/playwright-utils/webhook'
+import { API_URL } from '../config/local.config'
+
+const webhookProviderFixture = base.extend<{
+  webhookProvider: MockoonWebhookProvider
+}>({
+  webhookProvider: async ({ request }, use) => {
+    await use(new MockoonWebhookProvider(API_URL, request))
+  }
+})
+
+const test = mergeTests(
+  base,
+  /* ...your other fixtures... */ webhookFixture,
+  webhookProviderFixture
+)
+
+// Mockoon has no delete-by-ID on log entries — use full-reset for explicit cleanup
+test.use({ webhookConfig: { cleanupStrategy: 'full-reset' } })
+
+export { test }
+```
+
+### With a Custom Provider (not WireMock)
+
+If your mock server isn't WireMock-compatible, implement the `WebhookProvider` interface against whatever API it exposes. The registry only cares about the contract — not the backend.
+
+```typescript
+// support/providers/custom-webhook-provider.ts
+import type {
+  WebhookProvider,
+  ReceivedWebhook,
+  WebhookQueryFilter
+} from '@seontechnologies/playwright-utils/webhook'
+import type { APIRequestContext } from '@playwright/test'
+
+export class CustomWebhookProvider implements WebhookProvider {
+  constructor(
+    private readonly baseUrl: string,
+    private readonly request: APIRequestContext
+  ) {}
+
+  async getReceivedWebhooks(
+    filter?: WebhookQueryFilter
+  ): Promise<ReceivedWebhook[]> {
+    const params = new URLSearchParams()
+    if (filter?.since) params.set('since', filter.since.toISOString())
+    if (filter?.method) params.set('method', filter.method)
+
+    const response = await this.request.get(
+      `${this.baseUrl}/webhooks/received?${params}`
+    )
+    const { webhooks } = await response.json()
+    return webhooks.map((w: Record<string, unknown>) => ({
+      id: w.id,
+      url: w.url,
+      method: w.method,
+      headers: w.headers,
+      body: w.body,
+      receivedAt: new Date(w.receivedAt as string)
+    }))
+  }
+
+  async resetJournal(): Promise<void> {
+    await this.request.delete(`${this.baseUrl}/webhooks/received`)
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await this.request.delete(`${this.baseUrl}/webhooks/received/${id}`)
+  }
+
+  async getCount(): Promise<number> {
+    const response = await this.request.get(`${this.baseUrl}/webhooks/count`)
+    const { count } = await response.json()
+    return count as number
+  }
+}
+```
+
+Wire it up identically to the WireMock setup — only the provider class changes:
+
+```typescript
+// support/merged-fixtures.ts
+import { test as base, mergeTests } from '@playwright/test'
+import { test as webhookFixture } from '../../src/webhook/fixtures'
+import { CustomWebhookProvider } from './providers/custom-webhook-provider'
+import { API_URL } from '../config/local.config'
+
+const webhookProviderFixture = base.extend<{
+  webhookProvider: CustomWebhookProvider
+}>({
+  webhookProvider: async ({ request }, use) => {
+    const provider = new CustomWebhookProvider(API_URL, request)
+    await use(provider)
+  }
+})
+
+const test = mergeTests(base, webhookFixture, webhookProviderFixture)
+
+test.use({ webhookConfig: { cleanupStrategy: 'matched-only' } })
+
+export { test }
+```
+
+The rest of your tests — `waitFor`, `waitForCount`, `getReceived`, templates, matchers — are identical regardless of provider.
+
+### Direct Instantiation
+
+> **Note (theoretical):** Valid in non-Playwright contexts (global setup helpers, Node scripts). In test files, use the fixture — it handles lifecycle automatically.
 
 ```typescript
 import {
@@ -76,9 +217,7 @@ const webhook = await registry.waitFor(template)
 
 ## Building Templates
 
-Templates describe which webhook you're waiting for. The template factories from the sample app E2E suite:
-
-<!-- webhook-e2e.spec.ts:51-65 -->
+Templates describe which webhook you're waiting for. Define them as factory functions so each test gets a fresh instance scoped to its own IDs — this is what prevents cross-contamination between parallel workers.
 
 ```typescript
 const movieCreated = (movieId: number) =>
@@ -98,29 +237,29 @@ const movieDeleted = (movieId: number) =>
     .build()
 ```
 
-> **Note (illustrative):** The following demonstrates all available builder methods (`webhook-template.ts:15-84`) using generic domain names. They are not derived from the E2E suite — see the factories above for working samples, and the E2E suite for `matchPartial` (`webhook-e2e.spec.ts:226-233`) and `matchPredicate` (`webhook-e2e.spec.ts:277-288`).
+> **Note (illustrative):** All available builder methods — these are not derived from the sample suite. See the E2E suite for working examples of `matchPartial` and `matchPredicate`.
 
 ```typescript
 import { webhookTemplate } from '@seontechnologies/playwright-utils/webhook'
 
-// Match by exact field values (dot-path traversal)
+// Exact field match (dot-path traversal into nested objects)
 const orderCompleted = webhookTemplate<OrderPayload>('order.completed')
   .matchField('event', 'order.completed')
   .matchField('data.orderId', orderId)
   .build()
 
-// Match a partial payload structure (deep subset check)
+// Deep subset check — extra fields in the payload are ignored
 const paymentConfirmed = webhookTemplate('payment.confirmed')
   .matchPartial({ data: { status: 'CONFIRMED', currency: 'EUR' } })
   .build()
 
-// Match with a custom predicate
+// Custom predicate for anything the other matchers can't express
 const highValue = webhookTemplate<OrderPayload>('high-value-order')
   .matchField('event', 'order.completed')
   .matchPredicate('amount > 1000', (p) => p.data.amount > 1000)
   .build()
 
-// Override timeout and polling interval per template
+// Per-template timeout and polling interval overrides
 const slowWebhook = webhookTemplate('slow-provider')
   .matchField('event', 'batch.finished')
   .withTimeout(60_000)
@@ -128,11 +267,11 @@ const slowWebhook = webhookTemplate('slow-provider')
   .build()
 ```
 
-All three matcher types can be combined — a webhook must pass **every** matcher to match.
+All matcher types can be combined — a webhook must pass **every** matcher to match.
 
 ### Cloning Templates
 
-> **Note (theoretical):** `clone()` is defined in `webhook-template.ts:67-74`. No E2E test currently demonstrates this pattern. Use it when multiple tests need the same base template with slight field variations.
+> **Note (theoretical):** `clone()` is available on the builder. Not used in the E2E suite. Use it when multiple tests share the same base template with slight field variations.
 
 ```typescript
 const base = webhookTemplate<OrderPayload>('order').matchField(
@@ -146,9 +285,7 @@ const forOrderB = base.clone().matchField('data.orderId', 'B').build()
 
 ## Waiting for Webhooks
 
-### Wait for a Single Webhook
-
-<!-- webhook-e2e.spec.ts:88-99 -->
+### Single Webhook
 
 ```typescript
 const webhook = await webhookRegistry.waitFor(movieCreated(movieId))
@@ -166,13 +303,10 @@ expect(webhook.body).toMatchObject({
 })
 ```
 
-### Wait for Multiple Webhooks
-
-<!-- webhook-e2e.spec.ts:291-296 -->
+### Multiple Webhooks
 
 ```typescript
-// batchTemplate defined at webhook-e2e.spec.ts:277-288 — matches event type
-// and filters by specific IDs to prevent cross-contamination in parallel workers
+// Template filters by ID — prevents cross-contamination in parallel workers
 const webhooks = await webhookRegistry.waitForCount(batchTemplate, 2)
 
 expect(webhooks).toHaveLength(2)
@@ -182,8 +316,6 @@ expect(receivedIds).toContain(id2)
 ```
 
 ### Query Without Waiting
-
-<!-- webhook-e2e.spec.ts:182-195 -->
 
 ```typescript
 const all = await webhookRegistry.getReceived()
@@ -202,14 +334,12 @@ expect(postOnly.every((w) => w.method === 'POST')).toBe(true)
 
 ## Cleanup Strategies
 
-> **Note (theoretical):** The default `'full-reset'` strategy is exercised by every test in the E2E suite (see `webhook-fixture.ts:33-66`). The `'matched-only'` configuration below is illustrative — no E2E test currently exercises it. Use it in multi-worker setups where multiple test workers share the same mock server journal.
+| Strategy                 | Behaviour                                                 | When to use                                                |
+| ------------------------ | --------------------------------------------------------- | ---------------------------------------------------------- |
+| `'full-reset'` (default) | Deletes the entire journal after each test                | Single-worker or isolated mock servers                     |
+| `'matched-only'`         | Deletes only webhooks matched by `waitFor`/`waitForCount` | Multi-worker (`fullyParallel: true`) with a shared journal |
 
-Configure via `WebhookRegistryConfig.cleanupStrategy`:
-
-| Strategy                 | Behaviour                                                       | When to use                                                   |
-| ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------- |
-| `'full-reset'` (default) | Deletes the entire request journal after each test              | Single-worker configs or when you don't share the mock server |
-| `'matched-only'`         | Deletes only the webhooks that `waitFor`/`waitForCount` matched | Multi-worker configs where other tests may share the journal  |
+Configure via `test.use()` in your fixtures file (project-wide) or per describe block:
 
 ```typescript
 const test = base.extend({
@@ -219,32 +349,28 @@ const test = base.extend({
 
 ## Timeout Errors
 
-<!-- types.ts:104-151 -->
-
 When a webhook isn't received in time, `WebhookTimeoutError` gives you everything you need to debug:
 
-```
+```text
 WebhookTimeoutError: Webhook "order.completed" not received within 10000ms.
   3 webhook(s) were received but none matched.
   Matchers: field(event="order.completed"), field(data.orderId="abc-123").
 ```
 
-The error includes:
+Error properties:
 
 - `templateName` — which template timed out
-- `timeoutMs` — the timeout value
+- `timeoutMs` — the configured timeout
 - `totalReceived` — how many webhooks arrived (but didn't match)
-- `receivedWebhooks` — the last 10 payloads for inspection
+- `receivedWebhooks` — last 10 payloads for inspection
 - `matcherDetails` — human-readable summary of each matcher
 - `toJSON()` — serializes all fields for CI log output
 
-The E2E test at `webhook-e2e.spec.ts:315-340` validates this full error shape in CI.
+The E2E test suite validates this error shape in CI.
 
-## Matchers in Depth
+## Matchers In Depth
 
 ### Field Matcher
-
-<!-- webhook-e2e.spec.ts:51-57 -->
 
 ```typescript
 const movieCreated = (movieId: number) =>
@@ -256,24 +382,20 @@ const movieCreated = (movieId: number) =>
     .build()
 ```
 
-> **Note (illustrative):** The following demonstrates the full dot-path traversal capability of `getFieldValue` (`matchers.ts:27-43`):
+> **Note (illustrative):** Dot-path supports deep nesting and array index access:
 
 ```typescript
-// Deeply nested path
 .matchField('data.order.id', 'ord-123')
-
-// Array index access
 .matchField('data.items.0.sku', 'WIDGET-A')
 ```
 
-Returns `false` if any segment in the path is missing — never throws.
+Returns `false` if any path segment is missing — never throws.
 
 ### Partial Matcher
 
-<!-- webhook-e2e.spec.ts:226-233 -->
+Recursive deep subset check: every key in `expected` must exist with a matching value in the payload. Extra keys in the payload are ignored.
 
 ```typescript
-// matchPartial checks a subset — extra fields in the payload are ignored
 const partialTemplate = webhookTemplate<{
   event: string
   data: { id: number; name: string }
@@ -284,13 +406,11 @@ const partialTemplate = webhookTemplate<{
   .build()
 ```
 
-Recursive deep subset check (`matchers.ts:57-85`): every key in `expected` must exist with an equal value in the payload. Extra keys in the payload are ignored.
-
-Arrays are compared element-by-element with **strict length matching** — `[1, 2, 3]` does not match `[1, 2]`.
+Arrays use **strict length matching** — `[1, 2, 3]` does not match `[1, 2]`.
 
 ### Predicate Matcher
 
-<!-- webhook-e2e.spec.ts:277-288 -->
+Arbitrary function for anything the other matchers can't express. Always provide a description — it shows up in `WebhookTimeoutError.matcherDetails` when the timeout fires.
 
 ```typescript
 // Template filters by ID so parallel workers don't cross-contaminate
@@ -308,27 +428,97 @@ const batchTemplate = webhookTemplate<{
   .build()
 ```
 
-Arbitrary function for anything the other matchers can't express. Always provide a `description` — it appears in `WebhookTimeoutError.matcherDetails` when the timeout fires.
-
 ## WireMock Provider
 
-<!-- wiremock-provider.ts:57-159 -->
+The built-in `WireMockWebhookProvider` works with any server that exposes WireMock's `/__admin/requests` API:
 
-The built-in `WireMockWebhookProvider` works with any server that implements WireMock's `/__admin/requests` API:
+| Method                       | WireMock endpoint               | Description                                                                |
+| ---------------------------- | ------------------------------- | -------------------------------------------------------------------------- |
+| `getReceivedWebhooks()`      | `GET /__admin/requests`         | Query received webhooks — supports `since`, `method`, `urlPattern` filters |
+| `resetJournal()`             | `DELETE /__admin/requests`      | Clear all stored requests                                                  |
+| `deleteById(id)`             | `DELETE /__admin/requests/{id}` | Remove a single request                                                    |
+| `getCount(criteria)`         | `POST /__admin/requests/count`  | Count matching requests                                                    |
+| `removeByCriteria(criteria)` | `POST /__admin/requests/remove` | Remove requests matching criteria                                          |
 
-| Method                       | WireMock endpoint               | Description                                                                       |
-| ---------------------------- | ------------------------------- | --------------------------------------------------------------------------------- |
-| `getReceivedWebhooks()`      | `GET /__admin/requests`         | Query received webhooks with optional `since`, `method`, and `urlPattern` filters |
-| `resetJournal()`             | `DELETE /__admin/requests`      | Clear all stored requests                                                         |
-| `deleteById(id)`             | `DELETE /__admin/requests/{id}` | Remove a single request                                                           |
-| `getCount(criteria)`         | `POST /__admin/requests/count`  | Count matching requests                                                           |
-| `removeByCriteria(criteria)` | `POST /__admin/requests/remove` | Remove requests matching criteria                                                 |
+### MockServer Provider
+
+`MockServerWebhookProvider` works with any server exposing MockServer's `/mockserver` admin API (common in Java/Spring stacks).
+
+```typescript
+// support/merged-fixtures.ts
+import { test as base, mergeTests } from '@playwright/test'
+import { test as webhookFixture } from '../../src/webhook/fixtures'
+import { MockServerWebhookProvider } from '@seontechnologies/playwright-utils/webhook'
+import { API_URL } from '../config/local.config'
+
+const webhookProviderFixture = base.extend<{
+  webhookProvider: MockServerWebhookProvider
+}>({
+  webhookProvider: async ({ request }, use) => {
+    const provider = new MockServerWebhookProvider(API_URL, request)
+    await use(provider)
+  }
+})
+
+const test = mergeTests(base, webhookFixture, webhookProviderFixture)
+
+// Use full-reset with MockServer — matched-only cleanup is a no-op
+// (MockServer has no delete-by-ID on log entries; since-filter handles isolation)
+test.use({ webhookConfig: { cleanupStrategy: 'full-reset' } })
+
+export { test }
+```
+
+| Method                  | MockServer endpoint                               | Description                                                                                      |
+| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `getReceivedWebhooks()` | `PUT /mockserver/retrieve?type=REQUEST_RESPONSES` | Fetch all logged request/response pairs; `since`/`method`/`urlPattern` filtered client-side      |
+| `resetJournal()`        | `PUT /mockserver/clear?type=log`                  | Clear the request log, preserves stubs                                                           |
+| `deleteById(id)`        | —                                                 | **No-op** — MockServer has no delete-by-ID on log entries; isolation relies on `since` filtering |
+| `getCount()`            | —                                                 | Client-side count of `getReceivedWebhooks()` result                                              |
+
+> **Note:** `matched-only` cleanup silently skips deletion. Tests remain isolated via the registry's `since` filter, but the log grows until reset. Use `full-reset` for explicit cleanup.
+
+### Mockoon Provider
+
+`MockoonWebhookProvider` works with any server running `@mockoon/cli` or the Mockoon desktop app. The admin API is enabled by default — no extra flags needed.
+
+```typescript
+// support/merged-fixtures.ts
+import { test as base, mergeTests } from '@playwright/test'
+import { test as webhookFixture } from '../../src/webhook/fixtures'
+import { MockoonWebhookProvider } from '@seontechnologies/playwright-utils/webhook'
+import { API_URL } from '../config/local.config'
+
+const webhookProviderFixture = base.extend<{
+  webhookProvider: MockoonWebhookProvider
+}>({
+  webhookProvider: async ({ request }, use) => {
+    const provider = new MockoonWebhookProvider(API_URL, request)
+    await use(provider)
+  }
+})
+
+const test = mergeTests(base, webhookFixture, webhookProviderFixture)
+
+// Use full-reset with Mockoon — matched-only cleanup is a no-op
+// (Mockoon has no delete-by-ID on log entries; since-filter handles isolation)
+test.use({ webhookConfig: { cleanupStrategy: 'full-reset' } })
+
+export { test }
+```
+
+| Method                  | Mockoon endpoint                 | Description                                                                                   |
+| ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------- |
+| `getReceivedWebhooks()` | `GET /mockoon-admin/logs`        | Fetch in-memory transaction log; `since`/`method`/`urlPattern` filtered client-side           |
+| `resetJournal()`        | `POST /mockoon-admin/logs/purge` | Clear all in-memory transaction logs                                                          |
+| `deleteById(id)`        | —                                | **No-op** — Mockoon has no delete-by-ID on log entries; isolation relies on `since` filtering |
+| `getCount()`            | —                                | Client-side count of `getReceivedWebhooks()` result                                           |
+
+> **Note:** Mockoon caps the in-memory log at 100 entries by default. Raise it with `--max-transaction-logs <n>` if your tests generate more webhook traffic than that.
 
 ### Custom Provider
 
-<!-- types.ts:14-34 -->
-
-> **Note (theoretical):** The following shows how to implement a custom provider against the `WebhookProvider` interface. The E2E suite uses the built-in `WireMockWebhookProvider` — this code is illustrative of how the abstraction works.
+> **Note (theoretical):** How to implement a custom provider against the `WebhookProvider` interface. The E2E suite uses the built-in `WireMockWebhookProvider`.
 
 ```typescript
 import type {
@@ -350,7 +540,7 @@ class MyCustomProvider implements WebhookProvider {
     /* ... */
   }
 
-  // Optional hooks
+  // Optional lifecycle hooks
   async setup() {
     /* health check, register stubs */
   }
@@ -362,10 +552,8 @@ class MyCustomProvider implements WebhookProvider {
 
 ## Full E2E Example
 
-<!-- webhook-e2e.spec.ts:51-108 -->
-
 ```typescript
-// Template factory — reusable across tests
+// Template factory — reusable across tests, scoped to a specific movieId
 const movieCreated = (movieId: number) =>
   webhookTemplate<{ event: string; data: { id: number } }>('movie.created')
     .matchField('event', 'movie.created')
@@ -375,45 +563,31 @@ const movieCreated = (movieId: number) =>
     .build()
 
 test('movie creation triggers a webhook with correct payload', async ({
-  apiRequest,
+  authToken,
+  addMovie,
+  deleteMovie,
   webhookRegistry
 }) => {
-  const token = await getAdminAuthToken(apiRequest)
   const movie = generateMovieWithoutId()
 
-  const { body: createResponse } = await apiRequest<{
-    data: { id: number; name: string }
-  }>({
-    method: 'POST',
-    path: '/movies',
-    baseUrl: API_URL,
-    body: movie,
-    headers: { Cookie: `app-jwt=${token}` }
-  })
+  const { body: createResponse } = await addMovie(authToken, movie)
 
   const movieId = createResponse.data.id
 
-  try {
-    const webhook = await webhookRegistry.waitFor(movieCreated(movieId))
+  const webhook = await webhookRegistry.waitFor(movieCreated(movieId))
 
-    expect(webhook.body).toMatchObject({
-      event: 'movie.created',
-      timestamp: expect.any(String),
-      data: {
-        id: movieId,
-        name: movie.name,
-        year: movie.year,
-        rating: movie.rating
-      }
-    })
-  } finally {
-    await apiRequest({
-      method: 'DELETE',
-      path: `/movies/${movieId}`,
-      baseUrl: API_URL,
-      headers: { Cookie: `app-jwt=${token}` }
-    })
-  }
+  expect(webhook.body).toMatchObject({
+    event: 'movie.created',
+    timestamp: expect.any(String),
+    data: {
+      id: movieId,
+      name: movie.name,
+      year: movie.year,
+      rating: movie.rating
+    }
+  })
+
+  await deleteMovie(authToken, movieId)
 })
 ```
 
@@ -438,13 +612,13 @@ test('movie creation triggers a webhook with correct payload', async ({
 
 ### ReceivedWebhook
 
-| Property     | Type                     | Description                                      |
-| ------------ | ------------------------ | ------------------------------------------------ |
-| `id`         | `string`                 | Unique ID from the mock server                   |
-| `url`        | `string`                 | Request URL                                      |
-| `method`     | `string`                 | HTTP method                                      |
-| `headers`    | `Record<string, string>` | Request headers                                  |
-| `body`       | `TPayload`               | Parsed JSON body (or raw string if parse failed) |
-| `rawBody`    | `string?`                | Original body string                             |
-| `parseError` | `boolean?`               | `true` if JSON parsing failed                    |
-| `receivedAt` | `Date`                   | Timestamp when the webhook was received          |
+| Property     | Type                     | Description                                          |
+| ------------ | ------------------------ | ---------------------------------------------------- |
+| `id`         | `string`                 | Unique ID from the mock server                       |
+| `url`        | `string`                 | Request URL                                          |
+| `method`     | `string`                 | HTTP method                                          |
+| `headers`    | `Record<string, string>` | Request headers                                      |
+| `body`       | `TPayload`               | Parsed JSON body (raw string if JSON parsing failed) |
+| `rawBody`    | `string?`                | Original body string                                 |
+| `parseError` | `boolean?`               | `true` if JSON parsing failed                        |
+| `receivedAt` | `Date`                   | Timestamp when the webhook was received              |
