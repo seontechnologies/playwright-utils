@@ -22,7 +22,9 @@ userIdentifiers.forEach((userIdentifier) => {
 
       await expect(page).toHaveURL('/movies')
 
-      await expect(page.getByText(userIdentifier)).toBeVisible()
+      await expect(
+        page.getByText(userIdentifier, { exact: true })
+      ).toBeVisible()
     })
   })
 })

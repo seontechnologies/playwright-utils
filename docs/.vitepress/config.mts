@@ -29,7 +29,8 @@ export default defineConfig({
           { text: 'Recurse (Polling)', link: '/recurse' },
           { text: 'Logging', link: '/log' },
           { text: 'File Utilities', link: '/file-utils' },
-          { text: 'Burn-in', link: '/burn-in' }
+          { text: 'Burn-in', link: '/burn-in' },
+          { text: 'Webhook Testing', link: '/webhook' }
         ]
       },
       {
@@ -63,7 +64,8 @@ export default defineConfig({
           { text: 'Recurse (Polling)', link: '/recurse' },
           { text: 'Logging', link: '/log' },
           { text: 'File Utilities', link: '/file-utils' },
-          { text: 'Burn-in', link: '/burn-in' }
+          { text: 'Burn-in', link: '/burn-in' },
+          { text: 'Webhook Testing', link: '/webhook' }
         ]
       },
       {

@@ -2,6 +2,7 @@ import cors from 'cors'
 import express, { json } from 'express'
 import cookieParser from 'cookie-parser'
 import { moviesRoute } from './routes'
+import { webhookReceiverRoute, webhookJournal } from './webhook-receiver'
 
 const server = express()
 server.use(
@@ -21,6 +22,62 @@ server.get('/', (_, res) => {
 })
 
 server.use('/movies', moviesRoute)
+
+// Webhook receiver — acts as a mock webhook endpoint for E2E testing
+// POST /webhooks stores incoming webhooks; /__admin/requests exposes the WireMock-compatible admin API
+server.use('/webhooks', webhookReceiverRoute)
+
+// WireMock-compatible admin API — all query/delete operations go through /__admin/requests
+server.get('/__admin/requests', (req, res) => {
+  let filtered = webhookJournal.slice()
+
+  const since = req.query.since
+  if (typeof since === 'string' && since) {
+    const sinceMs = new Date(since).getTime()
+    if (!isNaN(sinceMs)) {
+      filtered = filtered.filter((w) => w.loggedDate >= sinceMs)
+    }
+  }
+
+  res.status(200).json({
+    requests: filtered,
+    meta: { total: filtered.length },
+    requestJournalDisabled: false
+  })
+})
+server.delete('/__admin/requests', (_req, res) => {
+  webhookJournal.length = 0
+  res.status(200).json({ status: 'ok' })
+})
+server.delete('/__admin/requests/:id', (req, res) => {
+  const index = webhookJournal.findIndex((w) => w.id === req.params.id)
+  if (index === -1) {
+    return res.status(404).json({ error: 'Webhook not found' })
+  }
+  webhookJournal.splice(index, 1)
+  return res.status(200).json({ status: 'ok' })
+})
+server.post('/__admin/requests/count', (_req, res) => {
+  res.status(200).json({ count: webhookJournal.length })
+})
+server.post('/__admin/requests/remove', (req, res) => {
+  const { url, method } = req.body || {}
+  const before = webhookJournal.length
+  for (let i = webhookJournal.length - 1; i >= 0; i--) {
+    const w = webhookJournal[i]!
+    if (
+      url &&
+      !w.request.absoluteUrl.includes(url) &&
+      !w.request.url.includes(url)
+    )
+      continue
+    if (method && w.request.method !== method.toUpperCase()) continue
+    webhookJournal.splice(i, 1)
+  }
+  res
+    .status(200)
+    .json({ status: 'ok', removed: before - webhookJournal.length })
+})
 
 server.post('/auth/fake-token', (_req, res) => {
   // JWT token - short lived (5 minutes)
