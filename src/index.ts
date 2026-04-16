@@ -12,6 +12,7 @@ export * from './log/index'
 export * from './intercept-network-call'
 export * from './file-utils'
 export * from './network-recorder/network-recorder'
+export * from './webhook'
 
 ///////////////////////
 // Internal logger to use our log implementation instead of console.log

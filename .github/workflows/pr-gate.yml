@@ -10,7 +10,7 @@ on:
 jobs:
   gate:
     name: gate
-    runs-on: kubernetes-default
+    runs-on: ubuntu-latest
     steps:
       - uses: kachick/wait-other-jobs@v3
         with:
