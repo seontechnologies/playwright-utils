@@ -33,6 +33,10 @@ features:
     title: Logging
     details: Structured logging that integrates seamlessly with Playwright reports.
     link: /log
+  - icon: 🪝
+    title: Webhook Testing
+    details: Provider-agnostic webhook polling, matching, and cleanup for reliable end-to-end assertions.
+    link: /webhook
   - icon: 🌐
     title: Network Interception
     details: Powerful utilities for intercepting, observing, and mocking network requests.
