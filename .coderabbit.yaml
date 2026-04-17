@@ -1,0 +1,198 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+early_access: true
+enable_free_tier: true
+
+reviews:
+  profile: chill
+  high_level_summary: false
+  request_changes_workflow: false
+  review_status: false
+  commit_status: false
+  poem: false
+  in_progress_fortune: false
+  suggested_labels: false
+  suggested_reviewers: false
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: false
+    base_branches:
+      - main
+  instructions: |
+    This is **playwright-utils**, an open-source TypeScript utility library for
+    Playwright testing. Every review should keep these architectural invariants
+    in mind:
+
+    1. **"Functional core, fixture shell" pattern** – each utility is a plain
+       function that can also be consumed as a Playwright fixture. Both
+       interfaces must remain in sync. Changes that break one side are critical.
+    2. **Dual CJS / ESM build** – the package ships CommonJS, ES Modules, and
+       type declarations via subpath exports. Any change to exports, barrel
+       files, or tsconfig must preserve this contract.
+    3. **Backward compatibility** – downstream repos already depend on the
+       public API. Flag any breaking change explicitly.
+    4. **Playwright best practices** – no hard waits (`waitForTimeout`), prefer
+       web-first assertions and auto-retrying locators, ensure tests are
+       atomic / stateless and safe for parallel execution.
+    5. **Security** – never commit secrets, tokens, or credentials. Scrutinize
+       HAR files, mock data, and auth-session artifacts for leaked sensitive
+       data.
+    6. **Test coverage** – when source code is added or modified, corresponding
+       tests (unit and/or e2e) should be added or updated. Flag removals or
+       weakening of existing tests.
+
+  path_filters:
+    # Whitelist: review these paths
+    - ".coderabbit.yaml"
+    - ".github/**"
+    - "src/**"
+    - "playwright/**"
+    - "sample-app/**"
+    - "scripts/**"
+    - "docs/**"
+    - "AGENTS.md"
+    - "CLAUDE.md"
+    - "README.md"
+    - "CONTRIBUTING.md"
+    - "SECURITY.md"
+    - "CODE_OF_CONDUCT.md"
+    - "CHANGELOG.md"
+    - "package.json"
+    - "playwright.config.ts"
+    - "tsconfig.json"
+    - "tsconfig-cjs.json"
+    - "tsconfig-esm.json"
+    - "tsconfig-build-types.json"
+    - "vite-env.d.ts"
+    - "test.http"
+    - ".eslintignore"
+    - ".eslintrc.js"
+    - ".gitignore"
+    - ".gitleaks.toml"
+    - ".npmrc"
+    - ".nvmrc"
+    - ".prettierignore"
+    - ".prettierrc"
+    # Exclude generated, binary, and high-noise paths
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/coverage/**"
+    - "!har-files/**"
+    - "!playwright-report/**"
+    - "!playwright-logs/**"
+    - "!test-results/**"
+    - "!blob-report/**"
+    - "!.auth/**"
+    - "!package-lock.json"
+    - "!**/*.generated.*"
+    - "!**/*.min.js"
+    - "!**/*.woff"
+    - "!**/*.woff2"
+    - "!**/*.ttf"
+    - "!**/*.ico"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.jpeg"
+    - "!**/*.gif"
+    - "!**/*.svg"
+
+  path_instructions:
+    - path: ".github/workflows/**"
+      instructions: |
+        GitHub Actions workflow change. Review for branch/ref correctness, job
+        dependencies, secret handling, permission scope, fork safety, and whether
+        required-vs-advisory behavior still matches the repository policy.
+        Flag brittle SHA assumptions and any step ordering that could make
+        PR-gate, e2e, burn-in, or publish checks flaky.
+    - path: ".github/actions/**"
+      instructions: |
+        Composite GitHub Action change. Review with the same rigor as workflow
+        files: input/output correctness, shell safety, permission assumptions,
+        secret handling, and whether downstream workflows can rely on the
+        action's current contract without hidden regressions.
+    - path: "scripts/**"
+      instructions: |
+        Automation script change. Check shell/Node portability, argument parsing,
+        failure handling, exit codes, and whether the script still matches the
+        CI and local developer workflow assumptions used elsewhere in the repo.
+    - path: "src/**"
+      instructions: |
+        Core library source change. This is the most critical review surface.
+
+        **Pattern compliance**
+        - Verify the "functional core, fixture shell" duality is preserved:
+          every utility must work as a standalone function AND as a Playwright
+          fixture. If a new module is added, both interfaces must exist.
+        - Check that subpath exports in package.json are updated if a new
+          module is introduced or an existing entry point changes.
+
+        **Type safety & API design**
+        - Strict TypeScript: explicit return types, no `any` leaks, proper
+          generics. Flag implicit `any` or unsafe casts.
+        - API consistency across modules: naming conventions, option-object
+          patterns, and error shapes should mirror existing utilities.
+        - Flag any change that breaks the public API contract for downstream
+          consumers.
+
+        **Build correctness**
+        - Changes to barrel files (`index.ts`), tsconfig, or module boundaries
+          must preserve dual CJS/ESM output. Call out anything that could
+          silently break one format.
+
+        **Performance & reliability**
+        - No unnecessary allocations or event-listener leaks in hot paths.
+        - Utilities that wrap network calls or polling (recurse, intercept,
+          network-recorder) must handle timeouts and cancellation cleanly.
+
+        **Security**
+        - auth-session and network-recorder modules handle credentials and HAR
+          data. Ensure no tokens, cookies, or PII leak into logs, snapshots,
+          or committed fixtures.
+    - path: "src/**/fixtures.ts"
+      instructions: |
+        Playwright fixture file. In addition to the general src/ guidance:
+        - The fixture must delegate to the standalone function, not duplicate
+          logic.
+        - Fixture scope (test vs worker) must be intentional; prefer test scope
+          unless shared state is explicitly required.
+        - Ensure fixture teardown/cleanup is present where resources are
+          acquired (network listeners, file handles, auth tokens).
+    - path: "playwright/**"
+      instructions: |
+        Playwright test / config change. Focus on reliability and CI stability:
+        - No hard waits (`page.waitForTimeout`). Use web-first assertions or
+          `expect.poll` / `expect.toPass` patterns instead.
+        - Tests must be atomic and stateless — no implicit ordering or shared
+          mutable state between tests.
+        - Fixture isolation: auth sessions, intercepted routes, and recorded
+          HAR state must not leak across tests.
+        - Environment portability: tests should pass in both local
+          (`npm run start:sample-app`) and CI without environment-specific
+          conditionals.
+        - Flag non-deterministic data setup or assertions that are
+          timing-sensitive.
+    - path: "sample-app/**"
+      instructions: |
+        Sample application change (Express backend + React/Vite frontend).
+        The sample-app is the test harness for the library itself, so stability
+        matters:
+        - Backend: check auth middleware, Prisma schema, API route contracts,
+          and error handling consistency.
+        - Frontend: check component test coverage (Vitest), prop contracts,
+          and that changes don't break Playwright e2e flows.
+        - Ensure backend and frontend stay in sync (shared types, API shapes).
+    - path: "docs/**"
+      instructions: |
+        Documentation change. Verify that commands, file paths, environment
+        variables, and config examples actually match the current repo. Check
+        whether the change should also be reflected in README.md, CLAUDE.md,
+        or AGENTS.md.
+
+chat:
+  auto_reply: true
+
+issue_enrichment:
+  auto_enrich:
+    enabled: false
