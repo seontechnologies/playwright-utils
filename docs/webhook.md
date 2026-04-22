@@ -550,6 +550,44 @@ class MyCustomProvider implements WebhookProvider {
 }
 ```
 
+### Community Providers
+
+#### Simplehook — real webhook delivery
+
+[`@simplehook/playwright`](https://www.npmjs.com/package/@simplehook/playwright) lets you test against real webhook events from Stripe, GitHub, Twilio, and any provider instead of mocking them. Events are delivered through [Simplehook](https://simplehook.dev) (a stable webhook URL service) and pulled into the provider's in-memory journal via the Pull API.
+
+Each provider instance generates a unique listener ID, so parallel test workers never collide.
+
+```bash
+npm install @simplehook/playwright
+```
+
+```typescript
+import { test } from '@seontechnologies/playwright-utils/webhook/fixtures'
+import { SimplehookWebhookProvider } from '@simplehook/playwright'
+
+// Reads SIMPLEHOOK_KEY from the environment by default
+const webhookTest = test.extend({
+  webhookProvider: async ({}, use) => {
+    await use(new SimplehookWebhookProvider())
+  }
+})
+
+webhookTest.use({ webhookConfig: { cleanupStrategy: 'matched-only' } })
+
+webhookTest('processes real Stripe charge', async ({ webhookRegistry }) => {
+  const webhook = await webhookRegistry.waitFor(
+    webhookTemplate('stripe-charge')
+      .matchField('type', 'charge.succeeded')
+      .build()
+  )
+
+  expect(webhook.body.data.object.amount).toBe(500)
+})
+```
+
+> This provider and its integration were built with [Claude Code](https://claude.ai/code). Source and tests: [github.com/bnbarak/antiwebhook/tree/main/javascript/sdk/playwright](https://github.com/bnbarak/antiwebhook/tree/main/javascript/sdk/playwright).
+
 ## Full E2E Example
 
 ```typescript
