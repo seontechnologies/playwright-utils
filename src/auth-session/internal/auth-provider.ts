@@ -50,6 +50,26 @@ export interface AuthProvider {
   }>
 
   /**
+   * Extract browser localStorage entries from formatted token data.
+   *
+   * Optional. Implement this for apps that store their auth token in
+   * `localStorage` rather than a cookie. The returned entries are written into
+   * the Playwright storage state `origins` array so the token is present before
+   * the app's first script runs. Cookie-based providers can omit this method
+   * entirely — behavior is unchanged.
+   *
+   * Note: Playwright storage state `origins` only carries `localStorage`, not
+   * `sessionStorage`; this hook is localStorage-only by design.
+   *
+   * @param tokenData The formatted token data
+   * @returns Array of per-origin storage entries ready for Playwright storage state
+   */
+  extractStorage?(tokenData: Record<string, unknown>): Array<{
+    origin: string
+    localStorage: Array<{ name: string; value: string }>
+  }>
+
+  /**
    * Check if a token is expired
    * This allows providers to implement custom expiration logic
    *

@@ -169,9 +169,11 @@ export const defaultTokenFormatter: DefaultTokenDataFormatter = (
   tokenData: unknown,
   options?: Partial<AuthSessionOptions>
 ): PlaywrightStorageState => {
-  // Check if tokenData is already a valid storage state object
+  // Check if tokenData is already a valid storage state object. We still
+  // augment its `origins` from the provider, since providers typically return
+  // { cookies, origins: [] } and rely on extractStorage() to fill localStorage.
   if (isPlaywrightStorageState(tokenData)) {
-    return tokenData as PlaywrightStorageState
+    return applyProviderOriginsToState(tokenData as PlaywrightStorageState)
   }
 
   // Extract the token based on the input type
@@ -179,9 +181,10 @@ export const defaultTokenFormatter: DefaultTokenDataFormatter = (
 
   if (typeof tokenData === 'string') {
     token = extractTokenFromString(tokenData)
-    // If a storage state was returned, just use it
+    // If a storage state was returned (e.g. saveToken passes JSON.stringify of
+    // the provider's storage state), use it — but augment origins first.
     if (token && typeof token === 'object') {
-      return token as PlaywrightStorageState
+      return applyProviderOriginsToState(token as PlaywrightStorageState)
     }
   } else if (tokenData && typeof tokenData === 'object') {
     token = extractTokenFromObject(tokenData) || String(tokenData || '')
@@ -197,8 +200,11 @@ export const defaultTokenFormatter: DefaultTokenDataFormatter = (
   // Get domain from environment or default to localhost
   const domain = extractDomain()
 
-  // Return a clean Playwright storage state
-  return {
+  // Return a clean Playwright storage state. The `origins` array is populated
+  // only when the configured provider implements the optional extractStorage()
+  // hook (localStorage-based auth); otherwise it stays empty (cookie-based auth,
+  // unchanged default behavior).
+  const built: PlaywrightStorageState = {
     cookies: [
       {
         name: cookieName,
@@ -213,6 +219,94 @@ export const defaultTokenFormatter: DefaultTokenDataFormatter = (
     ],
     origins: []
   }
+  return applyProviderOriginsToState(built, tokenData)
+}
+
+/**
+ * Build the storage-state `origins` array from the configured provider's
+ * optional extractStorage() hook. Returns an empty array when no provider is
+ * set, the provider does not implement extractStorage, or extraction fails —
+ * keeping cookie-based auth entirely unaffected.
+ */
+function extractOriginsFromProvider(
+  tokenData: unknown
+): PlaywrightStorageState['origins'] {
+  let provider: ReturnType<typeof getAuthProvider>
+  try {
+    provider = getAuthProvider()
+  } catch {
+    // No provider configured (cookie-only / direct usage). Silent by contract.
+    return []
+  }
+
+  if (typeof provider.extractStorage !== 'function') return []
+
+  // Providers that implement extractStorage expect their own token shape; a
+  // bare token string isn't extractable, so don't force every implementation
+  // to repeat the defensive check.
+  if (typeof tokenData !== 'object' || tokenData === null) return []
+
+  try {
+    const origins = provider.extractStorage(
+      tokenData as Record<string, unknown>
+    )
+    return Array.isArray(origins) ? origins : []
+  } catch (error) {
+    // A user-implemented extractStorage() threw — surface it for diagnostics,
+    // but stay non-fatal so the cookie storage state is still saved.
+    log.warningSync(
+      `extractStorage() threw; saving storage state with empty origins: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    )
+    return []
+  }
+}
+
+/**
+ * Merge two storage-state `origins` arrays, deduping by origin and by entry
+ * name within each origin. Existing entries take precedence over derived ones,
+ * so a provider that explicitly sets origins is never overwritten. Idempotent:
+ * merging an already-merged result is a no-op.
+ */
+const mergeStorageOrigins = (
+  existing: PlaywrightStorageState['origins'],
+  derived: PlaywrightStorageState['origins']
+): PlaywrightStorageState['origins'] => {
+  const byOrigin = new Map<string, Map<string, string>>()
+  const absorb = (list: PlaywrightStorageState['origins']): void => {
+    for (const { origin, localStorage } of list ?? []) {
+      const entries = byOrigin.get(origin) ?? new Map<string, string>()
+      for (const { name, value } of localStorage ?? []) {
+        if (!entries.has(name)) entries.set(name, value) // first wins
+      }
+      byOrigin.set(origin, entries)
+    }
+  }
+  absorb(existing) // existing first → precedence
+  absorb(derived)
+  return [...byOrigin].map(([origin, entries]) => ({
+    origin,
+    localStorage: [...entries].map(([name, value]) => ({ name, value }))
+  }))
+}
+
+/**
+ * Augment a Playwright storage state's `origins` with localStorage entries
+ * derived from the provider's optional extractStorage() hook. No-op (returns
+ * the same state) when the provider is cookie-only or yields nothing, so
+ * cookie-based auth is entirely unaffected.
+ *
+ * @param state The storage state to augment
+ * @param source The data to extract storage from (defaults to `state` itself)
+ */
+export const applyProviderOriginsToState = (
+  state: PlaywrightStorageState,
+  source: unknown = state
+): PlaywrightStorageState => {
+  const derived = extractOriginsFromProvider(source)
+  if (derived.length === 0) return state
+  return { ...state, origins: mergeStorageOrigins(state.origins, derived) }
 }
 
 // extractRawToken function has been integrated directly into defaultTokenFormatter

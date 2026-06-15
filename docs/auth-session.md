@@ -31,6 +31,7 @@ This library builds on Playwright's authentication capabilities to create a more
     - [Configure Authentication Options](#configure-authentication-options)
     - [Use the Auth Session in Your Tests](#use-the-auth-session-in-your-tests)
       - [Cookie-Based Authentication](#cookie-based-authentication)
+      - [localStorage-Based Authentication](#localstorage-based-authentication)
     - [Using Multiple User Identifiers in Tests](#using-multiple-user-identifiers-in-tests)
       - [Simple User Override with authOptions](#simple-user-override-with-authoptions)
       - [Parallel Test Execution with Multiple User Identifiers](#parallel-test-execution-with-multiple-user-identifiers)
@@ -835,6 +836,66 @@ await authManager.saveToken(storageState)
 
 return storageState
 ```
+
+#### localStorage-Based Authentication
+
+Many SPAs store their auth token in `localStorage` rather than a cookie. The library supports this through the optional `extractStorage()` provider hook and two ephemeral helpers — without affecting cookie-based setups. (Scope is `localStorage` only: Playwright storage state `origins` does not carry `sessionStorage`.)
+
+**1. Implement the optional `extractStorage()` hook on your provider.** It returns Playwright storage-state `origins` entries. Cookie-only providers simply omit it (behavior is unchanged):
+
+```typescript
+// playwright/support/auth/token/extract.ts
+export const extractStorage = (tokenData: Record<string, unknown>) => {
+  const token = extractToken(tokenData)
+  if (!token) return []
+
+  const origin = process.env.BASE_URL || 'http://localhost:3000'
+  return [{ origin, localStorage: [{ name: 'app-jwt', value: token }] }]
+}
+```
+
+```typescript
+// custom-auth-provider.ts — add alongside extractCookies
+const myCustomProvider: AuthProvider = {
+  // ...
+  extractCookies,
+  extractStorage // optional: enables localStorage-based auth
+  // ...
+}
+```
+
+When present, `extractStorage()` also populates the `origins` array of the persisted storage state automatically, so saved sessions reload localStorage just like cookies.
+
+**2. Apply the token to a browser context or page.** Two helpers mirror `applyUserCookiesToBrowserContext`:
+
+```typescript
+import {
+  applyUserStorageToBrowserContext,
+  applyUserStorageToPage
+} from '@seontechnologies/playwright-utils/auth-session'
+
+// Seed localStorage before any page script runs (context.addInitScript).
+// Version-agnostic — works on any supported Playwright.
+test('localStorage auth via context', async ({ context, page, authToken }) => {
+  await applyUserStorageToBrowserContext(context, { token: authToken })
+  await page.goto('/')
+  // The app sees app-jwt in localStorage on first load.
+})
+
+// Write localStorage on an already-navigated page using Playwright 1.61's
+// page.localStorage WebStorage API (falls back to page.evaluate on <1.61).
+test('localStorage auth via page', async ({ page, authToken }) => {
+  await page.goto('/')
+  await applyUserStorageToPage(page, { token: authToken })
+  // Read back in a version-agnostic way (page.localStorage itself is 1.61-only).
+  const stored = await page.evaluate(() => localStorage.getItem('app-jwt'))
+  expect(stored).toBe(authToken)
+})
+```
+
+> **Peer version note:** `applyUserStorageToPage` prefers the Playwright **1.61** `page.localStorage` WebStorage API and is feature-detected — on older Playwright it transparently falls back to `page.evaluate`, so the package peer floor is not forced upward. `applyUserStorageToBrowserContext` uses `addInitScript` and works on all supported versions.
+
+See [`playwright/tests/auth-session/auth-session-localstorage.spec.ts`](../playwright/tests/auth-session/auth-session-localstorage.spec.ts) for a runnable example covering both helpers and confirming the cookie and localStorage paths coexist.
 
 ### Using Multiple User Identifiers in Tests
 
