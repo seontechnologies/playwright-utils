@@ -20,7 +20,7 @@ import { log } from '../../../src/log'
 import { acquireToken } from './token/acquire'
 import { checkTokenValidity } from './token/check-validity'
 import { isTokenExpired } from './token/is-expired'
-import { extractToken, extractCookies } from './token/extract'
+import { extractToken, extractCookies, extractStorage } from './token/extract'
 import { getEnvironment } from './get-environment'
 import { getUserIdentifier } from './get-user-identifier'
 import { getBaseUrl } from './get-base-url'
@@ -40,6 +40,9 @@ const myCustomProvider: AuthProvider = {
   extractToken,
 
   extractCookies,
+
+  /** Extract localStorage entries (localStorage-based auth, optional hook) */
+  extractStorage,
 
   /** Check if a token is expired */
   isTokenExpired,

@@ -10,8 +10,15 @@ import {
   getGlobalAuthOptions
 } from './internal/auth-configure'
 import * as fs from 'fs'
-import type { AuthSessionOptions, AuthIdentifiers } from './internal/types'
-import { AuthSessionManager } from './internal/auth-session'
+import type {
+  AuthSessionOptions,
+  AuthIdentifiers,
+  PlaywrightStorageState
+} from './internal/types'
+import {
+  AuthSessionManager,
+  applyProviderOriginsToState
+} from './internal/auth-session'
 import { getAuthProvider } from './internal/auth-provider'
 import { getTokenFilePath } from './internal/auth-storage-utils'
 import { log } from '../log'
@@ -241,15 +248,25 @@ export async function getAuthToken(
     ...options
   })
 
+  // Augment with provider-derived localStorage origins (no-op for cookie-only
+  // providers) so the persisted file AND the returned object are consistent on
+  // the very first run, before any reload from disk.
+  const augmentedState = storageState
+    ? (applyProviderOriginsToState(
+        storageState as unknown as PlaywrightStorageState,
+        storageState
+      ) as unknown as Record<string, unknown>)
+    : storageState
+
   // Save the storage state for future use
   // Convert to string for storage while preserving the object for return
-  if (storageState) {
-    const tokenString = JSON.stringify(storageState)
+  if (augmentedState) {
+    const tokenString = JSON.stringify(augmentedState)
     await sessionManager.saveToken(tokenString)
   }
 
   // Return the storage state object for use with Playwright context
-  return storageState
+  return augmentedState
 }
 
 /**

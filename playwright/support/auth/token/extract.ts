@@ -83,3 +83,29 @@ export const extractCookies = (
   // Return empty array if no cookies found
   return []
 }
+
+/**
+ * Extract browser localStorage entries from token data.
+ *
+ * Demonstrates a localStorage-based auth provider: the same JWT that the
+ * cookie path uses is also exposed as a `localStorage` entry for the app's
+ * origin. Implementing this optional hook makes the provider work with
+ * `applyUserStorageToBrowserContext` / `applyUserStorageToPage` and populates
+ * the storage-state `origins` array, without affecting the cookie path.
+ *
+ * @param tokenData Storage state or user data object
+ * @returns Per-origin localStorage entries for Playwright storage state
+ */
+export const extractStorage = (
+  tokenData: Record<string, unknown>
+): Array<{
+  origin: string
+  localStorage: Array<{ name: string; value: string }>
+}> => {
+  const token = extractToken(tokenData)
+  if (!token) return []
+
+  const origin =
+    process.env.BASE_URL || process.env.TEST_URL || 'http://localhost:3000'
+  return [{ origin, localStorage: [{ name: 'app-jwt', value: token }] }]
+}

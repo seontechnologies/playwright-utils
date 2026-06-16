@@ -552,6 +552,16 @@ type NetworkRecorderConfig = {
 }
 ```
 
+## Limitations
+
+### WebSocket traffic is not recorded
+
+The recorder captures **HTTP(S) only**. It intercepts requests via Playwright's `context.route`, which does not see WebSocket frames, so any `ws://`/`wss://` traffic is silently passed through during recording and absent from the resulting HAR. On playback, WebSocket connections hit the live server (or fail if it's unavailable) rather than being replayed.
+
+If your feature depends on WebSockets, the recorder will only mock its HTTP calls — plan to handle the socket layer separately (e.g. a dedicated mock, or `page.routeWebSocket`).
+
+> Native WebSocket-in-HAR landed in Playwright 1.60+. First-class WebSocket record/replay here is a possible future enhancement, deferred until there's a concrete use case — the recorder's value today is stateful HTTP/CRUD mocking.
+
 ## Troubleshooting
 
 ### HAR File Not Found
