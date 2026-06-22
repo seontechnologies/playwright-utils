@@ -12,7 +12,7 @@ jobs:
     name: gate
     runs-on: ubuntu-latest
     steps:
-      - uses: kachick/wait-other-jobs@v3
+      - uses: kachick/wait-other-jobs@v4
         with:
           skip-same-workflow: true
           skip-list: |
