@@ -29,13 +29,13 @@ jobs:
     steps:
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Needed for version calculation
 
       # 2. Setup Node.js with caching
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc' # Verified correct for v4
           registry-url: 'https://registry.npmjs.org'
@@ -124,7 +124,7 @@ jobs:
       # 9. Setup Node for npmjs.org and publish
       - name: Setup Node.js for npmjs.org
         if: steps.version.outputs.skip != 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           registry-url: 'https://registry.npmjs.org'
@@ -156,7 +156,7 @@ jobs:
       # 10. Setup Node for GitHub Packages and publish
       - name: Setup Node.js for GitHub Packages
         if: steps.version.outputs.skip != 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           registry-url: 'https://npm.pkg.github.com'
