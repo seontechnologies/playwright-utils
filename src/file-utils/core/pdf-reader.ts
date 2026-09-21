@@ -140,7 +140,9 @@ async function extractWithMergePagesSetting(
 ): Promise<string> {
   if (mergePages) {
     const result = await extractText(pdf, { mergePages: true })
-    return result.text || ''
+    // unpdf joins wrapped lines within a page with '\n'; collapse those back
+    // to spaces so merged text reads as flowing text, not one word per line.
+    return (result.text || '').replace(/\n+/g, ' ').replace(/ {2,}/g, ' ')
   } else {
     const result = await extractText(pdf, { mergePages: false })
     const textArray = result.text || []
