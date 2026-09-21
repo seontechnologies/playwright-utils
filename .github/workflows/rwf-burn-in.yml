@@ -51,7 +51,7 @@ jobs:
     steps:
       # Always check out code first before using any local actions
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: "0"
@@ -136,7 +136,7 @@ jobs:
       # Upload burn-in report on failure for debugging
       - name: Upload burn-in report
         if: always() && steps.detect-changed.outputs.changed == 'true' && steps.burn-in-step.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: burn-in-report
           path: |
@@ -148,7 +148,7 @@ jobs:
       - name: Resolve artifact URL
         id: resolve-url
         if: always() && steps.detect-changed.outputs.changed == 'true' && steps.burn-in-step.outcome == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const artifactName = 'burn-in-report';
@@ -170,7 +170,7 @@ jobs:
 
       - name: Comment burn-in result on PR
         if: always() && github.event_name == 'pull_request' && steps.detect-changed.outputs.changed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const burnInOutcome = '${{ steps.burn-in-step.outcome }}';

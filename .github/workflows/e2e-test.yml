@@ -35,7 +35,7 @@ jobs:
       skip_burn_in: ${{ steps.check_skip_label.outputs.skip_burn_in || 'false' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref }}
 
@@ -83,7 +83,7 @@ jobs:
     steps:
       # Always check out code first before using any local actions
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref }}
           
@@ -136,7 +136,7 @@ jobs:
           cp -r test-results/**/*.zip blob-report/trace || true
 
       - name: Upload shared blob report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: blob-report-${{ matrix.shardIndex }}
@@ -153,7 +153,7 @@ jobs:
       pull-requests: write  # Required for posting PR comments
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node and Install Dependencies
         uses: ./.github/actions/install
