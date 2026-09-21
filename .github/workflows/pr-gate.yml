@@ -11,9 +11,15 @@ jobs:
   gate:
     name: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      checks: read
+      actions: read
     steps:
-      - uses: kachick/wait-other-jobs@v4
+      - uses: muratkeremozcan/pr-gate@aca2d169c30fe5585b47f8817c15043a45fe76be
         with:
+          mode: wait
           skip-same-workflow: true
           skip-list: |
             [
@@ -21,5 +27,15 @@ jobs:
                 "workflowFile": "claude-code-review.yml",
                 "jobName": "claude-review",
                 "jobMatchMode": "prefix"
+              }
+            ]
+          # e2e-test.yml's burn-in job calls a reusable workflow; a run cancelled
+          # mid-dispatch can strand the whole thing pending with zero jobs ever
+          # registered, which dynamic discovery alone can't see. Hold the gate
+          # open until something from that workflow actually shows up.
+          wait-for: |
+            [
+              {
+                "workflowFile": "e2e-test.yml"
               }
             ]
