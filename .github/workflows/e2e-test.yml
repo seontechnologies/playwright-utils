@@ -13,10 +13,13 @@ on:
           - 'false'
           - 'true'
 
-# if this branch is pushed back to back, cancel the older branch's workflow
+# Do not cancel-in-progress here: this workflow's burn-in job calls a reusable
+# workflow (workflow_call), and cancelling a run mid-dispatch of a reusable
+# workflow can strand the next run in "pending" with zero jobs ever created -
+# a stuck run that the PR gate has no way to detect, so it passes anyway.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
