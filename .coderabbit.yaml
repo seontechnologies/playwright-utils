@@ -1,19 +1,10 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+inheritance: true
 
-language: "en-US"
 early_access: true
 enable_free_tier: true
 
 reviews:
-  profile: chill
-  high_level_summary: false
-  request_changes_workflow: false
-  review_status: false
-  commit_status: false
-  poem: false
-  in_progress_fortune: false
-  suggested_labels: false
-  suggested_reviewers: false
   auto_review:
     enabled: true
     drafts: false
@@ -45,79 +36,79 @@ reviews:
 
   path_filters:
     # Whitelist: review these paths
-    - ".coderabbit.yaml"
-    - ".github/**"
-    - "src/**"
-    - "playwright/**"
-    - "sample-app/**"
-    - "scripts/**"
-    - "docs/**"
-    - "AGENTS.md"
-    - "CLAUDE.md"
-    - "README.md"
-    - "CONTRIBUTING.md"
-    - "SECURITY.md"
-    - "CODE_OF_CONDUCT.md"
-    - "CHANGELOG.md"
-    - "package.json"
-    - "playwright.config.ts"
-    - "tsconfig.json"
-    - "tsconfig-cjs.json"
-    - "tsconfig-esm.json"
-    - "tsconfig-build-types.json"
-    - "vite-env.d.ts"
-    - "test.http"
-    - ".eslintignore"
-    - ".eslintrc.js"
-    - ".gitignore"
-    - ".gitleaks.toml"
-    - ".npmrc"
-    - ".nvmrc"
-    - ".prettierignore"
-    - ".prettierrc"
+    - '.coderabbit.yaml'
+    - '.github/**'
+    - 'src/**'
+    - 'playwright/**'
+    - 'sample-app/**'
+    - 'scripts/**'
+    - 'docs/**'
+    - 'AGENTS.md'
+    - 'CLAUDE.md'
+    - 'README.md'
+    - 'CONTRIBUTING.md'
+    - 'SECURITY.md'
+    - 'CODE_OF_CONDUCT.md'
+    - 'CHANGELOG.md'
+    - 'package.json'
+    - 'playwright.config.ts'
+    - 'tsconfig.json'
+    - 'tsconfig-cjs.json'
+    - 'tsconfig-esm.json'
+    - 'tsconfig-build-types.json'
+    - 'vite-env.d.ts'
+    - 'test.http'
+    - '.eslintignore'
+    - '.eslintrc.js'
+    - '.gitignore'
+    - '.gitleaks.toml'
+    - '.npmrc'
+    - '.nvmrc'
+    - '.prettierignore'
+    - '.prettierrc'
     # Exclude generated, binary, and high-noise paths
-    - "!**/node_modules/**"
-    - "!**/dist/**"
-    - "!**/coverage/**"
-    - "!har-files/**"
-    - "!playwright-report/**"
-    - "!playwright-logs/**"
-    - "!test-results/**"
-    - "!blob-report/**"
-    - "!.auth/**"
-    - "!package-lock.json"
-    - "!**/*.generated.*"
-    - "!**/*.min.js"
-    - "!**/*.woff"
-    - "!**/*.woff2"
-    - "!**/*.ttf"
-    - "!**/*.ico"
-    - "!**/*.png"
-    - "!**/*.jpg"
-    - "!**/*.jpeg"
-    - "!**/*.gif"
-    - "!**/*.svg"
+    - '!**/node_modules/**'
+    - '!**/dist/**'
+    - '!**/coverage/**'
+    - '!har-files/**'
+    - '!playwright-report/**'
+    - '!playwright-logs/**'
+    - '!test-results/**'
+    - '!blob-report/**'
+    - '!.auth/**'
+    - '!package-lock.json'
+    - '!**/*.generated.*'
+    - '!**/*.min.js'
+    - '!**/*.woff'
+    - '!**/*.woff2'
+    - '!**/*.ttf'
+    - '!**/*.ico'
+    - '!**/*.png'
+    - '!**/*.jpg'
+    - '!**/*.jpeg'
+    - '!**/*.gif'
+    - '!**/*.svg'
 
   path_instructions:
-    - path: ".github/workflows/**"
+    - path: '.github/workflows/**'
       instructions: |
         GitHub Actions workflow change. Review for branch/ref correctness, job
         dependencies, secret handling, permission scope, fork safety, and whether
         required-vs-advisory behavior still matches the repository policy.
         Flag brittle SHA assumptions and any step ordering that could make
         PR-gate, e2e, burn-in, or publish checks flaky.
-    - path: ".github/actions/**"
+    - path: '.github/actions/**'
       instructions: |
         Composite GitHub Action change. Review with the same rigor as workflow
         files: input/output correctness, shell safety, permission assumptions,
         secret handling, and whether downstream workflows can rely on the
         action's current contract without hidden regressions.
-    - path: "scripts/**"
+    - path: 'scripts/**'
       instructions: |
         Automation script change. Check shell/Node portability, argument parsing,
         failure handling, exit codes, and whether the script still matches the
         CI and local developer workflow assumptions used elsewhere in the repo.
-    - path: "src/**"
+    - path: 'src/**'
       instructions: |
         Core library source change. This is the most critical review surface.
 
@@ -150,7 +141,7 @@ reviews:
         - auth-session and network-recorder modules handle credentials and HAR
           data. Ensure no tokens, cookies, or PII leak into logs, snapshots,
           or committed fixtures.
-    - path: "src/**/fixtures.ts"
+    - path: 'src/**/fixtures.ts'
       instructions: |
         Playwright fixture file. In addition to the general src/ guidance:
         - The fixture must delegate to the standalone function, not duplicate
@@ -159,7 +150,7 @@ reviews:
           unless shared state is explicitly required.
         - Ensure fixture teardown/cleanup is present where resources are
           acquired (network listeners, file handles, auth tokens).
-    - path: "playwright/**"
+    - path: 'playwright/**'
       instructions: |
         Playwright test / config change. Focus on reliability and CI stability:
         - No hard waits (`page.waitForTimeout`). Use web-first assertions or
@@ -173,7 +164,7 @@ reviews:
           conditionals.
         - Flag non-deterministic data setup or assertions that are
           timing-sensitive.
-    - path: "sample-app/**"
+    - path: 'sample-app/**'
       instructions: |
         Sample application change (Express backend + React/Vite frontend).
         The sample-app is the test harness for the library itself, so stability
@@ -183,16 +174,9 @@ reviews:
         - Frontend: check component test coverage (Vitest), prop contracts,
           and that changes don't break Playwright e2e flows.
         - Ensure backend and frontend stay in sync (shared types, API shapes).
-    - path: "docs/**"
+    - path: 'docs/**'
       instructions: |
         Documentation change. Verify that commands, file paths, environment
         variables, and config examples actually match the current repo. Check
         whether the change should also be reflected in README.md, CLAUDE.md,
         or AGENTS.md.
-
-chat:
-  auto_reply: true
-
-issue_enrichment:
-  auto_enrich:
-    enabled: false
