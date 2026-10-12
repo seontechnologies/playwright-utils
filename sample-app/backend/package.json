@@ -27,7 +27,7 @@
     "@types/cors": "2.8.19",
     "@types/express": "4.17.21",
     "cors": "2.8.6",
-    "jest-mock-extended": "4.0.1",
+    "jest-mock-extended": "4.0.2",
     "nodemon": "3.1.14",
     "openapi-types": "12.1.3"
   },
