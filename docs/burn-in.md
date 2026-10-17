@@ -47,11 +47,13 @@ Test burn-in combines **precise dependency analysis** with **repeated execution*
 
 1. **Identify what changed** — `git diff` finds changed files in your branch
 2. **Filter noise** — `skipBurnInPatterns` removes files that shouldn't trigger tests (configs, types, docs)
-3. **Trace dependencies** — `madge` builds an import graph and finds exactly which tests depend on the changed files
+3. **Trace dependencies** — an import graph finds exactly which tests depend on the changed files, directly or through the helpers they import
 4. **Repeat for confidence** — Each affected test runs multiple times (`repeatEach: 3` by default) to surface intermittent failures
 5. **Volume control** — `burnInTestPercentage` optionally samples a percentage of affected tests (useful in CI for very large change sets)
 
-> Under the hood, dependency analysis uses `madge` to build a project-wide import graph (including type imports). The burn-in runner walks that graph to find tests that directly or indirectly depend on changed files, then filters with `skipBurnInPatterns`. If dependency analysis fails, it falls back to Playwright's `--only-changed` mode.
+> Under the hood, the runner walks each test file's imports (including type imports, `require()` and dynamic `import()` of string literals) with TypeScript's import scanner and module resolution, so `tsconfig` `paths` aliases, extensionless imports and `.js` specifiers that point at `.ts` files all resolve. Tests that reach a changed file are then filtered with `skipBurnInPatterns`. The analysis uses the package's own TypeScript 5/6 compiler API, so it works in projects on TypeScript 7, which ships no JavaScript API. If dependency analysis fails, it falls back to Playwright's `--only-changed` mode.
+>
+> Selected test files are passed to the Playwright CLI as separate arguments without a shell, so file names with spaces or shell characters are safe.
 
 ## How It Works
 
@@ -60,7 +62,7 @@ git diff → changed files (e.g. 21 files)
     ↓
 skip patterns → filter out configs, types, docs (e.g. 15 remaining)
     ↓
-madge dependency graph → find affected tests (e.g. 3 tests)
+import graph → find affected tests (e.g. 3 tests)
     ↓
 volume control → sample percentage (e.g. 100% = 3 tests)
     ↓
@@ -373,7 +375,7 @@ Your burn-in workflow will:
 2. **Set up environment** and install dependencies
 3. **Ensure base branch exists** for git diff comparison
 4. **Run burn-in script** with sharding: `npm run test:pw:burn-in-changed -- --base-branch=main --shard=1/2`
-5. **Build dependency graph** via `madge` and map changed files to affected tests (direct and transitive imports)
+5. **Build the import graph** and map changed files to affected tests (direct and transitive imports)
 6. **Filter + sample** affected tests using skip patterns and `burnInTestPercentage`
 7. **Set output** to determine if E2E tests should run
 

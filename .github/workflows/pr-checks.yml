@@ -53,7 +53,32 @@ jobs:
       - name: Build documentation
         run: npm run docs:build
 
+      - name: Run unit tests for the library
+        run: npm run test:lib
+
       - name: Run unit test for backend
         run: npm run test:backend
 
       # frontend tests are in their own file: vitest-ct.yml
+
+  # Installs the packed package into a "type": "module" consumer that uses TypeScript 7, then
+  # imports every entry point and runs burn-in through Playwright, on each supported Node major.
+  consumer-check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run consumer checks
+        run: npm run test:consumer

@@ -1,11 +1,12 @@
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import picomatch from 'picomatch'
-import madge from 'madge'
 import path from 'node:path'
+import { DependencyResolver, toComparablePath } from './dependency-graph'
 import type { BurnInConfig, BurnInOptions } from './types'
 
 // Internal types - not exposed to users
 type ChangedFiles = {
+  /** Paths are relative to the repository root, as git reports them */
   testFiles: string[]
   skipBurnInFiles: string[]
   otherFiles: string[]
@@ -23,6 +24,7 @@ type TestRunPlan = {
 
 export class BurnInAnalyzer {
   private debugMode: boolean
+  private repoRoot: string | undefined
 
   constructor(
     private config: BurnInConfig,
@@ -38,21 +40,23 @@ export class BurnInAnalyzer {
       throw new Error('baseBranch must be a non-empty string')
     }
 
-    // Sanitize branch name to prevent shell injection
+    // Restrict branch names so git can never read one as an option
     const sanitizedBranch = baseBranch.replace(/[^a-zA-Z0-9._/-]/g, '')
-    if (sanitizedBranch !== baseBranch) {
+    if (sanitizedBranch !== baseBranch || baseBranch.startsWith('-')) {
       throw new Error(
-        `Invalid branch name: ${baseBranch}. Branch names can only contain letters, numbers, dots, underscores, hyphens, and forward slashes.`
+        `Invalid branch name: ${baseBranch}. Branch names can only contain letters, numbers, dots, underscores, hyphens, and forward slashes, and cannot start with a hyphen.`
       )
     }
 
     try {
-      // Use sanitized input to prevent shell injection
-      const diff = execSync(`git diff --name-only ${sanitizedBranch}...HEAD`, {
-        encoding: 'utf-8'
-      }).trim()
-
-      const files = diff ? diff.split('\n') : []
+      // -z keeps file names verbatim: git quotes unusual names without it
+      const files = splitNullSeparated(
+        execFileSync(
+          'git',
+          ['diff', '--name-only', '-z', `${sanitizedBranch}...HEAD`],
+          { encoding: 'utf-8', stdio: 'pipe' }
+        )
+      )
       const result: ChangedFiles = {
         testFiles: [],
         skipBurnInFiles: [],
@@ -184,7 +188,7 @@ export class BurnInAnalyzer {
     }
 
     try {
-      // Use madge to analyze dependencies and find which tests are affected
+      // Walk each test's import graph to find the tests that reach a changed file
       const affectedTests = await this.findAffectedTests(relevantFiles)
 
       if (affectedTests.length === 0) {
@@ -252,24 +256,18 @@ export class BurnInAnalyzer {
       `📁 Analyzing ${allTestFiles.length} test files for dependencies...`
     )
 
-    // Use madge to analyze the dependency graph
-    const res = await madge(process.cwd(), {
-      fileExtensions: ['ts', 'js', 'tsx', 'jsx'],
-      tsConfig: this.findTsConfig(),
-      includeNpm: false,
-      detectiveOptions: {
-        skipTypeImports: false // Include type imports in analysis
-      }
-    })
-
-    const dependencyGraph = res.obj()
+    // git reports changed files relative to the repository root; the working directory
+    // can be a subdirectory of it
+    const repoRoot = this.getRepoRoot()
+    const changedPaths = new Set(
+      changedFiles.map((file) => toComparablePath(path.resolve(repoRoot, file)))
+    )
+    const resolver = new DependencyResolver()
     const affectedTests = new Set<string>()
 
     // Find all tests that import any of the changed files (directly or indirectly)
     for (const testFile of allTestFiles) {
-      if (
-        this.testDependsOnChangedFiles(testFile, changedFiles, dependencyGraph)
-      ) {
+      if (this.testDependsOnChangedFiles(testFile, changedPaths, resolver)) {
         affectedTests.add(testFile)
       }
     }
@@ -293,33 +291,23 @@ export class BurnInAnalyzer {
     return filteredAffectedTests
   }
 
-  private findTsConfig(): string {
-    // Look for tsconfig files in common locations
-    const locations = [
-      'tsconfig.json',
-      'tsconfig.build.json',
-      'src/tsconfig.json'
-    ]
-    for (const location of locations) {
-      try {
-        execSync(`test -f ${location}`, { stdio: 'pipe' })
-        return location
-      } catch {
-        // Continue looking
-      }
-    }
-    return 'tsconfig.json' // Default fallback
+  private getRepoRoot(): string {
+    this.repoRoot ??= execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf-8',
+      stdio: 'pipe'
+    }).trim()
+    return this.repoRoot
   }
 
   private findTestFiles(testPatterns: string[]): string[] {
     try {
-      // Use git to find all tracked files matching test patterns
-      const gitFiles = execSync('git ls-files', {
-        encoding: 'utf-8',
-        stdio: 'pipe'
-      })
-        .trim()
-        .split('\n')
+      // Tracked files under the working directory, relative to it
+      const gitFiles = splitNullSeparated(
+        execFileSync('git', ['ls-files', '-z'], {
+          encoding: 'utf-8',
+          stdio: 'pipe'
+        })
+      )
 
       const allTestFiles = gitFiles.filter((file) =>
         testPatterns.some((pattern) => this.matchesPattern(file, pattern))
@@ -353,73 +341,38 @@ export class BurnInAnalyzer {
 
   private testDependsOnChangedFiles(
     testFile: string,
-    changedFiles: string[],
-    dependencyGraph: Record<string, string[]>
+    changedPaths: Set<string>,
+    resolver: DependencyResolver
   ): boolean {
     const visited = new Set<string>()
     const queue = [path.resolve(testFile)]
 
-    // Normalize changed files to absolute paths for comparison
-    const normalizedChangedFiles = changedFiles.map((file) => {
-      if (path.isAbsolute(file)) {
-        return file
-      }
-      return path.resolve(process.cwd(), file)
-    })
-
     while (queue.length > 0) {
       const currentFile = queue.shift()!
+      const comparable = toComparablePath(currentFile)
 
-      if (visited.has(currentFile)) {
+      if (visited.has(comparable)) {
         continue
       }
-      visited.add(currentFile)
+      visited.add(comparable)
 
-      // Check if this file is one of our changed files
-      if (
-        normalizedChangedFiles.some((changed) =>
-          this.pathsMatch(currentFile, changed)
-        )
-      ) {
+      if (changedPaths.has(comparable)) {
         return true
       }
 
-      // Add dependencies to queue for further checking
-      const dependencies = dependencyGraph[currentFile] || []
-      for (const dep of dependencies) {
-        const absoluteDep = path.isAbsolute(dep)
-          ? dep
-          : path.resolve(path.dirname(currentFile), dep)
-        if (!visited.has(absoluteDep)) {
-          queue.push(absoluteDep)
-        }
-      }
+      queue.push(...resolver.getDependencies(currentFile))
     }
 
     return false
   }
 
-  private pathsMatch(file1: string, file2: string): boolean {
-    const norm1 = path.normalize(file1)
-    const norm2 = path.normalize(file2)
-
-    return (
-      norm1 === norm2 ||
-      this.isBasenameMatch(norm1, norm2) ||
-      this.isBasenameMatch(norm2, norm1)
-    )
-  }
-
-  private isBasenameMatch(fullPath: string, otherPath: string): boolean {
-    return fullPath.endsWith(path.sep + path.basename(otherPath))
-  }
-
+  /** Arguments for the Playwright CLI, or null when no tests need to run */
   buildCommand(plan: TestRunPlan): string[] | null {
     if (plan.tests !== null && plan.tests.length === 0) {
       return null // No tests to run
     }
 
-    const baseCmd = ['npx', 'playwright', 'test']
+    const baseCmd = ['test']
     const burnInFlags = [
       `--repeat-each=${this.config.burnIn?.repeatEach || 3}`,
       `--retries=${this.config.burnIn?.retries || 0}`
@@ -442,6 +395,21 @@ export class BurnInAnalyzer {
     }
 
     // Specific test files
-    return [...baseCmd, ...plan.tests, ...burnInFlags]
+    return [...baseCmd, ...plan.tests.map(toFileFilter), ...burnInFlags]
   }
+}
+
+/**
+ * Playwright reads each positional argument as a regular expression and tests it against
+ * absolute test file paths. Anchoring the escaped absolute path selects exactly that file: an
+ * unanchored relative path also matches longer paths ending in it, and `.` matches any character.
+ * Starting with `^` also keeps a file name from being read as an option.
+ */
+function toFileFilter(file: string): string {
+  const absolute = path.resolve(file)
+  return `^${absolute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`
+}
+
+function splitNullSeparated(output: string): string[] {
+  return output.split('\0').filter(Boolean)
 }

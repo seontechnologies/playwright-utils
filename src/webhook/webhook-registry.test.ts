@@ -26,6 +26,22 @@ import { recurse, RecurseTimeoutError } from '../recurse'
 
 const mockedRecurse = recurse as jest.MockedFunction<typeof recurse>
 
+/** Makes the next recurse call poll once, like the real one: the predicate sees `received` */
+function recurseReceives(received: ReceivedWebhook[]) {
+  mockedRecurse.mockImplementationOnce(async (_fetcher, predicate) => {
+    predicate(received)
+    return received
+  })
+}
+
+/** Makes the next recurse call poll once, then time out */
+function recurseTimesOutAfter(received: ReceivedWebhook[]) {
+  mockedRecurse.mockImplementationOnce(async (_fetcher, predicate) => {
+    predicate(received)
+    throw new RecurseTimeoutError('timeout', 1000, 1)
+  })
+}
+
 function createMockProvider(
   webhooks: ReceivedWebhook[] = []
 ): WebhookProvider & { webhooks: ReceivedWebhook[] } {
@@ -72,7 +88,7 @@ describe('WebhookRegistry', () => {
       const provider = createMockProvider([webhook])
       const registry = new WebhookRegistry(provider)
 
-      mockedRecurse.mockResolvedValueOnce([webhook])
+      recurseReceives([webhook])
 
       const template: WebhookTemplate = {
         name: 'test',
@@ -106,7 +122,7 @@ describe('WebhookRegistry', () => {
       const provider = createMockProvider([nonMatching, matchingWebhook])
       const registry = new WebhookRegistry(provider)
 
-      mockedRecurse.mockResolvedValueOnce([nonMatching, matchingWebhook])
+      recurseReceives([nonMatching, matchingWebhook])
 
       const template: WebhookTemplate = {
         name: 'test',
@@ -122,9 +138,7 @@ describe('WebhookRegistry', () => {
       const provider = createMockProvider([nonMatching])
       const registry = new WebhookRegistry(provider)
 
-      mockedRecurse.mockRejectedValueOnce(
-        new RecurseTimeoutError('timeout', 1000, 5)
-      )
+      recurseTimesOutAfter([nonMatching])
 
       const template: WebhookTemplate = {
         name: 'my-webhook',
@@ -132,31 +146,24 @@ describe('WebhookRegistry', () => {
         timeout: 1000
       }
 
-      await expect(registry.waitFor(template)).rejects.toThrow(
-        WebhookTimeoutError
-      )
+      const error = await registry.waitFor(template).catch((e: unknown) => e)
 
-      try {
-        mockedRecurse.mockRejectedValueOnce(
-          new RecurseTimeoutError('timeout', 1000, 5)
-        )
-        await registry.waitFor(template)
-      } catch (error) {
-        const timeoutError = error as WebhookTimeoutError
-        expect(timeoutError.templateName).toBe('my-webhook')
-        expect(timeoutError.timeoutMs).toBe(1000)
-        expect(timeoutError.receivedWebhooks).toHaveLength(1)
-      }
+      expect(error).toBeInstanceOf(WebhookTimeoutError)
+      const timeoutError = error as WebhookTimeoutError
+      expect(timeoutError.templateName).toBe('my-webhook')
+      expect(timeoutError.timeoutMs).toBe(1000)
+      expect(timeoutError.receivedWebhooks).toHaveLength(1)
     })
 
     it('should use default timeout when template has none', async () => {
-      const provider = createMockProvider([])
+      const webhook = makeWebhook('1', { x: 'y' })
+      const provider = createMockProvider([webhook])
       const registry = new WebhookRegistry(provider, {
         defaultTimeout: 15_000,
         defaultInterval: 500
       })
 
-      mockedRecurse.mockResolvedValueOnce([makeWebhook('1', { x: 'y' })])
+      recurseReceives([webhook])
 
       const template: WebhookTemplate = {
         name: 'test',

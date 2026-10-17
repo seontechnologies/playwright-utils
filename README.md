@@ -565,7 +565,7 @@ A **test reliability verification tool** that finds tests affected by your code 
 
 1. `git diff` finds changed files in your branch
 2. Skip patterns filter out noise (configs, types, docs)
-3. `madge` dependency graph traces exactly which tests are affected
+3. An import graph traces exactly which tests are affected, directly or through helpers
 4. Each affected test runs multiple times (`repeatEach: 3` by default)
 5. All pass? Safe to merge. Any fail? Flaky test caught early.
 

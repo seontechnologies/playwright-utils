@@ -28,7 +28,7 @@ const webhookProviderFixture = base.extend<{
   }
 })
 
-const test = mergeTests(
+const merged = mergeTests(
   base,
   authFixture,
   interceptNetworkCall,
@@ -45,7 +45,11 @@ const test = mergeTests(
 // Use matched-only cleanup project-wide: each test only deletes the webhooks it
 // matched, so a parallel worker's teardown cannot wipe the shared journal while
 // another test is still mid-flight (fullyParallel: true race condition).
-test.use({ webhookConfig: { cleanupStrategy: 'matched-only' } })
+// Set through extend: a module-level test.use() only applies to the first spec file
+// that imports this module in each worker.
+const test = merged.extend({
+  webhookConfig: { cleanupStrategy: 'matched-only' }
+})
 
 const expect = base.expect
 export { expect, test }

@@ -4,19 +4,12 @@ import path from 'node:path'
 import { log } from 'src/log'
 
 test.describe('Network Recorder - Playback Functionality', () => {
-  const testHarDir = 'har-files/network-recorder-tests'
-
-  test.beforeEach(async () => {
-    await log.step('Clean up test directory')
-    try {
-      await fs.rm(testHarDir, { recursive: true, force: true })
-    } catch {
-      // Directory doesn't exist, that's fine
-    }
-  })
+  // Each test gets its own output directory, which Playwright empties before the test.
+  // A shared directory cleaned in beforeEach races with tests in parallel workers.
+  const testHarDir = () => test.info().outputPath('har-files')
 
   test('should handle missing HAR file gracefully', async () => {
-    const harPath = path.join(testHarDir, 'non-existent.har')
+    const harPath = path.join(testHarDir(), 'non-existent.har')
 
     await log.step('Verify HAR file does not exist')
     const harExists = await fs
@@ -32,7 +25,7 @@ test.describe('Network Recorder - Playback Functionality', () => {
   })
 
   test('should handle malformed HAR files gracefully', async () => {
-    const testDir = path.join(testHarDir, 'test')
+    const testDir = path.join(testHarDir(), 'test')
     const harPath = path.join(testDir, 'invalid.har')
     await fs.mkdir(path.dirname(harPath), { recursive: true })
     await fs.writeFile(harPath, 'not valid json')

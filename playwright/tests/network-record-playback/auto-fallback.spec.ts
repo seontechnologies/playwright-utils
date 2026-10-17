@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/support/merged-fixtures'
 import { addMovie } from '@playwright/support/ui-helpers/add-movie'
 import { promises as fs } from 'fs'
+import { randomUUID } from 'node:crypto'
 import { log } from 'src/log'
 
 test.describe('network recorder - auto-record fallback', () => {
@@ -11,32 +12,26 @@ test.describe('network recorder - auto-record fallback', () => {
   }) => {
     process.env.PW_NET_MODE = 'playback'
 
-    const recorderContext = networkRecorder.getContext()
-    const harFilePath = recorderContext.harFilePath
-
+    // The test's own output directory starts empty, so the HAR file is missing. A shared
+    // HAR path would be deleted and rewritten by parallel repeats of this test.
     await log.step(
-      'Delete HAR file if it exists to simulate missing HAR scenario'
+      'Setup network recorder with no HAR file - should auto-switch to record mode'
     )
-    try {
-      await fs.unlink(harFilePath)
-      await log.debug(`Deleted existing HAR file: ${harFilePath}`)
-    } catch {
-      await log.debug(`HAR file does not exist (expected): ${harFilePath}`)
-    }
-
-    await log.step('Setup network recorder - should auto-switch to record mode')
-    await networkRecorder.setup(context)
+    await networkRecorder.setup(context, {
+      harFile: { harDir: test.info().outputPath('har-files') }
+    })
 
     await log.step('Verify the recorder switched to record mode')
-    const contextAfterSetup = networkRecorder.getContext()
-    expect(contextAfterSetup.mode).toBe('record')
+    const { harFilePath, mode } = networkRecorder.getContext()
+    expect(mode).toBe('record')
     await log.info('✅ Verified mode switched from playback to record')
 
     await log.step('Navigate and perform actions to generate network traffic')
     await page.goto('/')
 
     const { name, year, rating, director } = {
-      name: 'auto-fallback-test-movie',
+      // Unique per run: movie names must be unique, and repeats run in parallel
+      name: `auto-fallback-test-movie-${randomUUID().slice(0, 8)}`,
       year: 2024,
       rating: 8.5,
       director: 'Test Director'

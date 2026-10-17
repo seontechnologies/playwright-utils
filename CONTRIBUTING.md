@@ -137,7 +137,7 @@ src/new-utility/
    {
      "exports": {
        "./new-utility": {
-         "import": "./dist/esm/new-utility/index.js",
+         "import": "./dist/esm/new-utility/index.mjs",
          "require": "./dist/cjs/new-utility/index.js",
          "types": "./dist/types/new-utility/index.d.ts"
        }
