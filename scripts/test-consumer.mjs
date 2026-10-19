@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(import.meta.url)
 const playwrightVersion = require('@playwright/test/package.json').version
-const TYPESCRIPT_VERSION = '7.0.2'
+const TYPESCRIPT_VERSION = process.env.CONSUMER_TYPESCRIPT_VERSION ?? '7.0.2'
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 
 // A spec name a shell would split and execute

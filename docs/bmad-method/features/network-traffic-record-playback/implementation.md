@@ -194,13 +194,13 @@ PW_NET_MODE=disabled npm run test:pw
   "./network-recorder": {
     "types": "./dist/types/network-recorder/index.d.ts",
     "require": "./dist/cjs/network-recorder/index.js",
-    "import": "./dist/esm/network-recorder/index.js",
+    "import": "./dist/esm/network-recorder/index.mjs",
     "default": "./dist/cjs/network-recorder/index.js"
   },
   "./network-recorder/fixtures": {
     "types": "./dist/types/network-recorder/fixtures.d.ts",
     "require": "./dist/cjs/network-recorder/fixtures.js",
-    "import": "./dist/esm/network-recorder/fixtures.js",
+    "import": "./dist/esm/network-recorder/fixtures.mjs",
     "default": "./dist/cjs/network-recorder/fixtures.js"
   }
 }

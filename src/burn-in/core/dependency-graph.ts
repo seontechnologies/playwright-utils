@@ -151,10 +151,11 @@ export class DependencyResolver {
 
     let context = this.contexts.get(configFile)
     if (!context) {
-      const { options } = loadConfig(configFile)
+      const config = loadConfig(configFile)
+      const { options } = config
       context = {
         options,
-        aliasConfigs: loadAliasConfigs(configFile),
+        aliasConfigs: loadAliasConfigs(configFile, config),
         cache: ts.createModuleResolutionCache(
           path.dirname(configFile || file),
           (fileName) => toComparablePath(fileName),
@@ -251,14 +252,18 @@ function resolveAliasImport(
  * Alias settings of a config and, after it, of the configs it references (each config's own
  * references before it), the order Playwright loads them in
  */
-function loadAliasConfigs(configFile: string): AliasConfig[] {
+function loadAliasConfigs(
+  configFile: string,
+  initialConfig: ReturnType<typeof loadConfig>
+): AliasConfig[] {
   if (!configFile) return []
 
   const referenced: AliasConfig[] = []
   const visited = new Set<string>()
   const load = (file: string): AliasConfig => {
     visited.add(file)
-    const { options, references } = loadConfig(file)
+    const { options, references } =
+      file === configFile ? initialConfig : loadConfig(file)
     for (const reference of references) {
       if (!visited.has(reference)) referenced.push(load(reference))
     }
@@ -373,7 +378,7 @@ function loadConfig(configFile: string): {
       // only the options that affect module resolution matter here.
       const parsed = ts.parseJsonConfigFileContent(
         config,
-        ts.sys,
+        { ...ts.sys, readDirectory: () => [] },
         path.dirname(configFile),
         undefined,
         configFile

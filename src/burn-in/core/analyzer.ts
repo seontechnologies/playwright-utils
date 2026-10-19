@@ -69,16 +69,21 @@ export class BurnInAnalyzer {
         otherFiles: [],
         all: files
       }
+      const repoRoot = this.getRepoRoot()
 
       files.forEach((file) => {
-        if (this.isTestFile(file)) {
+        const patternPath = path
+          .relative(process.cwd(), path.resolve(repoRoot, file))
+          .split(path.sep)
+          .join('/')
+        if (this.isTestFile(patternPath)) {
           // Check if this test file should be skipped
-          if (this.isSkipBurnInFile(file)) {
+          if (this.isSkipBurnInFile(patternPath)) {
             result.skipBurnInFiles.push(file)
           } else {
             result.testFiles.push(file)
           }
-        } else if (this.isSkipBurnInFile(file)) {
+        } else if (this.isSkipBurnInFile(patternPath)) {
           result.skipBurnInFiles.push(file)
         } else {
           result.otherFiles.push(file)

@@ -406,6 +406,33 @@ describe('burn-in test selection', () => {
     ])
   })
 
+  it('matches changed files against patterns from the working directory', () => {
+    createRepo(
+      {
+        'e2e/docs/notes.md': 'old\n',
+        'e2e/tests/changed.spec.ts': 'export {}\n'
+      },
+      {
+        'e2e/docs/notes.md': 'new\n',
+        'e2e/tests/changed.spec.ts': 'export const changed = true\n'
+      }
+    )
+    process.chdir(path.join(repo, 'e2e'))
+    const analyzer = new BurnInAnalyzer(
+      {
+        testPatterns: ['tests/*.spec.ts'],
+        skipBurnInPatterns: ['docs/**']
+      },
+      {}
+    )
+
+    expect(analyzer.getChangedFiles('main')).toMatchObject({
+      testFiles: ['e2e/tests/changed.spec.ts'],
+      skipBurnInFiles: ['e2e/docs/notes.md'],
+      otherFiles: []
+    })
+  })
+
   it('reads file names with spaces and shell syntax verbatim', async () => {
     const weird = 'tests/a b;$(echo x)"q".spec.ts'
     createRepo({ [weird]: 'export {}\n' }, { [weird]: 'export const x = 1\n' })

@@ -64,14 +64,15 @@ jobs:
 
       # frontend tests are in their own file: vitest-ct.yml
 
-  # Installs the packed package into a "type": "module" consumer that uses TypeScript 7, then
-  # imports every entry point and runs burn-in through Playwright, on each supported Node major.
+  # Installs the packed package into a "type": "module" consumer, then imports every entry
+  # point and runs burn-in through Playwright across supported Node and TypeScript versions.
   consumer-check:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: [22, 24]
+        node-version: [20, 22, 24]
+        typescript-version: ['6.0.3', '7.0.2']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -84,4 +85,6 @@ jobs:
         run: npm ci
 
       - name: Run consumer checks
+        env:
+          CONSUMER_TYPESCRIPT_VERSION: ${{ matrix.typescript-version }}
         run: npm run test:consumer

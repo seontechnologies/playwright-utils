@@ -12,13 +12,14 @@ test.describe('network recorder - auto-record fallback', () => {
   }) => {
     process.env.PW_NET_MODE = 'playback'
 
-    // The test's own output directory starts empty, so the HAR file is missing. A shared
-    // HAR path would be deleted and rewritten by parallel repeats of this test.
+    // Clear this test's HAR directory so reruns also start without a recording.
+    const harDir = test.info().outputPath('har-files')
+    await fs.rm(harDir, { recursive: true, force: true })
     await log.step(
       'Setup network recorder with no HAR file - should auto-switch to record mode'
     )
     await networkRecorder.setup(context, {
-      harFile: { harDir: test.info().outputPath('har-files') }
+      harFile: { harDir }
     })
 
     await log.step('Verify the recorder switched to record mode')
