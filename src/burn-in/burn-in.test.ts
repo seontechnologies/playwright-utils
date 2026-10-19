@@ -190,6 +190,21 @@ describe('burn-in test selection', () => {
     ])
   })
 
+  it('selects specs that still import a renamed helper', async () => {
+    createRepo(
+      {
+        'tests/support/old.ts': 'export const old = 1\n',
+        'tests/old.spec.ts': 'import { old } from "./support/old"\n',
+        'tests/unrelated.spec.ts': 'export {}\n'
+      },
+      {}
+    )
+    git('mv', 'tests/support/old.ts', 'tests/support/new.ts')
+    commit('rename helper')
+
+    expect(await selectTests()).toEqual(['tests/old.spec.ts'])
+  })
+
   it('selects specs importing a deleted JavaScript helper whose declaration file remains', async () => {
     createRepo(
       {

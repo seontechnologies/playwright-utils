@@ -155,6 +155,29 @@ describe('WebhookRegistry', () => {
       expect(timeoutError.receivedWebhooks).toHaveLength(1)
     })
 
+    it('shows the 10 newest webhooks in time order when the provider returns newest first', async () => {
+      const received = Array.from({ length: 12 }, (_, index) => ({
+        ...makeWebhook(String(index), { event: 'other' }),
+        receivedAt: new Date(1_700_000_000_000 + index * 1000)
+      })).reverse()
+      const registry = new WebhookRegistry(createMockProvider(received))
+      recurseTimesOutAfter(received)
+
+      const result = await registry
+        .waitFor({
+          name: 'missing',
+          matchers: [{ type: 'field', path: 'event', value: 'expected' }]
+        })
+        .catch((reason: unknown) => reason)
+
+      expect(result).toBeInstanceOf(WebhookTimeoutError)
+      if (!(result instanceof WebhookTimeoutError)) return
+      expect(result.totalReceived).toBe(12)
+      expect(result.receivedWebhooks.map((webhook) => webhook.id)).toEqual(
+        Array.from({ length: 10 }, (_, index) => String(index + 2))
+      )
+    })
+
     it('should use default timeout when template has none', async () => {
       const webhook = makeWebhook('1', { x: 'y' })
       const provider = createMockProvider([webhook])

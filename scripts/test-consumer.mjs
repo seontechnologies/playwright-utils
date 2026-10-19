@@ -44,7 +44,7 @@ function run(command, args, options = {}) {
   return execFileSync(command, args, {
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'inherit'],
-    shell: process.platform === 'win32',
+    shell: process.platform === 'win32' && command !== 'git',
     ...options
   })
 }

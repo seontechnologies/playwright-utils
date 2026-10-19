@@ -53,7 +53,13 @@ export class BurnInAnalyzer {
       const files = splitNullSeparated(
         execFileSync(
           'git',
-          ['diff', '--name-only', '-z', `${sanitizedBranch}...HEAD`],
+          [
+            'diff',
+            '--no-renames',
+            '--name-only',
+            '-z',
+            `${sanitizedBranch}...HEAD`
+          ],
           { encoding: 'utf-8', stdio: 'pipe' }
         )
       )
