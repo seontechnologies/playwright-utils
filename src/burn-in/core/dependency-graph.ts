@@ -229,7 +229,7 @@ function resolveAliasImport(
       }
 
       const patternBases = targets.map((target) =>
-        path.resolve(pathsBase, target.replaceAll('*', capture))
+        path.resolve(pathsBase, target.split('*').join(capture))
       )
       bases.push(...patternBases)
       if (prefix.length <= longestPrefix) continue
