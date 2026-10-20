@@ -4,17 +4,10 @@ import { log } from 'src/log'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 test.describe('Network Recorder - Recording Functionality', () => {
-  // Use a specific test directory to avoid conflicts
-  const testHarDir = 'har-files/network-recorder-tests'
-
-  test.beforeEach(async () => {
-    await log.step('Clean up test directory before each test')
-    try {
-      await fs.rm(testHarDir, { recursive: true, force: true })
-    } catch {
-      // Directory doesn't exist, that's fine
-    }
-  })
+  // Each test (and each repeat) records into its own output directory, which Playwright
+  // empties before the test. A shared directory cleaned in beforeEach races with tests
+  // recording in parallel workers.
+  const testHarDir = () => test.info().outputPath('har-files')
 
   test('should create HAR file with correct structure during recording', async ({
     context,
@@ -26,7 +19,7 @@ test.describe('Network Recorder - Recording Functionality', () => {
     await log.step('Setup network recording with custom HAR directory')
     await networkRecorder.setup(context, {
       harFile: {
-        harDir: testHarDir,
+        harDir: testHarDir(),
         baseName: 'test-recording'
       }
     })
@@ -105,7 +98,7 @@ test.describe('Network Recorder - Recording Functionality', () => {
 
     await networkRecorder.setup(context, {
       harFile: {
-        harDir: testHarDir,
+        harDir: testHarDir(),
         baseName: 'filtered'
       },
       recording: {
@@ -156,7 +149,7 @@ test.describe('Network Recorder - Recording Functionality', () => {
     process.env.PW_NET_MODE = 'record'
 
     await networkRecorder.setup(context, {
-      harFile: { harDir: testHarDir }
+      harFile: { harDir: testHarDir() }
     })
 
     const context1 = networkRecorder.getContext()
@@ -164,7 +157,7 @@ test.describe('Network Recorder - Recording Functionality', () => {
 
     await log.step('Create another recorder with different config')
     const recorder2 = networkRecorder.create({
-      harFile: { harDir: testHarDir, baseName: 'different-test' }
+      harFile: { harDir: testHarDir(), baseName: 'different-test' }
     })
 
     await recorder2.setup(context)
@@ -188,7 +181,7 @@ test.describe('Network Recorder - Recording Functionality', () => {
     expect(initialStatus).toContain('record')
 
     await networkRecorder.setup(context, {
-      harFile: { harDir: testHarDir }
+      harFile: { harDir: testHarDir() }
     })
 
     // Make some requests

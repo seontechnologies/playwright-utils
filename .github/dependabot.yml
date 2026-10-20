@@ -39,7 +39,6 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      - dependency-name: "madge"
     commit-message:
       prefix: "chore"
       include: "scope"

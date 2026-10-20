@@ -3,6 +3,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # if this branch is pushed back to back, cancel the older branch's workflow
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -15,15 +18,15 @@ jobs:
   pr-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Cache node modules
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.npm
           key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
@@ -53,7 +56,35 @@ jobs:
       - name: Build documentation
         run: npm run docs:build
 
+      - name: Run unit tests for the library
+        run: npm run test:lib
+
       - name: Run unit test for backend
         run: npm run test:backend
 
       # frontend tests are in their own file: vitest-ct.yml
+
+  # Installs the packed package into a "type": "module" consumer, then imports every entry
+  # point and runs burn-in through Playwright across supported Node and TypeScript versions.
+  consumer-check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22, 24]
+        typescript-version: ['6.0.3', '7.0.2']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run consumer checks
+        env:
+          CONSUMER_TYPESCRIPT_VERSION: ${{ matrix.typescript-version }}
+        run: npm run test:consumer

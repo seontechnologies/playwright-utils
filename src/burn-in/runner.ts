@@ -1,4 +1,6 @@
-import { execSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
+import path from 'node:path'
 import { BurnInAnalyzer } from './core/analyzer'
 import { loadConfig } from './core/config'
 import type { BurnInOptions, BurnInConfig } from './core/types'
@@ -50,24 +52,50 @@ export class BurnInRunner {
     }
 
     console.log('\n📦 Command to execute:')
-    console.log(`  ${command.join(' ')}`)
+    console.log(`  playwright ${command.map(formatArgument).join(' ')}`)
 
     // Set burn-in environment variable
     process.env.PW_BURN_IN = 'true'
 
     console.log('\n🚀 Starting burn-in tests...\n')
 
-    try {
-      execSync(command.join(' '), {
-        stdio: 'inherit',
-        env: process.env
-      })
-      console.log('\n✅ Burn-in tests completed successfully!')
-    } catch {
+    // Arguments go straight to the Playwright CLI process. No shell parses them, so file
+    // names with spaces or shell syntax stay single, literal arguments.
+    const result = spawnSync(
+      process.execPath,
+      [resolvePlaywrightCli(), ...command],
+      { stdio: 'inherit', env: process.env }
+    )
+
+    if (result.error || result.status !== 0) {
+      if (result.error) console.error(result.error)
       console.error('\n❌ Burn-in tests failed')
       process.exit(1)
     }
+    console.log('\n✅ Burn-in tests completed successfully!')
   }
+}
+
+/** The Playwright CLI script installed in the project being tested */
+function resolvePlaywrightCli(): string {
+  const projectRequire = createRequire(path.join(process.cwd(), 'package.json'))
+  for (const cli of ['@playwright/test/cli', 'playwright/cli']) {
+    try {
+      return projectRequire.resolve(cli)
+    } catch {
+      // Try the next package
+    }
+  }
+  throw new Error(
+    `Cannot find the Playwright CLI from ${process.cwd()}. Install @playwright/test in the project.`
+  )
+}
+
+/** Quotes an argument the way a POSIX shell would need it, for display */
+function formatArgument(argument: string): string {
+  return /^[\w./=:@%+,-]+$/.test(argument)
+    ? argument
+    : `"${argument.replace(/["\\$`]/g, '\\$&')}"`
 }
 
 export async function runBurnIn(options?: BurnInOptions): Promise<void> {

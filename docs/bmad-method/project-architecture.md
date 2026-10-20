@@ -189,7 +189,7 @@ playwright-utils/
 
 ### Critical Technical Debt
 
-1. **Build Complexity**: Multiple TypeScript configurations (tsconfig-build-types.json, tsconfig-cjs.json, tsconfig-esm.json) - required for dual module support but adds complexity
+1. **Build Complexity**: Type declarations and CommonJS use separate TypeScript configs; `scripts/build-esm-wrappers.mjs` generates ESM entry points.
 2. **Auth Provider Validation**: Recently removed provider verification (commit f7cbcee) - may need monitoring for compatibility issues
 3. **Sample App Dependencies**: Sample app uses `"@seontechnologies/playwright-utils": "*"` for local testing - works but non-standard approach
 4. **File Path Handling**: Auth session uses absolute paths with proper-lockfile - platform-specific behavior needs testing

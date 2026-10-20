@@ -113,8 +113,9 @@ export class WebhookTimeoutError extends Error {
     public readonly matcherDetails: string[] = []
   ) {
     const total = receivedWebhooks.length
-    const truncated =
-      total > 10 ? receivedWebhooks.slice(-10) : receivedWebhooks
+    const truncated = [...receivedWebhooks]
+      .sort((a, b) => a.receivedAt.getTime() - b.receivedAt.getTime())
+      .slice(-10)
     const countInfo =
       total > 10
         ? `${total} webhook(s) were received (showing last 10) but none matched.`

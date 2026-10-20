@@ -8,7 +8,7 @@
   "author": "Murat Ozcan",
   "license": "Apache-2.0",
   "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
+  "module": "./dist/esm/index.mjs",
   "types": "dist/types/index.d.ts",
   "typesVersions": {
     "*": {
@@ -75,121 +75,121 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "require": "./dist/cjs/index.js",
-      "import": "./dist/esm/index.js",
+      "import": "./dist/esm/index.mjs",
       "default": "./dist/cjs/index.js"
     },
     "./api-request": {
       "types": "./dist/types/api-request/index.d.ts",
       "require": "./dist/cjs/api-request/index.js",
-      "import": "./dist/esm/api-request/index.js",
+      "import": "./dist/esm/api-request/index.mjs",
       "default": "./dist/cjs/api-request/index.js"
     },
     "./api-request/fixtures": {
       "types": "./dist/types/api-request/fixtures.d.ts",
       "require": "./dist/cjs/api-request/fixtures.js",
-      "import": "./dist/esm/api-request/fixtures.js",
+      "import": "./dist/esm/api-request/fixtures.mjs",
       "default": "./dist/cjs/api-request/fixtures.js"
     },
     "./api-request/schema-validation": {
       "types": "./dist/types/api-request/schema-validation/index.d.ts",
       "require": "./dist/cjs/api-request/schema-validation/index.js",
-      "import": "./dist/esm/api-request/schema-validation/index.js",
+      "import": "./dist/esm/api-request/schema-validation/index.mjs",
       "default": "./dist/cjs/api-request/schema-validation/index.js"
     },
     "./intercept-network-call": {
       "types": "./dist/types/intercept-network-call/index.d.ts",
       "require": "./dist/cjs/intercept-network-call/index.js",
-      "import": "./dist/esm/intercept-network-call/index.js",
+      "import": "./dist/esm/intercept-network-call/index.mjs",
       "default": "./dist/cjs/intercept-network-call/index.js"
     },
     "./intercept-network-call/fixtures": {
       "types": "./dist/types/intercept-network-call/fixtures.d.ts",
       "require": "./dist/cjs/intercept-network-call/fixtures.js",
-      "import": "./dist/esm/intercept-network-call/fixtures.js",
+      "import": "./dist/esm/intercept-network-call/fixtures.mjs",
       "default": "./dist/cjs/intercept-network-call/fixtures.js"
     },
     "./log": {
       "types": "./dist/types/log/index.d.ts",
       "require": "./dist/cjs/log/index.js",
-      "import": "./dist/esm/log/index.js",
+      "import": "./dist/esm/log/index.mjs",
       "default": "./dist/cjs/log/index.js"
     },
     "./log/fixtures": {
       "types": "./dist/types/log/fixtures.d.ts",
       "require": "./dist/cjs/log/fixtures.js",
-      "import": "./dist/esm/log/fixtures.js",
+      "import": "./dist/esm/log/fixtures.mjs",
       "default": "./dist/cjs/log/fixtures.js"
     },
     "./recurse": {
       "types": "./dist/types/recurse/index.d.ts",
       "require": "./dist/cjs/recurse/index.js",
-      "import": "./dist/esm/recurse/index.js",
+      "import": "./dist/esm/recurse/index.mjs",
       "default": "./dist/cjs/recurse/index.js"
     },
     "./recurse/fixtures": {
       "types": "./dist/types/recurse/fixtures.d.ts",
       "require": "./dist/cjs/recurse/fixtures.js",
-      "import": "./dist/esm/recurse/fixtures.js",
+      "import": "./dist/esm/recurse/fixtures.mjs",
       "default": "./dist/cjs/recurse/fixtures.js"
     },
     "./auth-session": {
       "types": "./dist/types/auth-session/index.d.ts",
       "require": "./dist/cjs/auth-session/index.js",
-      "import": "./dist/esm/auth-session/index.js",
+      "import": "./dist/esm/auth-session/index.mjs",
       "default": "./dist/cjs/auth-session/index.js"
     },
     "./auth-session/fixtures": {
       "types": "./dist/types/auth-session/fixtures.d.ts",
       "require": "./dist/cjs/auth-session/fixtures.js",
-      "import": "./dist/esm/auth-session/fixtures.js",
+      "import": "./dist/esm/auth-session/fixtures.mjs",
       "default": "./dist/cjs/auth-session/fixtures.js"
     },
     "./file-utils": {
       "types": "./dist/types/file-utils/index.d.ts",
       "require": "./dist/cjs/file-utils/index.js",
-      "import": "./dist/esm/file-utils/index.js",
+      "import": "./dist/esm/file-utils/index.mjs",
       "default": "./dist/cjs/file-utils/index.js"
     },
     "./file-utils/fixtures": {
       "types": "./dist/types/file-utils/fixtures.d.ts",
       "require": "./dist/cjs/file-utils/fixtures.js",
-      "import": "./dist/esm/file-utils/fixtures.js",
+      "import": "./dist/esm/file-utils/fixtures.mjs",
       "default": "./dist/cjs/file-utils/fixtures.js"
     },
     "./network-recorder": {
       "types": "./dist/types/network-recorder/index.d.ts",
       "require": "./dist/cjs/network-recorder/index.js",
-      "import": "./dist/esm/network-recorder/index.js",
+      "import": "./dist/esm/network-recorder/index.mjs",
       "default": "./dist/cjs/network-recorder/index.js"
     },
     "./network-recorder/fixtures": {
       "types": "./dist/types/network-recorder/fixtures.d.ts",
       "require": "./dist/cjs/network-recorder/fixtures.js",
-      "import": "./dist/esm/network-recorder/fixtures.js",
+      "import": "./dist/esm/network-recorder/fixtures.mjs",
       "default": "./dist/cjs/network-recorder/fixtures.js"
     },
     "./burn-in": {
       "types": "./dist/types/burn-in/index.d.ts",
       "require": "./dist/cjs/burn-in/index.js",
-      "import": "./dist/esm/burn-in/index.js",
+      "import": "./dist/esm/burn-in/index.mjs",
       "default": "./dist/cjs/burn-in/index.js"
     },
     "./network-error-monitor/fixtures": {
       "types": "./dist/types/network-error-monitor/fixtures.d.ts",
       "require": "./dist/cjs/network-error-monitor/fixtures.js",
-      "import": "./dist/esm/network-error-monitor/fixtures.js",
+      "import": "./dist/esm/network-error-monitor/fixtures.mjs",
       "default": "./dist/cjs/network-error-monitor/fixtures.js"
     },
     "./webhook": {
       "types": "./dist/types/webhook/index.d.ts",
       "require": "./dist/cjs/webhook/index.js",
-      "import": "./dist/esm/webhook/index.js",
+      "import": "./dist/esm/webhook/index.mjs",
       "default": "./dist/cjs/webhook/index.js"
     },
     "./webhook/fixtures": {
       "types": "./dist/types/webhook/fixtures.d.ts",
       "require": "./dist/cjs/webhook/fixtures.js",
-      "import": "./dist/esm/webhook/fixtures.js",
+      "import": "./dist/esm/webhook/fixtures.mjs",
       "default": "./dist/cjs/webhook/fixtures.js"
     }
   },
@@ -223,14 +223,16 @@
     "clean": "rm -rf dist",
     "build:types": "tsc -p tsconfig-build-types.json --declaration --declarationDir dist/types --emitDeclarationOnly",
     "build:cjs": "tsc -p tsconfig-cjs.json",
-    "build:esm": "tsc -p tsconfig-esm.json",
+    "build:esm": "node scripts/build-esm-wrappers.mjs",
     "prettier": "prettier --ignore-path .gitignore \"**/*.+(js|ts|json)\"",
     "fix:format": "npm run prettier -- --write",
     "check:exports-parity": "node scripts/check-exports-parity.mjs",
     "validate": "npm-run-all --parallel typecheck lint test fix:format check:exports-parity",
+    "test:lib": "jest",
     "test:backend": "cd sample-app/backend && npm run test",
     "test:frontend": "cd sample-app/frontend && npm run vitest:run",
-    "test": "npm-run-all --parallel test:backend test:frontend",
+    "test:consumer": "node scripts/test-consumer.mjs",
+    "test": "npm-run-all --parallel test:lib test:backend test:frontend",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:clear-cache": "find . -name \"*.tsbuildinfo\" -delete && rm -rf node_modules/.cache/typescript",
     "lint": "eslint . --cache-location node_modules/.cache/eslint --fix",
@@ -245,6 +247,16 @@
     "docs:dev": "DOCS_BASE=/ vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "DOCS_BASE=/ vitepress preview docs"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "modulePathIgnorePatterns": [
+      "<rootDir>/dist"
+    ]
   },
   "peerDependencies": {
     "@playwright/test": ">=1.54.1",
@@ -265,13 +277,12 @@
   },
   "devDependencies": {
     "@faker-js/faker": "9.9.0",
-    "@playwright/test": "^1.61.0",
+    "@playwright/test": "^1.64.1",
     "@types/express": "4.17.21",
     "@types/express-serve-static-core": "5.1.3",
     "@types/jest": "29.5.14",
     "@types/js-yaml": "4.0.9",
     "@types/lodash": "4.17.25",
-    "@types/madge": "5.0.3",
     "@types/node": "22.20.3",
     "@types/papaparse": "5.5.2",
     "@types/picomatch": "4.0.3",
@@ -296,7 +307,6 @@
     "ts-jest": "29.4.12",
     "ts-node": "10.9.2",
     "tsx": "4.23.13",
-    "typescript": "5.9.3",
     "vite": "6.4.3",
     "vitepress": "^1.6.4",
     "zod": "4.6.5"
@@ -305,10 +315,10 @@
     "adm-zip": "0.6.1",
     "deepmerge": "4.3.1",
     "exceljs": "4.4.0",
-    "madge": "7.0.0",
     "papaparse": "5.7.0",
     "picomatch": "4.0.7",
     "proper-lockfile": "4.1.2",
+    "typescript": "^5.0.0 || ^6.0.0",
     "unpdf": "1.8.1",
     "uuid": "11.1.1"
   }

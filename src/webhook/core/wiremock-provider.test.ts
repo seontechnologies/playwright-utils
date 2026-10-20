@@ -113,15 +113,11 @@ describe('WireMockWebhookProvider', () => {
       expect(webhooks[0]!.body).toBe('not-json')
     })
 
-    it('should filter by since', async () => {
-      const oldReq = makeWireMockRequest('old', { event: 'old' })
-      oldReq.loggedDate = new Date('2025-01-01').getTime()
+    it('should ask WireMock for requests received since a date', async () => {
       const newReq = makeWireMockRequest('new', { event: 'new' })
-      newReq.loggedDate = new Date('2026-06-01').getTime()
-
       mockApiResponse({
-        requests: [oldReq, newReq],
-        meta: { total: 2 },
+        requests: [newReq],
+        meta: { total: 1 },
         requestJournalDisabled: false
       })
 
@@ -129,8 +125,13 @@ describe('WireMockWebhookProvider', () => {
         since: new Date('2026-01-01')
       })
 
-      expect(webhooks).toHaveLength(1)
-      expect(webhooks[0]!.id).toBe('new')
+      // WireMock filters by the `since` query parameter server-side
+      expect(mockedApiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: '/requests?since=2026-01-01T00%3A00%3A00.000Z'
+        })
+      )
+      expect(webhooks.map((w) => w.id)).toEqual(['new'])
     })
 
     it('should filter by method', async () => {

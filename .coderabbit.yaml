@@ -54,7 +54,6 @@ reviews:
     - 'playwright.config.ts'
     - 'tsconfig.json'
     - 'tsconfig-cjs.json'
-    - 'tsconfig-esm.json'
     - 'tsconfig-build-types.json'
     - 'vite-env.d.ts'
     - 'test.http'

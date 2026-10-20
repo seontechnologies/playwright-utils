@@ -312,7 +312,7 @@ test.describe('Webhook module E2E', () => {
     const movieId = createResponse.data.id
 
     await log.step('Wait for create webhook — puts it in the journal')
-    await webhookRegistry.waitFor(movieCreated(movieId))
+    const created = await webhookRegistry.waitFor(movieCreated(movieId))
 
     await log.step(
       'Wait for a delete webhook that will never arrive — no delete was called'
@@ -342,16 +342,27 @@ test.describe('Webhook module E2E', () => {
     expect(error.receivedWebhooks.length).toBeGreaterThanOrEqual(1)
 
     await log.step(
-      'The movie.created webhook that did arrive should be visible in the error'
+      'The error carries the 10 most recent received webhooks, oldest first'
     )
-    const createdWebhook = error.receivedWebhooks.find(
-      (w) =>
-        (w.body as { event: string; data: { id: number } }).data.id === movieId
+    const shown = error.receivedWebhooks
+    expect(shown).toHaveLength(Math.min(error.totalReceived, 10))
+    const times = shown.map((w) => w.receivedAt.getTime())
+    expect(times).toEqual([...times].sort((a, b) => a - b))
+
+    await log.step(
+      'The movie.created webhook that did arrive is shown, unless newer webhooks from parallel tests pushed it out'
     )
-    expect(createdWebhook).toBeDefined()
-    expect((createdWebhook!.body as { event: string }).event).toBe(
-      'movie.created'
-    )
+    const shownCreated = shown.find((w) => w.id === created.id)
+    if (shownCreated) {
+      expect(shownCreated.body).toEqual(created.body)
+    } else {
+      expect(shown).toHaveLength(10)
+      expect(
+        shown.every(
+          (w) => w.receivedAt.getTime() >= created.receivedAt.getTime()
+        )
+      ).toBe(true)
+    }
 
     await deleteMovie(authToken, movieId)
   })

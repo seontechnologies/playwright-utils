@@ -1,7 +1,6 @@
 /** Auth session setup for the current project
  * Manages global authentication configuration */
 
-import { config as dotenvConfig } from 'dotenv'
 import path from 'node:path'
 import { getStorageDir } from './auth-storage-utils'
 import type { AuthSessionOptions, AuthStorageConfig } from './types'
@@ -9,11 +8,6 @@ import fs from 'node:fs'
 // eslint-disable-next-line import/named
 import { v4 as uuidv4 } from 'uuid'
 import { log } from '../../log'
-
-// Load environment variables
-dotenvConfig({
-  path: path.resolve(__dirname, '../../.env')
-})
 
 /**
  * Standard empty Playwright storage state format
