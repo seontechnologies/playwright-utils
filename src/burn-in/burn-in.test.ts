@@ -2,9 +2,11 @@ import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { BurnInAnalyzer } from './core/analyzer'
+import { BurnInAnalyzer, toFileFilter } from './core/analyzer'
+import { DependencyResolver, toComparablePath } from './core/dependency-graph'
+import { parseShard, parseTestWeights, partitionTests } from './core/shard'
 import { runBurnIn } from './runner'
-import type { BurnInConfig } from './core/types'
+import type { BurnInConfig, BurnInShardOption } from './core/types'
 
 /**
  * Each test builds a throwaway git repository shaped like a consumer project: a `main` branch,
@@ -18,6 +20,18 @@ const config: BurnInConfig = {
 
 let repo: string
 const originalCwd = process.cwd()
+const originalEnv = {
+  PW_SHARD: process.env.PW_SHARD,
+  PW_BURN_IN: process.env.PW_BURN_IN,
+  PLAYWRIGHT_JSON_OUTPUT_FILE: process.env.PLAYWRIGHT_JSON_OUTPUT_FILE
+}
+
+function restoreEnv() {
+  for (const [name, value] of Object.entries(originalEnv)) {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+}
 
 function git(...args: string[]) {
   execFileSync('git', args, { cwd: repo, stdio: 'pipe' })
@@ -69,10 +83,13 @@ async function selectTests(cwd = repo): Promise<string[] | null> {
 }
 
 beforeEach(() => {
+  // Each test starts without the variables, even if the shell or CI job exports them
+  for (const name of Object.keys(originalEnv)) delete process.env[name]
   jest.spyOn(console, 'log').mockImplementation(() => {})
 })
 
 afterEach(() => {
+  restoreEnv()
   process.chdir(originalCwd)
   jest.restoreAllMocks()
   if (repo) fs.rmSync(repo, { recursive: true, force: true })
@@ -442,17 +459,56 @@ describe('burn-in test selection', () => {
 })
 
 describe('runBurnIn', () => {
-  /** Installs a stand-in Playwright CLI that records the arguments it receives */
-  function installFakePlaywright(): string {
+  /**
+   * Installs a stand-in Playwright CLI. A run records its arguments in `playwright-args.json`.
+   * `--list` answers with a JSON report built from `listed` (test count per file, relative to
+   * the repository) and records its arguments and the PW_BURN_IN it saw in
+   * `playwright-list.json`. With `listed` null, `--list` fails.
+   */
+  function installFakePlaywright(
+    listed: Record<string, number> | null = {},
+    configuredRepeat: Record<string, number> = {}
+  ) {
     const argsFile = path.join(repo, 'playwright-args.json')
-    const cli = `require('fs').writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)))\n`
+    const listFile = path.join(repo, 'playwright-list.json')
+    const cli = `
+const fs = require('fs')
+const args = process.argv.slice(2)
+if (args.includes('--list')) {
+  fs.writeFileSync(${JSON.stringify(listFile)}, JSON.stringify({ args, burnIn: process.env.PW_BURN_IN }))
+  const listed = ${JSON.stringify(listed)}
+  if (listed === null) {
+    console.error('config exploded')
+    process.exit(1)
+  }
+  // A project's configured repeatEach multiplies its tests, unless --repeat-each overrides it
+  const configuredRepeat = ${JSON.stringify(configuredRepeat)}
+  const suites = Object.entries(listed).map(([file, listedCount]) => ({
+    file,
+    specs: Array.from({ length: args.some((arg) => arg.startsWith('--repeat-each=')) ? listedCount : listedCount * (configuredRepeat[file] ?? 1) }, (_, index) => ({
+      file,
+      title: 'test ' + index,
+      tests: [{ projectName: 'chromium' }]
+    })),
+    suites: []
+  }))
+  fs.writeFileSync(
+    // Playwright gives the _FILE variable precedence over _NAME
+    process.env.PLAYWRIGHT_JSON_OUTPUT_FILE || process.env.PLAYWRIGHT_JSON_OUTPUT_NAME,
+    JSON.stringify({ config: { rootDir: ${JSON.stringify(repo)} }, suites, errors: [] })
+  )
+} else {
+  fs.writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args))
+}
+`
     write({
       'node_modules/@playwright/test/package.json': JSON.stringify({
         name: '@playwright/test',
         bin: { playwright: 'cli.js' },
         exports: { './cli': './cli.js' }
       }),
-      'node_modules/@playwright/test/cli.js': `#!/usr/bin/env node\n${cli}`
+      'node_modules/@playwright/test/cli.js': `#!/usr/bin/env node\n${cli}`,
+      '.gitignore': 'node_modules\nplaywright-args.json\nplaywright-list.json\n'
     })
     const bin = path.join(repo, 'node_modules/.bin/playwright')
     fs.mkdirSync(path.dirname(bin), { recursive: true })
@@ -478,9 +534,8 @@ describe('runBurnIn', () => {
       ),
       Object.fromEntries(selected.map((file) => [file, 'export const a = 1\n']))
     )
-    write({ '.gitignore': 'node_modules\nplaywright-args.json\n' })
-    commit('ignore')
     const argsFile = installFakePlaywright()
+    commit('ignore')
     process.chdir(repo)
 
     await runBurnIn({ baseBranch: 'main', configPath: 'missing.config.ts' })
@@ -492,7 +547,8 @@ describe('runBurnIn', () => {
 
     // Playwright turns each file argument into `new RegExp(arg, 'gi')` and tests it against
     // absolute file paths: each argument must match its own file and nothing else
-    const filters = args.slice(1, -2)
+    expect(args[1]).toBe('--shard=1/1')
+    const filters = args.slice(2, -2)
     expect(filters).toHaveLength(selected.length)
     const candidates = [...selected, ...decoys].map((file) =>
       path.join(repo, file)
@@ -504,5 +560,656 @@ describe('runBurnIn', () => {
       selected.map((file) => path.join(repo, file)).sort()
     )
     expect(filters.every((filter) => !filter.startsWith('-'))).toBe(true)
+  })
+
+  describe('sharding', () => {
+    const counts: Record<string, number> = {
+      'tests/a.spec.ts': 5,
+      'tests/b.spec.ts': 4,
+      'tests/c.spec.ts': 3,
+      'tests/d.spec.ts': 3,
+      'tests/e.spec.ts': 2,
+      'tests/f.spec.ts': 2,
+      'tests/g.spec.ts': 1
+    }
+    const files = Object.keys(counts)
+
+    /** A feature branch where every spec changed, with the fake Playwright installed */
+    function setUpChangedSpecs(listed: Record<string, number> | null = counts) {
+      createRepo(
+        Object.fromEntries(files.map((file) => [file, 'export {}\n'])),
+        Object.fromEntries(files.map((file) => [file, 'export const a = 1\n']))
+      )
+      const argsFile = installFakePlaywright(listed)
+      commit('fake playwright')
+      process.chdir(repo)
+      return argsFile
+    }
+
+    const readJson = (file: string): string[] =>
+      JSON.parse(fs.readFileSync(file, 'utf-8'))
+
+    /** The spec files a recorded Playwright run was given */
+    function filesRun(args: string[]): string[] {
+      return files.filter((file) => args.includes(toFileFilter(file)))
+    }
+
+    async function runLeg(
+      argsFile: string,
+      shard?: BurnInShardOption
+    ): Promise<string[] | null> {
+      fs.rmSync(argsFile, { force: true })
+      await runBurnIn({
+        baseBranch: 'main',
+        configPath: 'missing.config.ts',
+        shard
+      })
+      return fs.existsSync(argsFile) ? readJson(argsFile) : null
+    }
+
+    const sum = (legFiles: string[]) =>
+      legFiles.reduce((total, file) => total + (counts[file] ?? 0), 0)
+
+    it('gives each leg disjoint, balanced files whose union is the selection', async () => {
+      const argsFile = setUpChangedSpecs()
+
+      const first = await runLeg(argsFile, { index: 1, total: 2 })
+      const second = await runLeg(argsFile, { index: 2, total: 2 })
+
+      expect(first && second).not.toBeNull()
+      const firstFiles = filesRun(first ?? [])
+      const secondFiles = filesRun(second ?? [])
+      expect(firstFiles).toEqual([
+        'tests/a.spec.ts',
+        'tests/d.spec.ts',
+        'tests/f.spec.ts'
+      ])
+      expect([...firstFiles, ...secondFiles].sort()).toEqual(files)
+      expect(Math.abs(sum(firstFiles) - sum(secondFiles))).toBeLessThanOrEqual(
+        1
+      )
+      // Burn-in flags are unchanged and every leg runs under --shard=1/1, once
+      for (const args of [first ?? [], second ?? []]) {
+        expect(args[0]).toBe('test')
+        expect(args.slice(-2)).toEqual(['--repeat-each=3', '--retries=0'])
+        expect(args.filter((arg) => arg.startsWith('--shard'))).toEqual([
+          '--shard=1/1'
+        ])
+      }
+    })
+
+    it('reads the listing even when the consumer sets PLAYWRIGHT_JSON_OUTPUT_FILE', async () => {
+      const argsFile = setUpChangedSpecs()
+      const consumerReport = path.join(repo, 'consumer-report.json')
+      process.env.PLAYWRIGHT_JSON_OUTPUT_FILE = consumerReport
+
+      const args = await runLeg(argsFile, { index: 1, total: 2 })
+
+      expect(filesRun(args ?? []).length).toBeGreaterThan(0)
+      expect(fs.existsSync(consumerReport)).toBe(false)
+    })
+
+    it('leaves files Playwright lists no tests for out of the partition', async () => {
+      const unlisted = ['tests/f.spec.ts', 'tests/g.spec.ts']
+      const argsFile = setUpChangedSpecs(
+        Object.fromEntries(
+          Object.entries(counts).filter(([file]) => !unlisted.includes(file))
+        )
+      )
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const runs = [
+        await runLeg(argsFile, { index: 1, total: 2 }),
+        await runLeg(argsFile, { index: 2, total: 2 })
+      ]
+
+      const run = runs.flatMap((args) => filesRun(args ?? []))
+      expect(run.sort()).toEqual(
+        files.filter((file) => !unlisted.includes(file))
+      )
+      expect(warn).toHaveBeenCalledTimes(2)
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('tests/f.spec.ts, tests/g.spec.ts')
+      )
+    })
+
+    it('treats a leg holding only unlisted files as empty and succeeds', async () => {
+      createRepo(
+        { 'tests/a.spec.ts': 'export {}\n', 'tests/b.spec.ts': 'export {}\n' },
+        {
+          'tests/a.spec.ts': 'export const a = 1\n',
+          'tests/b.spec.ts': 'export const a = 1\n'
+        }
+      )
+      const argsFile = installFakePlaywright({ 'tests/a.spec.ts': 2 })
+      commit('fake playwright')
+      process.chdir(repo)
+      jest.spyOn(console, 'warn').mockImplementation(() => {})
+      const exit = jest.spyOn(process, 'exit')
+
+      const first = await runLeg(argsFile, { index: 1, total: 2 })
+      const second = await runLeg(argsFile, { index: 2, total: 2 })
+
+      expect(first).not.toBeNull()
+      expect(second).toBeNull()
+      expect(exit).not.toHaveBeenCalled()
+    })
+
+    it('weighs files by their tests before repeats, whatever repeatEach the config sets', async () => {
+      const eight = Array.from({ length: 8 }, (_, i) => `tests/one${i}.spec.ts`)
+      createRepo(
+        Object.fromEntries(eight.map((file) => [file, 'export {}\n'])),
+        Object.fromEntries(eight.map((file) => [file, 'export const a = 1\n']))
+      )
+      const argsFile = installFakePlaywright(
+        Object.fromEntries(eight.map((file) => [file, 1])),
+        { 'tests/one0.spec.ts': 20 }
+      )
+      commit('fake playwright')
+      process.chdir(repo)
+
+      const legs = [
+        await runLeg(argsFile, { index: 1, total: 2 }),
+        await runLeg(argsFile, { index: 2, total: 2 })
+      ].map((args) => (args ?? []).filter((arg) => arg.startsWith('^')))
+
+      expect(legs.map((leg) => leg.length)).toEqual([4, 4])
+      expect(
+        fs.readFileSync(path.join(repo, 'playwright-list.json'), 'utf-8')
+      ).toContain('--repeat-each=1')
+    })
+
+    it('lists the selected tests under the burn-in environment', async () => {
+      const argsFile = setUpChangedSpecs()
+      delete process.env.PW_BURN_IN
+
+      await runLeg(argsFile, { index: 1, total: 2 })
+
+      const listed = JSON.parse(
+        fs.readFileSync(path.join(repo, 'playwright-list.json'), 'utf-8')
+      )
+      expect(listed.burnIn).toBe('true')
+      expect(listed.args.slice(0, 3)).toEqual([
+        'test',
+        '--list',
+        '--reporter=json'
+      ])
+      expect(listed.args[3]).toBe('--repeat-each=1')
+      // Overrides a shard in the consumer's playwright.config.ts
+      expect(listed.args[4]).toBe('--shard=1/1')
+      expect(listed.args.slice(5).sort()).toEqual(
+        files.map((file) => toFileFilter(file)).sort()
+      )
+    })
+
+    it('accepts the shard as an i/n string, like the object form', async () => {
+      const argsFile = setUpChangedSpecs()
+      const fromObject = await runLeg(argsFile, { index: 2, total: 2 })
+
+      const fromString = await runLeg(argsFile, '2/2')
+
+      expect(fromString).toEqual(fromObject)
+      expect(filesRun(fromString ?? [])).toEqual([
+        'tests/b.spec.ts',
+        'tests/c.spec.ts',
+        'tests/e.spec.ts',
+        'tests/g.spec.ts'
+      ])
+    })
+
+    it.each(['3/2', '0/2', 'a/b', ''])(
+      'throws a clear error for the shard option %j',
+      async (value) => {
+        const argsFile = setUpChangedSpecs()
+
+        await expect(runLeg(argsFile, value)).rejects.toThrow(
+          new RegExp(`Invalid shard "${value}".*i/n`)
+        )
+        expect(fs.existsSync(argsFile)).toBe(false)
+      }
+    )
+
+    describe.each([
+      ['no shard', undefined],
+      ['a total of 1', '1/1'],
+      ['an object with a total of 1', { index: 1, total: 1 }]
+    ])('with %s', (_name, shard) => {
+      it('runs every selected file without listing tests', async () => {
+        const argsFile = setUpChangedSpecs()
+
+        const args = await runLeg(argsFile, shard)
+
+        expect(filesRun(args ?? [])).toEqual(files)
+        expect(args?.filter((arg) => arg.startsWith('--shard'))).toEqual([
+          '--shard=1/1'
+        ])
+        expect(fs.existsSync(path.join(repo, 'playwright-list.json'))).toBe(
+          false
+        )
+      })
+    })
+
+    it('runs every selected file for PW_SHARD=1/1 without listing tests', async () => {
+      const argsFile = setUpChangedSpecs()
+      process.env.PW_SHARD = '1/1'
+
+      const args = await runLeg(argsFile)
+
+      expect(filesRun(args ?? [])).toEqual(files)
+      expect(fs.existsSync(path.join(repo, 'playwright-list.json'))).toBe(false)
+    })
+
+    it('reads the shard from PW_SHARD when no option is given', async () => {
+      const argsFile = setUpChangedSpecs()
+      const fromOption = await runLeg(argsFile, { index: 2, total: 2 })
+
+      process.env.PW_SHARD = '2/2'
+      const fromEnv = await runLeg(argsFile)
+
+      expect(fromEnv).toEqual(fromOption)
+      expect(filesRun(fromEnv ?? [])).toEqual([
+        'tests/b.spec.ts',
+        'tests/c.spec.ts',
+        'tests/e.spec.ts',
+        'tests/g.spec.ts'
+      ])
+    })
+
+    it('uses the option over PW_SHARD and warns once about the ignored variable', async () => {
+      const argsFile = setUpChangedSpecs()
+      const fromOption = await runLeg(argsFile, { index: 1, total: 2 })
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+      process.env.PW_SHARD = '2/2'
+      const both = await runLeg(argsFile, { index: 1, total: 2 })
+
+      expect(both).toEqual(fromOption)
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('PW_SHARD="2/2"')
+      )
+    })
+
+    it('runs nothing and succeeds for a leg beyond the number of files', async () => {
+      createRepo(
+        { 'tests/a.spec.ts': 'export {}\n', 'tests/b.spec.ts': 'export {}\n' },
+        {
+          'tests/a.spec.ts': 'export const a = 1\n',
+          'tests/b.spec.ts': 'export const a = 1\n'
+        }
+      )
+      const argsFile = installFakePlaywright({
+        'tests/a.spec.ts': 1,
+        'tests/b.spec.ts': 1
+      })
+      commit('fake playwright')
+      process.chdir(repo)
+      const exit = jest.spyOn(process, 'exit')
+
+      const emptyLeg = await runLeg(argsFile, { index: 5, total: 5 })
+      const busyLeg = await runLeg(argsFile, { index: 1, total: 5 })
+
+      expect(emptyLeg).toBeNull()
+      expect(exit).not.toHaveBeenCalled()
+      expect(busyLeg).not.toBeNull()
+    })
+
+    it.each(['3/2', '0/2', 'a/b', '1/0', '1.5/2', '1/2/3'])(
+      'throws a clear error for PW_SHARD=%s',
+      async (value) => {
+        const argsFile = setUpChangedSpecs()
+        process.env.PW_SHARD = value
+
+        await expect(runLeg(argsFile)).rejects.toThrow(
+          new RegExp(`Invalid shard "${value}".*i/n`)
+        )
+        expect(fs.existsSync(argsFile)).toBe(false)
+      }
+    )
+
+    it('throws a clear error for an invalid shard option', async () => {
+      const argsFile = setUpChangedSpecs()
+
+      await expect(runLeg(argsFile, { index: 3, total: 2 })).rejects.toThrow(
+        /Invalid shard "3\/2".*i\/n/
+      )
+    })
+
+    it('throws when the tests cannot be listed', async () => {
+      const argsFile = setUpChangedSpecs(null)
+
+      await expect(runLeg(argsFile, { index: 1, total: 2 })).rejects.toThrow(
+        /Could not list tests.*config exploded/s
+      )
+      expect(fs.existsSync(argsFile)).toBe(false)
+    })
+
+    describe('fallback mode', () => {
+      /** Specs that import a changed helper, so the analysis has to walk their imports */
+      function setUpHelperChange() {
+        createRepo(
+          {
+            'tests/helper.ts': 'export const helper = 1\n',
+            ...Object.fromEntries(
+              files.map((file) => [
+                file,
+                'import { helper } from "./helper"\nexport const a = helper\n'
+              ])
+            )
+          },
+          { 'tests/helper.ts': 'export const helper = 2\n' }
+        )
+        const argsFile = installFakePlaywright(counts)
+        commit('fake playwright')
+        process.chdir(repo)
+        return argsFile
+      }
+
+      /** Makes the dependency analysis fail so burn-in falls back to --only-changed */
+      function failAnalysis() {
+        jest
+          .spyOn(DependencyResolver.prototype, 'getDependencies')
+          .mockImplementation(() => {
+            throw new Error('analysis exploded')
+          })
+        return jest.spyOn(console, 'warn').mockImplementation(() => {})
+      }
+
+      async function fallbackCommand(
+        options: ConstructorParameters<typeof BurnInAnalyzer>[1],
+        percentage?: number
+      ) {
+        const analyzer = new BurnInAnalyzer(
+          { ...config, burnInTestPercentage: percentage },
+          { baseBranch: 'main', ...options }
+        )
+        const plan = await analyzer.analyzeTestableDependencies(
+          analyzer.getChangedFiles('main')
+        )
+        return { plan, command: analyzer.buildCommand(plan) }
+      }
+
+      it('passes only the user shard and warns that percentage sampling is skipped', async () => {
+        setUpHelperChange()
+        const warn = failAnalysis()
+
+        const { plan, command } = await fallbackCommand(
+          { shard: { index: 2, total: 2 } },
+          0.5
+        )
+
+        expect(plan.tests).toBeNull()
+        expect(command?.filter((arg) => arg.startsWith('--shard'))).toEqual([
+          '--shard=2/2'
+        ])
+        expect(command).toEqual(
+          expect.arrayContaining(['--only-changed=main', '--repeat-each=3'])
+        )
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('percentage sampling')
+        )
+      })
+
+      it('takes the shard from PW_SHARD', async () => {
+        setUpHelperChange()
+        failAnalysis()
+        process.env.PW_SHARD = '2/2'
+
+        const { command } = await fallbackCommand({}, 0.5)
+
+        expect(command?.filter((arg) => arg.startsWith('--shard'))).toEqual([
+          '--shard=2/2'
+        ])
+      })
+
+      it.each([
+        ['no shard', {}],
+        ['a total of 1', { shard: '1/1' }]
+      ])(
+        'keeps the percentage shard, once, with %s',
+        async (_name, options) => {
+          setUpHelperChange()
+          const warn = failAnalysis()
+
+          const { command } = await fallbackCommand(options, 0.5)
+
+          expect(command?.filter((arg) => arg.startsWith('--shard'))).toEqual([
+            '--shard=1/2'
+          ])
+          expect(warn).not.toHaveBeenCalledWith(
+            expect.stringContaining('percentage sampling')
+          )
+        }
+      )
+
+      it('accepts the shard as an i/n string', async () => {
+        setUpHelperChange()
+        failAnalysis()
+
+        const { command } = await fallbackCommand({ shard: '2/2' }, 0.5)
+
+        expect(command?.filter((arg) => arg.startsWith('--shard'))).toEqual([
+          '--shard=2/2'
+        ])
+      })
+
+      it('keeps the percentage shard when no shard is given', async () => {
+        setUpHelperChange()
+        failAnalysis()
+
+        const { command } = await fallbackCommand({}, 0.5)
+
+        expect(command?.filter((arg) => arg.startsWith('--shard'))).toEqual([
+          '--shard=1/2'
+        ])
+      })
+
+      it('does not list tests and hands the shard to Playwright', async () => {
+        const argsFile = setUpHelperChange()
+        failAnalysis()
+
+        const args = await runLeg(argsFile, { index: 2, total: 2 })
+
+        expect(args?.filter((arg) => arg.startsWith('--shard'))).toEqual([
+          '--shard=2/2'
+        ])
+        expect(fs.existsSync(path.join(repo, 'playwright-list.json'))).toBe(
+          false
+        )
+      })
+
+      it('fails on an invalid shard instead of falling back', async () => {
+        setUpHelperChange()
+        failAnalysis()
+        process.env.PW_SHARD = '3/2'
+
+        await expect(fallbackCommand({})).rejects.toThrow(
+          /Invalid shard "3\/2"/
+        )
+      })
+    })
+  })
+})
+
+describe('shard partitioning', () => {
+  const weightsOf = (counts: Record<string, number>) =>
+    new Map(
+      Object.entries(counts).map(([file, count]) => [
+        toComparablePath(path.resolve(file)),
+        count
+      ])
+    )
+
+  // 125 files whose test counts range from 1 to 9
+  const tests = Array.from(
+    { length: 125 },
+    (_, index) => `tests/f${index}.spec.ts`
+  )
+  const counts = Object.fromEntries(
+    tests.map((file, index) => [file, ((index * 7) % 9) + 1])
+  )
+  const weights = weightsOf(counts)
+  const weigh = (legFiles: string[]) =>
+    legFiles.reduce((total, file) => total + (counts[file] ?? 0), 0)
+  const legs = (total: number) =>
+    Array.from({ length: total }, (_, offset) =>
+      partitionTests(tests, weights, { index: offset + 1, total })
+    )
+
+  it.each([1, 2, 3, 5, 8, 200])(
+    'covers every file exactly once across %i legs',
+    (total) => {
+      expect(legs(total).flat().sort()).toEqual([...tests].sort())
+    }
+  )
+
+  it.each([2, 3, 5, 8])(
+    'balances %i legs to within the heaviest file',
+    (total) => {
+      const loads = legs(total).map(weigh)
+      expect(Math.max(...loads) - Math.min(...loads)).toBeLessThanOrEqual(9)
+    }
+  )
+
+  it('splits equally weighted files to within one file', () => {
+    const equal = weightsOf(Object.fromEntries(tests.map((file) => [file, 4])))
+    const [first, second] = [1, 2].map((index) =>
+      partitionTests(tests, equal, { index, total: 2 })
+    )
+
+    expect(Math.abs((first?.length ?? 0) - (second?.length ?? 0))).toBe(1)
+  })
+
+  it('is deterministic and independent of the order of the input', () => {
+    const shuffled = [...tests].reverse()
+
+    expect(
+      partitionTests(shuffled, weights, { index: 2, total: 3 }).sort()
+    ).toEqual(partitionTests(tests, weights, { index: 2, total: 3 }).sort())
+    expect(partitionTests(tests, weights, { index: 2, total: 3 })).toEqual(
+      partitionTests(tests, weights, { index: 2, total: 3 })
+    )
+  })
+
+  it('keeps the input order inside a leg and breaks ties by path then lowest leg', () => {
+    const files = ['tests/c.spec.ts', 'tests/a.spec.ts', 'tests/b.spec.ts']
+    const equal = weightsOf(Object.fromEntries(files.map((file) => [file, 1])))
+
+    expect(partitionTests(files, equal, { index: 1, total: 2 })).toEqual([
+      'tests/c.spec.ts',
+      'tests/a.spec.ts'
+    ])
+    expect(partitionTests(files, equal, { index: 2, total: 2 })).toEqual([
+      'tests/b.spec.ts'
+    ])
+  })
+
+  it('treats a file missing from the listing as weightless', () => {
+    expect(
+      partitionTests(['tests/a.spec.ts'], new Map(), { index: 1, total: 1 })
+    ).toEqual(['tests/a.spec.ts'])
+  })
+
+  describe('parseShard', () => {
+    it('reads i/n', () => {
+      expect(parseShard('2/3')).toEqual({ index: 2, total: 3 })
+      expect(parseShard(' 1/1 ')).toEqual({ index: 1, total: 1 })
+    })
+
+    it.each(['3/2', '0/2', 'a/b', '', '2', '1/'])('rejects %j', (value) => {
+      expect(() => parseShard(value)).toThrow(/Invalid shard.*i\/n/)
+    })
+  })
+
+  describe('parseTestWeights', () => {
+    const rootDir = path.resolve('/project/tests')
+    const spec = (file: string, projects: string[]) => ({
+      file,
+      tests: projects.map((projectName) => ({ projectName }))
+    })
+
+    it('counts each project copy of a test, including nested suites', () => {
+      const output = JSON.stringify({
+        config: { rootDir },
+        errors: [],
+        suites: [
+          {
+            file: 'a.spec.ts',
+            specs: [spec('a.spec.ts', ['chromium', 'burn-in'])],
+            suites: [
+              {
+                file: 'a.spec.ts',
+                specs: [
+                  spec('a.spec.ts', ['chromium']),
+                  spec('a.spec.ts', ['burn-in'])
+                ]
+              }
+            ]
+          },
+          {
+            file: 'sub/b.spec.ts',
+            specs: [spec('sub/b.spec.ts', ['chromium'])]
+          }
+        ]
+      })
+
+      const weights = parseTestWeights(output)
+      const key = (file: string) =>
+        toComparablePath(path.resolve(rootDir, file))
+
+      expect(weights.get(key('a.spec.ts'))).toBe(4)
+      expect(weights.get(key('sub/b.spec.ts'))).toBe(1)
+    })
+
+    it('counts tests against the spec file when a helper registers them', () => {
+      const output = JSON.stringify({
+        config: { rootDir },
+        errors: [],
+        suites: [
+          {
+            file: 'one.spec.ts',
+            specs: [spec('support/register.ts', ['chromium'])],
+            suites: [
+              {
+                file: 'one.spec.ts',
+                specs: [spec('support/register.ts', ['chromium', 'burn-in'])]
+              }
+            ]
+          },
+          {
+            file: 'two.spec.ts',
+            specs: [spec('support/register.ts', ['chromium'])]
+          }
+        ]
+      })
+
+      const weights = parseTestWeights(output)
+
+      expect(
+        weights.get(toComparablePath(path.resolve(rootDir, 'one.spec.ts')))
+      ).toBe(3)
+      expect(
+        weights.get(toComparablePath(path.resolve(rootDir, 'two.spec.ts')))
+      ).toBe(1)
+      expect(
+        weights.has(
+          toComparablePath(path.resolve(rootDir, 'support/register.ts'))
+        )
+      ).toBe(false)
+    })
+
+    it('throws on reported errors and on output that is not a report', () => {
+      expect(() =>
+        parseTestWeights(
+          JSON.stringify({
+            config: { rootDir },
+            suites: [],
+            errors: [{ message: 'No tests found.' }]
+          })
+        )
+      ).toThrow(/No tests found/)
+      expect(() => parseTestWeights('not json')).toThrow(/as JSON/)
+      expect(() => parseTestWeights('{}')).toThrow(/no config/)
+    })
   })
 })
