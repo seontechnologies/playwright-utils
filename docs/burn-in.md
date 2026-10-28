@@ -74,6 +74,18 @@ Any fail? → Flaky test caught before merge ❌
 
 ## Installation & Usage
 
+### Quick Start
+
+The simplest usage needs no config and no shard:
+
+```typescript
+import { runBurnIn } from '@seontechnologies/playwright-utils/burn-in'
+
+await runBurnIn({ baseBranch: 'main' })
+```
+
+It runs every test affected by the changes, with the default config. Add a config file, a CLI wrapper and sharding below as you need them.
+
 ### Create Burn-in Script
 
 Create `scripts/burn-in-changed.ts`:
@@ -89,7 +101,7 @@ async function main() {
 
   const options: Parameters<typeof runBurnIn>[0] = {
     // Always use the same config file - one source of truth
-    configPath: 'playwright/config/.burn-in.config.ts'
+    configPath: 'playwright/config/.burn-in.config.ts',
     baseBranch: 'master' // if it's not main by default
   }
 
@@ -97,9 +109,9 @@ async function main() {
     options.baseBranch = baseBranchArg.split('=')[1]
   }
 
-  // Store shard info in environment for the burn-in runner to use
+  // The `shard` option takes the CLI value ('1/2') as is, or { index: 1, total: 2 }
   if (shardArg) {
-    process.env.PW_SHARD = shardArg.split('=')[1]
+    options.shard = shardArg.split('=')[1]
   }
 
   await runBurnIn(options)
@@ -112,7 +124,7 @@ main().catch(console.error)
 
 - `--base-branch=main` - Specify the base branch for comparison
 - `--config-path=./config/.burn-in.config.ts` - Custom config file location
-- `--shard=1/2` - Apply sharding (used by CI workflows)
+- `--shard=1/2` - Run one leg of a sharded run (used by CI workflows), see [Sharding](#sharding)
 
 **Usage Examples**:
 
@@ -126,6 +138,26 @@ tsx scripts/burn-in-changed.ts --base-branch=master --config-path=./custom/.burn
 # With sharding (CI usage)
 tsx scripts/burn-in-changed.ts --base-branch=main --shard=1/2
 ```
+
+### Sharding
+
+Split the burn-in across parallel CI jobs, for example with a CI matrix of `shardIndex: [1, 2]` and `shardTotal: [2]`, by passing the `shard` option: a string `'i/n'` or `{ index, total }`, with `index` from 1 to `total`.
+
+```typescript
+await runBurnIn({ baseBranch: 'main', shard: '1/2' }) // same as { index: 1, total: 2 }
+```
+
+Usage is the same for 1 shard or N: without a shard, or with a total of 1, burn-in runs every selected file and starts no extra process. The `PW_SHARD` environment variable (`PW_SHARD=1/2`) is the fallback when the option is not set. When both are set the option wins and burn-in warns once about the ignored variable. A value that is not `i/n` with whole numbers and `1 <= i <= n` throws an error that names the value.
+
+Burn-in always runs explicit test files with `--shard=1/1`, so a `shard` set in your `playwright.config.ts` can never skip the selected tests.
+
+**How the legs are cut.** Selection never depends on the shard: every leg finds the same affected test files. Burn-in then splits those files itself into `total` balanced groups and runs each leg with only its own files. The split is by spec file, so it stays balanced when your config runs a duplicate `burn-in` project and `fullyParallel: true`. Playwright's own `--shard` cuts the combined test list into contiguous groups, which can hand one leg only the regular projects and the other only the `burn-in` project.
+
+- **Balancing.** Files are weighted by their number of tests, read from `playwright test --list --reporter=json` run with `PW_BURN_IN=true`, so each project's copy of a test counts. Heaviest files are placed first, each on the currently lightest leg (the lowest index on a tie, paths in code-unit order). The same inputs give the same legs on every machine, the legs are disjoint, and their union is the whole selection. There is no duration history and no network call.
+- **Listing failure.** If Playwright cannot list the selected tests, burn-in throws instead of running an unbalanced leg.
+- **Empty legs.** With more legs than files, the extra legs print a message and exit successfully without starting Playwright.
+- **`--repeat-each` and `--retries`** are the same on every leg.
+- **Fallback mode.** When dependency analysis fails, burn-in falls back to `--only-changed`. A shard with a total above 1 is handed to Playwright as `--shard=i/n` and replaces the percentage shard that `burnInTestPercentage` would otherwise add, so percentage sampling is skipped (burn-in warns when the percentage is below 1). Without a shard, or with a total of 1, the percentage shard is unchanged.
 
 ### Package.json Script
 
@@ -336,6 +368,7 @@ jobs:
 
           # Key: Use your burn-in script with sharding
           npm run test:pw:burn-in-changed -- --base-branch=main --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          # (the script passes it to runBurnIn as the `shard` option)
 
       - name: Set burn-in result
         id: burn-in-result
@@ -377,7 +410,8 @@ Your burn-in workflow will:
 4. **Run burn-in script** with sharding: `npm run test:pw:burn-in-changed -- --base-branch=main --shard=1/2`
 5. **Build the import graph** and map changed files to affected tests (direct and transitive imports)
 6. **Filter + sample** affected tests using skip patterns and `burnInTestPercentage`
-7. **Set output** to determine if E2E tests should run
+7. **Split the sample into balanced legs** by test count per file and run this job's leg (see [Sharding](#sharding))
+8. **Set output** to determine if E2E tests should run
 
 ### Key Configuration Points
 

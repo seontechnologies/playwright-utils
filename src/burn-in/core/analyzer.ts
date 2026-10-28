@@ -2,7 +2,8 @@ import { execFileSync } from 'node:child_process'
 import picomatch from 'picomatch'
 import path from 'node:path'
 import { DependencyResolver, toComparablePath } from './dependency-graph'
-import type { BurnInConfig, BurnInOptions } from './types'
+import { formatShard, parseShard, validateShard } from './shard'
+import type { BurnInConfig, BurnInOptions, BurnInShard } from './types'
 
 // Internal types - not exposed to users
 type ChangedFiles = {
@@ -16,7 +17,7 @@ type ChangedFiles = {
 type TestRunPlan = {
   /** Tests to run, or null to use --only-changed */
   tests: string[] | null
-  /** Special flags like --shard */
+  /** Special flags such as --only-changed and, in fallback mode, the user's --shard */
   flags?: string[]
   /** Reason for the test selection */
   reason: string
@@ -25,6 +26,8 @@ type TestRunPlan = {
 export class BurnInAnalyzer {
   private debugMode: boolean
   private repoRoot: string | undefined
+  /** Resolved once so the "ignored PW_SHARD" warning prints once. null means not sharded */
+  private resolvedShard: BurnInShard | null | undefined
 
   constructor(
     private config: BurnInConfig,
@@ -32,6 +35,30 @@ export class BurnInAnalyzer {
   ) {
     // Enable debug mode via config or environment variable
     this.debugMode = this.config.debug || process.env.BURN_IN_DEBUG === 'true'
+  }
+
+  /**
+   * The leg this run covers: the `shard` option, else the `PW_SHARD` environment variable
+   * ("i/n"), else null. Throws when the value in use is not a valid shard.
+   */
+  getShard(): BurnInShard | null {
+    if (this.resolvedShard !== undefined) return this.resolvedShard
+
+    const fromEnv = process.env.PW_SHARD?.trim()
+    if (this.options.shard !== undefined) {
+      const { shard: option } = this.options
+      const shard =
+        typeof option === 'string' ? parseShard(option) : validateShard(option)
+      if (fromEnv) {
+        console.warn(
+          `⚠️  Ignoring PW_SHARD="${fromEnv}": the shard option (${formatShard(shard)}) takes precedence.`
+        )
+      }
+      this.resolvedShard = shard
+    } else {
+      this.resolvedShard = fromEnv ? parseShard(fromEnv) : null
+    }
+    return this.resolvedShard
   }
 
   getChangedFiles(baseBranch: string): ChangedFiles {
@@ -198,6 +225,9 @@ export class BurnInAnalyzer {
       }
     }
 
+    // Resolved outside the try: an invalid shard must fail the run, not trigger the fallback
+    const shard = this.getShard()
+
     try {
       // Walk each test's import graph to find the tests that reach a changed file
       const affectedTests = await this.findAffectedTests(relevantFiles)
@@ -235,16 +265,29 @@ export class BurnInAnalyzer {
         error
       )
 
-      // Fallback to percentage-based sharding if dependency analysis fails
+      // Fallback: Playwright picks the tests with --only-changed
       const percentage = this.config.burnInTestPercentage || 1
-      const shardCount = Math.ceil(1 / percentage)
+      const onlyChanged = `--only-changed=${this.options.baseBranch || 'main'}`
 
+      // The user's shard replaces the percentage shard: both would be --shard flags. A total of
+      // 1 is the whole run, so it keeps the percentage rules.
+      if (shard && shard.total > 1) {
+        if (percentage < 1) {
+          console.warn(
+            `⚠️  Skipping percentage sampling (${(percentage * 100).toFixed(0)}%) in fallback mode: the shard ${formatShard(shard)} is used instead.`
+          )
+        }
+        return {
+          tests: null,
+          flags: [`--shard=${formatShard(shard)}`, onlyChanged],
+          reason: `Smart mode: ${nonSkipCount} non-skip file(s) changed, using fallback mode with shard ${formatShard(shard)}`
+        }
+      }
+
+      const shardCount = Math.ceil(1 / percentage)
       return {
         tests: null,
-        flags: [
-          `--shard=1/${shardCount}`,
-          `--only-changed=${this.options.baseBranch || 'main'}`
-        ],
+        flags: [`--shard=1/${shardCount}`, onlyChanged],
         reason: `Smart mode: ${nonSkipCount} non-skip file(s) changed, using fallback percentage mode (${(percentage * 100).toFixed(0)}%)`
       }
     }
@@ -377,7 +420,12 @@ export class BurnInAnalyzer {
     return false
   }
 
-  /** Arguments for the Playwright CLI, or null when no tests need to run */
+  /**
+   * Arguments for the Playwright CLI, or null when no tests need to run. A plan with explicit
+   * tests runs exactly those: when sharding, pass the plan with this leg's tests only (see
+   * `partitionTests`). It always carries `--shard=1/1`, which overrides a `shard` set in the
+   * project's playwright.config.ts so that config cannot skip the selected tests.
+   */
   buildCommand(plan: TestRunPlan): string[] | null {
     if (plan.tests !== null && plan.tests.length === 0) {
       return null // No tests to run
@@ -394,10 +442,7 @@ export class BurnInAnalyzer {
       baseCmd.push(...plan.flags)
     }
 
-    // Add shard flag if provided via environment
-    if (process.env.PW_SHARD) {
-      baseCmd.push(`--shard=${process.env.PW_SHARD}`)
-    }
+    if (plan.tests !== null) baseCmd.push('--shard=1/1')
 
     if (plan.tests === null) {
       // Use --only-changed (fallback mode)
@@ -416,7 +461,7 @@ export class BurnInAnalyzer {
  * unanchored relative path also matches longer paths ending in it, and `.` matches any character.
  * Starting with `^` also keeps a file name from being read as an option.
  */
-function toFileFilter(file: string): string {
+export function toFileFilter(file: string): string {
   const absolute = path.resolve(file)
   return `^${absolute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`
 }

@@ -7,7 +7,7 @@ describe('Windows Playwright file filter', () => {
     const analyzer = new BurnInAnalyzer({ testPatterns: ['**/*.spec.ts'] }, {})
     const file = 'C:\\repo\\tests\\a.spec.ts'
     const command = analyzer.buildCommand({ tests: [file], reason: 'test' })
-    const filter = command?.[1]
+    const filter = command?.find((arg) => arg.startsWith('^'))
 
     expect(filter).toBeDefined()
     expect(new RegExp(filter!, 'gi').test(file)).toBe(true)
