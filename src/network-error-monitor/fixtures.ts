@@ -74,8 +74,7 @@ type NetworkErrorMonitorConfigWithPatterns = {
  * known exclusion patterns.
  */
 type NetworkErrorMonitorConfig =
-  | BaseNetworkErrorMonitorConfig
-  | NetworkErrorMonitorConfigWithPatterns
+  BaseNetworkErrorMonitorConfig | NetworkErrorMonitorConfigWithPatterns
 
 /**
  * Check if a URL should be excluded from error monitoring

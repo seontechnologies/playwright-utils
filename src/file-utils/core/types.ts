@@ -174,10 +174,7 @@ export class FileValidationError extends Error {
     message: string,
     public readonly filePath?: string,
     public readonly validationType?:
-      | 'missing'
-      | 'invalid'
-      | 'conflict'
-      | 'access'
+      'missing' | 'invalid' | 'conflict' | 'access'
   ) {
     super(message)
     this.name = 'FileValidationError'

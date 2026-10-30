@@ -1,7 +1,11 @@
 /** Core schema validation engine */
 
 // Zod types - will be loaded dynamically
-import type { SupportedSchema, ValidationResult, ShapeAssertion } from './types'
+import type {
+  SupportedSchema,
+  ValidationResult,
+  ValidateSchemaOptions
+} from './types'
 import { validateShape } from './internal/shape-validator'
 import { processSchema } from './internal/schema-processors'
 import {
@@ -99,16 +103,7 @@ export function detectSchemaFormat(
 export async function validateSchema(
   data: unknown,
   schema: SupportedSchema,
-  options: {
-    shape?: ShapeAssertion
-    path?: string
-    endpoint?: string
-    method?: string
-    status?: number
-    /** Enable UI display for this validation (or set API_E2E_UI_MODE=true) */
-    uiMode?: boolean
-    /** Validation mode - 'throw' (default) or 'return' */
-    mode?: 'throw' | 'return'
+  options: ValidateSchemaOptions & {
     /**
      * Internal flag to skip UI display (used by chained API to avoid duplicates).
      * @internal Do not use directly; automatically set by response-extension.ts

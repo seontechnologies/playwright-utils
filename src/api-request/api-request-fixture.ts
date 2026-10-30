@@ -72,8 +72,7 @@ export const test = base.extend<{
 
     const apiRequest: ApiRequestFixtureFn = ((
       params:
-        | ApiRequestFixtureParams
-        | OperationRequestFixtureParams<OperationShape>
+        ApiRequestFixtureParams | OperationRequestFixtureParams<OperationShape>
     ) => {
       return apiRequestFunction({
         ...params,

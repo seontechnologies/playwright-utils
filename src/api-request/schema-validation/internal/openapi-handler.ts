@@ -8,6 +8,7 @@
  */
 
 import { getLogger } from '../../../internal'
+import { tokenizePathTemplate } from './path-template'
 
 /**
  * Fallback schema when extraction fails or no endpoint specified
@@ -52,8 +53,10 @@ function findPathDefinition(
   paths: Record<string, unknown>,
   endpoint: string
 ): Record<string, unknown> {
-  const pathDef =
-    paths[endpoint] || paths[endpoint.replace(/\{[^}]+\}/g, '{id}')]
+  const normalizedEndpoint = tokenizePathTemplate(endpoint)
+    .map((token) => (token.param ? '{id}' : token.text))
+    .join('')
+  const pathDef = paths[endpoint] || paths[normalizedEndpoint]
 
   if (!pathDef) {
     throw new Error(`Endpoint ${endpoint} not found in OpenAPI spec`)
@@ -165,8 +168,7 @@ export function extractOpenApiSchema(
     const pathDef = findPathDefinition(paths, endpoint)
 
     const methodDef = pathDef[method.toLowerCase()] as
-      | Record<string, unknown>
-      | undefined
+      Record<string, unknown> | undefined
     if (!methodDef) {
       throw new Error(`Method ${method} not found for endpoint ${endpoint}`)
     }

@@ -1,11 +1,6 @@
 /** Log level types for different severity of messages */
 export type LogLevel =
-  | 'info'
-  | 'step'
-  | 'success'
-  | 'warning'
-  | 'error'
-  | 'debug'
+  'info' | 'step' | 'success' | 'warning' | 'error' | 'debug'
 
 /** Log level hierarchy for filtering (lowest to highest priority) */
 export const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {

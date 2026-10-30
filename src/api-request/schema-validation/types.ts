@@ -36,6 +36,14 @@ export type ValidateSchemaOptions = {
   method?: string
   /** For OpenAPI schemas - target specific status code */
   status?: number
+  /**
+   * For OpenAPI schemas - opt in to strict response extraction.
+   * Requires path (or endpoint) and method, resolves every local $ref
+   * (nested, composed, recursive) and fails when the path, method, status,
+   * JSON response schema or a reference is missing. Default false keeps the
+   * lenient fallback schema.
+   */
+  strictOpenApi?: boolean
 }
 
 /** Validation error details */
