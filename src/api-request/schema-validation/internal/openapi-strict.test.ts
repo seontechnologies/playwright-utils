@@ -300,7 +300,7 @@ describe('validateStrictOpenApi', () => {
     expect(messages({}, swagger, '/s')).toHaveLength(1)
   })
 
-  it('applies OpenAPI 3.0 nullable beside refs without type', () => {
+  it('applies OpenAPI 3.0 nullable only to a type declared beside it', () => {
     const nullable = makeSpec(
       {
         '/n': {
@@ -308,21 +308,57 @@ describe('validateStrictOpenApi', () => {
             '200': jsonResponse({
               type: 'object',
               properties: {
-                owner: {
-                  nullable: true,
-                  allOf: [{ $ref: '#/components/schemas/Owner' }]
-                },
+                owner: { $ref: '#/components/schemas/Owner' },
                 name: { type: 'string', nullable: true }
               }
             })
           })
         }
       },
-      { Owner: { type: 'object', required: ['id'] } }
+      { Owner: { type: 'object', nullable: true, required: ['id'] } }
     )
     expect(messages({ owner: null, name: null }, nullable, '/n')).toEqual([])
     expect(messages({ owner: { id: 1 } }, nullable, '/n')).toEqual([])
     expect(messages({ owner: {} }, nullable, '/n')).not.toEqual([])
+  })
+
+  it.each([
+    ['allOf', { allOf: [{ type: 'string' }], nullable: true }],
+    ['enum', { enum: ['x'], nullable: true }]
+  ])('keeps %s constraints when nullable has no sibling type', (_, schema) => {
+    const spec = makeSpec({
+      '/u': { get: operation({ '200': jsonResponse(schema) }) }
+    })
+    expect(messages('x', spec, '/u')).toEqual([])
+    expect(messages(null, spec, '/u')).not.toEqual([])
+    expect(messages(1, spec, '/u')).not.toEqual([])
+  })
+
+  it('converts boolean exclusive bounds for OpenAPI 3.0 and Swagger 2.0', () => {
+    const bounded = {
+      type: 'object',
+      properties: {
+        low: { type: 'number', minimum: 0, exclusiveMinimum: true },
+        high: { type: 'number', maximum: 10, exclusiveMaximum: false }
+      }
+    }
+    const oas30 = makeSpec({
+      '/b': { get: operation({ '200': jsonResponse(bounded) }) }
+    })
+    const swagger: Spec = {
+      swagger: '2.0',
+      paths: {
+        '/b': {
+          get: operation({ '200': { description: 'ok', schema: bounded } })
+        }
+      }
+    }
+    for (const spec of [oas30, swagger]) {
+      expect(messages({ low: 1, high: 10 }, spec, '/b')).toEqual([])
+      expect(messages({ low: 0 }, spec, '/b')).toHaveLength(1)
+      expect(messages({ low: -1 }, spec, '/b')).toHaveLength(1)
+      expect(messages({ high: 11 }, spec, '/b')).toHaveLength(1)
+    }
   })
 
   it('keeps refs into a nullable schema descendant working', () => {
@@ -371,7 +407,7 @@ describe('validateStrictOpenApi', () => {
         }
       ),
       'x-definitions': {
-        Foo: { nullable: true, allOf: [{ type: 'string' }] },
+        Foo: { type: 'string', nullable: true },
         Alias: { $ref: '#/components/schemas/Union/anyOf/0' }
       }
     }
@@ -405,7 +441,7 @@ describe('validateStrictOpenApi', () => {
   it('applies nullable through a default response and keyword-named components', () => {
     const nullableValue = {
       type: 'object',
-      properties: { value: { nullable: true, allOf: [{ type: 'string' }] } }
+      properties: { value: { type: 'string', nullable: true } }
     }
     const spec = makeSpec(
       {
@@ -521,6 +557,34 @@ describe('validateStrictOpenApi', () => {
     expect(messages({ v: 'bad' }, spec, '/scoped')).toHaveLength(1)
   })
 
+  it('resolves refs inside an OpenAPI 3.1 $id resource inline or referenced', () => {
+    const resource = {
+      $id: 'https://example.org/response',
+      type: 'object',
+      $defs: { S: { type: 'string' } },
+      properties: { v: { $ref: '#/$defs/S' } }
+    }
+    const inline: Spec = {
+      openapi: '3.1.0',
+      paths: { '/r': { get: operation({ '200': jsonResponse(resource) }) } }
+    }
+    const referenced: Spec = {
+      openapi: '3.1.0',
+      paths: {
+        '/r': {
+          get: operation({
+            '200': jsonResponse({ $ref: '#/components/schemas/Response' })
+          })
+        }
+      },
+      components: { schemas: { Response: resource } }
+    }
+    for (const spec of [inline, referenced]) {
+      expect(messages({ v: 'x' }, spec, '/r')).toEqual([])
+      expect(messages({ v: 1 }, spec, '/r')).toHaveLength(1)
+    }
+  })
+
   it('rejects array indices with leading zeros and keeps numeric object keys', () => {
     const spec = makeSpec(
       {
@@ -563,24 +627,27 @@ describe('validateStrictOpenApi', () => {
     expect(messages({ any: 1 }, v31(false), '/b')).toHaveLength(1)
   })
 
-  it('uses JSON Schema 2020-12 for OpenAPI 3.1', () => {
-    const v31: Spec = {
-      openapi: '3.1.0',
-      paths: {
-        '/t': {
-          get: operation({
-            '200': jsonResponse({
-              type: 'array',
-              prefixItems: [{ type: 'string' }, { type: 'integer' }],
-              items: false
+  it.each(['3.1.0', '3.2.0'])(
+    'uses JSON Schema 2020-12 for OpenAPI %s',
+    (openapi) => {
+      const v31: Spec = {
+        openapi,
+        paths: {
+          '/t': {
+            get: operation({
+              '200': jsonResponse({
+                type: 'array',
+                prefixItems: [{ type: 'string' }, { type: 'integer' }],
+                items: false
+              })
             })
-          })
+          }
         }
       }
+      expect(messages(['a', 1], v31, '/t')).toEqual([])
+      expect(messages([1, 'a'], v31, '/t')).toHaveLength(2)
     }
-    expect(messages(['a', 1], v31, '/t')).toEqual([])
-    expect(messages([1, 'a'], v31, '/t')).toHaveLength(2)
-  })
+  )
 
   it('ignores ref-like values inside examples and enums', () => {
     const examples = makeSpec({
@@ -607,8 +674,9 @@ describe('validateStrictOpenApi', () => {
           '/f': {
             get: operation({
               '200': jsonResponse({
+                type: 'object',
                 nullable: true,
-                allOf: [{ $ref: '#/components/schemas/F' }]
+                properties: { f: { $ref: '#/components/schemas/F' } }
               })
             })
           }

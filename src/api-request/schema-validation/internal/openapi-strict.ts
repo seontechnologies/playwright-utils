@@ -45,8 +45,8 @@ const NAME_MAP_KEYWORDS = new Set([
   'dependentSchemas'
 ])
 
-/** Non-3.0 specs are registered whole in AJV under this key so local refs resolve against the spec root */
-const SPEC_KEY = 'openapi-spec.json'
+/** OpenAPI 3.1 specs are registered whole in AJV under this key so local refs resolve against the spec root */
+const SPEC_KEY = 'https://openapi-spec.invalid/spec.json'
 
 const MAX_VALIDATOR_CACHE_SIZE = 20
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,6 +68,14 @@ const isObject = (value: unknown): value is JsonObject =>
 
 const hasOwn = (object: JsonObject, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(object, key)
+
+/** OpenAPI 3.1 and later schemas are JSON Schema 2020-12; Swagger 2.0 and OpenAPI 3.0 are closest to draft-07 */
+const isJsonSchema2020 = (spec: JsonObject): boolean => {
+  const [major, minor] = String(spec.openapi ?? '')
+    .split('.')
+    .map(Number)
+  return major === 3 && minor !== undefined && minor >= 1
+}
 
 const escapePointerSegment = (segment: string): string =>
   segment.replace(/~/g, '~0').replace(/\//g, '~1')
@@ -252,10 +260,26 @@ function targetId(entry: SpecValidatorEntry, segments: string[]): string {
   return id
 }
 
+/** Rewrite OpenAPI 3.0 / Swagger 2.0 boolean `exclusiveMinimum`/`exclusiveMaximum` into draft-07 numeric bounds */
+function convertExclusiveBound(
+  copy: JsonObject,
+  bound: 'minimum' | 'maximum',
+  exclusive: 'exclusiveMinimum' | 'exclusiveMaximum'
+): void {
+  if (typeof copy[exclusive] !== 'boolean') return
+  if (copy[exclusive] && typeof copy[bound] === 'number') {
+    copy[exclusive] = copy[bound]
+    delete copy[bound]
+  } else {
+    delete copy[exclusive]
+  }
+}
+
 /**
- * Copy one OpenAPI 3.0 schema for AJV: each local `$ref` is replaced with the id `refId` returns for its target,
- * `nullable` also works without `type` (for example beside `allOf: [{ $ref }]`),
- * and `$id` is dropped because OpenAPI 3.0 resolves every ref against the document.
+ * Copy one OpenAPI 3.0 or Swagger 2.0 schema for AJV draft-07: each local `$ref` is replaced with the id
+ * `refId` returns for its target, boolean exclusive bounds become numeric, `nullable` without a sibling
+ * `type` is dropped because it only extends a declared type, and `$id` is dropped because these
+ * versions resolve every ref against the document.
  * The caller's spec is never mutated.
  */
 function prepareSchema30(
@@ -283,14 +307,13 @@ function prepareSchema30(
     copy.$ref = refId(parseLocalRef(copy.$ref))
   }
 
-  if (typeof copy.nullable === 'boolean' && copy.type === undefined) {
-    const { nullable, ...rest } = copy
-    return nullable ? { anyOf: [rest, { type: 'null' }] } : rest
-  }
+  if (copy.type === undefined) delete copy.nullable
+  convertExclusiveBound(copy, 'minimum', 'exclusiveMinimum')
+  convertExclusiveBound(copy, 'maximum', 'exclusiveMaximum')
   return copy
 }
 
-/** Register the OpenAPI 3.0 schema at `segments` and every schema it references, each under its own target id */
+/** Register the draft-07 era schema at `segments` and every schema it references, each under its own target id */
 function registerSchemaTargets(
   entry: SpecValidatorEntry,
   spec: JsonObject,
@@ -311,20 +334,71 @@ function registerSchemaTargets(
   return targetId(entry, segments)
 }
 
-/** Register an untouched copy of the whole spec once and address the response schema by URI fragment */
+const encodePointer = (segments: string[]): string =>
+  toPointer(segments).split('/').map(encodeURIComponent).join('/')
+
+/**
+ * AJV records where each nested `$id` lives without escaping `/` in keys such as `/movies` or
+ * `application/json`, so those resources cannot be found. Point each one at its escaped location.
+ */
+function repairNestedIdPointers(ajv: AjvInstance, document: unknown): void {
+  const refs = ajv.refs as Record<string, unknown> | undefined
+  if (!refs) return
+  const stack: Array<{ node: unknown; segments: string[]; base: string }> = [
+    { node: document, segments: [], base: SPEC_KEY }
+  ]
+  while (stack.length) {
+    const { node, segments, base } = stack.pop()!
+    if (!node || typeof node !== 'object') continue
+    let childBase = base
+    if (isObject(node) && typeof node.$id === 'string' && segments.length) {
+      try {
+        childBase = new URL(node.$id, base).href.replace(/#$/, '')
+      } catch {
+        continue
+      }
+      const recorded = refs[childBase]
+      if (typeof recorded === 'string' && recorded.startsWith(`${SPEC_KEY}#`)) {
+        refs[childBase] = `${SPEC_KEY}#${encodePointer(segments)}`
+      }
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (!DATA_KEYWORDS.has(key)) {
+        stack.push({
+          node: value,
+          segments: [...segments, key],
+          base: childBase
+        })
+      }
+    }
+  }
+}
+
+/**
+ * Register an untouched copy of the whole spec once, then reach the response schema through a `$ref`
+ * so AJV enters any `$id` resource on the way, including one declared on an inline response schema.
+ */
 function registerWholeSpec(
   entry: SpecValidatorEntry,
   segments: string[]
 ): string {
   if (!entry.registered.has(SPEC_KEY)) {
-    entry.ajv.addSchema(JSON.parse(entry.cacheKey), SPEC_KEY, undefined, false)
+    const document: unknown = JSON.parse(entry.cacheKey)
+    entry.ajv.addSchema(document, SPEC_KEY, undefined, false)
+    repairNestedIdPointers(entry.ajv, document)
     entry.registered.add(SPEC_KEY)
   }
-  const fragment = toPointer(segments)
-    .split('/')
-    .map(encodeURIComponent)
-    .join('/')
-  return `${SPEC_KEY}#${fragment}`
+  const id = targetId(entry, segments)
+  if (!entry.registered.has(id)) {
+    entry.ajv.addSchema(
+      { $ref: `${SPEC_KEY}#${encodePointer(segments)}` },
+      id,
+      undefined,
+      false
+    )
+    entry.registered.add(id)
+  }
+  return id
 }
 
 /** Pick the JSON media type, preferring exact `application/json` */
@@ -519,7 +593,7 @@ export function locateStrictResponseSchema(
   const schemaSegments = findJsonSchemaSegments(response, label)
   const schema = getAtPointer(spec, schemaSegments)
   // OpenAPI 3.1 allows boolean schemas; AJV applies them, the result reports an equivalent object
-  if (typeof schema === 'boolean' && String(spec.openapi).startsWith('3.1')) {
+  if (typeof schema === 'boolean' && isJsonSchema2020(spec)) {
     return {
       pointer: toPointer(schemaSegments),
       segments: schemaSegments,
@@ -535,7 +609,7 @@ export function locateStrictResponseSchema(
     spec,
     schema,
     schemaSegments,
-    !String(spec.openapi ?? '').startsWith('3.0')
+    isJsonSchema2020(spec)
   )
   if (refProblems.length) {
     throw new Error(
@@ -556,12 +630,10 @@ function getSpecAjv(spec: JsonObject): SpecValidatorEntry {
   const cached = validatorCache.get(cacheKey)
   if (cached) return cached
 
-  const version = String(spec.openapi ?? spec.swagger ?? '')
   let AjvClass
   try {
-    // OpenAPI 3.1 schemas are JSON Schema 2020-12; earlier versions are closest to draft-07
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const ajvModule = version.startsWith('3.1')
+    const ajvModule = isJsonSchema2020(spec)
       ? require('ajv/dist/2020')
       : require('ajv')
     AjvClass = ajvModule.default ?? ajvModule
@@ -598,11 +670,11 @@ export function validateStrictOpenApi(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let validate: any
   try {
-    // OpenAPI 3.0 needs the nullable rewrite and has no `$id` scoping, so each ref target
-    // compiles from its own location; other versions compile from the untouched spec, keeping `$id` scopes
-    const id = String(spec.openapi ?? '').startsWith('3.0')
-      ? registerSchemaTargets(entry, spec, segments)
-      : registerWholeSpec(entry, segments)
+    // Draft-07 era specs need keyword rewrites and have no `$id` scoping, so each ref target compiles
+    // from its own location; OpenAPI 3.1 compiles from the untouched spec, keeping `$id` scopes
+    const id = isJsonSchema2020(spec)
+      ? registerWholeSpec(entry, segments)
+      : registerSchemaTargets(entry, spec, segments)
     validate = entry.ajv.getSchema(id)
   } catch (error) {
     validatorCache.delete(entry.cacheKey)
