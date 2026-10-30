@@ -12,6 +12,7 @@
  */
 
 import type { ValidationErrorDetail } from '../types'
+import { tokenizePathTemplate } from './path-template'
 
 type JsonObject = Record<string, unknown>
 
@@ -337,15 +338,12 @@ function findJsonMediaType(content: JsonObject): string | undefined {
   )
 }
 
-const PATH_PARAM = /\{[^}]+\}/g
-const isPathParam = (token: string) => /^\{[^}]+\}$/.test(token)
-
 /**
  * Match one templated path segment such as `{name}.json`, where each `{param}` takes one or more characters.
  * Memoized on (token, offset), so work stays bounded by template and segment length.
  */
 function matchesTemplateSegment(template: string, actual: string): boolean {
-  const tokens = template.split(/(\{[^}]+\})/).filter(Boolean)
+  const tokens = tokenizePathTemplate(template)
   const memo = new Map<number, boolean>()
   const match = (t: number, a: number): boolean => {
     if (t === tokens.length) return a === actual.length
@@ -354,12 +352,13 @@ function matchesTemplateSegment(template: string, actual: string): boolean {
     if (cached !== undefined) return cached
     const token = tokens[t]!
     let result = false
-    if (isPathParam(token)) {
+    if (token.param) {
       for (let end = a + 1; end <= actual.length && !result; end++) {
         result = match(t + 1, end)
       }
     } else {
-      result = actual.startsWith(token, a) && match(t + 1, a + token.length)
+      result =
+        actual.startsWith(token.text, a) && match(t + 1, a + token.text.length)
     }
     memo.set(key, result)
     return result
@@ -392,7 +391,9 @@ function findPathKey(paths: JsonObject, rawPath: string): string {
         literalSegments++
         return segment === actual
       }
-      literalChars += segment.replace(PATH_PARAM, '').length
+      literalChars += tokenizePathTemplate(segment)
+        .filter((token) => !token.param)
+        .reduce((sum, token) => sum + token.text.length, 0)
       return matchesTemplateSegment(segment, actual)
     })
     if (matches) candidates.push({ key, literalSegments, literalChars })
