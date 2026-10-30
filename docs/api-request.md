@@ -934,7 +934,7 @@ With `strictOpenApi`:
 - Status matching tries the exact code, then a range such as `2XX`, then `default`.
 - Local JSON Pointer `$ref`s resolve at any depth, including `allOf`/`anyOf`/`oneOf`, array items, recursive schemas and escaped pointers like `#/components/schemas/Movie~1Year`. OpenAPI 3.1 `$id` scopes are honored.
 - Validation fails with a descriptive error when the path, method, status or JSON response schema is missing, or when a `$ref` is unresolved, external or a named anchor such as `#value`. Remote refs are never fetched.
-- OpenAPI 3.1 specs use JSON Schema 2020-12. Swagger 2.0 and OpenAPI 3.0 boolean `exclusiveMinimum`/`exclusiveMaximum` are supported, and OpenAPI 3.0 `nullable` allows `null` only when `type` is declared in the same schema object.
+- OpenAPI 3.1 specs use JSON Schema 2020-12. Swagger 2.0 and OpenAPI 3.0 boolean `exclusiveMinimum`/`exclusiveMaximum` are supported, and OpenAPI 3.0 `nullable: true` admits `null` alongside the declared `type` (including a sibling `enum`) or alongside an `allOf`/`oneOf`/`anyOf` composition.
 - `readOnly`/`writeOnly` do not change `required`, and `format` is not checked, the same as default mode.
 
 Both throw and return modes apply. The spec object you pass in is never mutated.
