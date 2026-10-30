@@ -51,8 +51,7 @@ type MockoonLogEntry = {
 
 // Mockoon may return a plain array or a paginated object depending on version
 type MockoonLogsResponse =
-  | MockoonLogEntry[]
-  | { data: MockoonLogEntry[]; total?: number }
+  MockoonLogEntry[] | { data: MockoonLogEntry[]; total?: number }
 
 // ─── Provider Implementation ──────────────────────────────────────────────────
 

@@ -165,8 +165,7 @@ export function extractOpenApiSchema(
     const pathDef = findPathDefinition(paths, endpoint)
 
     const methodDef = pathDef[method.toLowerCase()] as
-      | Record<string, unknown>
-      | undefined
+      Record<string, unknown> | undefined
     if (!methodDef) {
       throw new Error(`Method ${method} not found for endpoint ${endpoint}`)
     }

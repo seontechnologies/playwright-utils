@@ -29,8 +29,7 @@ import type {
 type MockServerKeyToMultiValue = Array<{ name: string; values: string[] }>
 
 type MockServerBody =
-  | { type?: string; string?: string; json?: string; bytes?: string }
-  | string
+  { type?: string; string?: string; json?: string; bytes?: string } | string
 
 type MockServerRequestResponse = {
   httpRequest: {
