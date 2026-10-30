@@ -10,6 +10,7 @@
 import type { ValidationErrorDetail, SupportedSchema } from '../types'
 import { loadSchemaFromFile } from './file-loader'
 import { extractOpenApiSchema } from './openapi-handler'
+import { validateStrictOpenApi } from './openapi-strict'
 import { validateWithAnyOfSupport } from './validation-engine'
 
 /**
@@ -21,6 +22,7 @@ export interface SchemaProcessingOptions {
   endpoint?: string
   method?: string
   status?: number
+  strictOpenApi?: boolean
 }
 
 /**
@@ -52,10 +54,11 @@ export interface SchemaProcessor {
  * Validates input data before processing to prevent DoS attacks
  *
  * @param data - Input data to validate
+ * @param allowNull - Accept a JSON `null` body, used by strict OpenAPI where the documented schema decides
  * @throws Error if input is invalid or too large
  */
-function validateInput(data: unknown): void {
-  if (data === null || data === undefined) {
+function validateInput(data: unknown, allowNull = false): void {
+  if (data === undefined || (data === null && !allowNull)) {
     throw new Error('Input cannot be null or undefined')
   }
 
@@ -274,6 +277,49 @@ function validateWithZodSchema(
 }
 
 /**
+ * Validate against an OpenAPI spec, using strict extraction only when opted in
+ */
+function validateWithOpenApiSpec(
+  data: unknown,
+  openApiSpec: Record<string, unknown>,
+  options: SchemaProcessingOptions
+): SchemaProcessingResult {
+  const targetPath = options.path || options.endpoint
+
+  if (options.strictOpenApi) {
+    const { validationErrors, schema } = validateStrictOpenApi(
+      data,
+      openApiSpec,
+      { path: targetPath, method: options.method, status: options.status }
+    )
+    return {
+      validationErrors,
+      processedSchema: schema,
+      schemaForResult: schema
+    }
+  }
+
+  const processedSchema = extractOpenApiSchema(
+    openApiSpec,
+    targetPath,
+    options.method,
+    options.status
+  )
+
+  const validationErrors = validateWithJsonSchema(
+    data,
+    processedSchema,
+    openApiSpec
+  )
+
+  return {
+    validationErrors,
+    processedSchema,
+    schemaForResult: processedSchema
+  }
+}
+
+/**
  * File-based schema processor (JSON/YAML files)
  */
 class FileSchemaProcessor implements SchemaProcessor {
@@ -282,18 +328,24 @@ class FileSchemaProcessor implements SchemaProcessor {
     schema: string,
     options: SchemaProcessingOptions
   ): Promise<SchemaProcessingResult> {
-    try {
-      // Security: Validate input before processing
-      validateInput(data)
-    } catch (error) {
-      return {
-        validationErrors: [
-          createStandardValidationError(error, 'File Schema', 'input')
-        ],
-        processedSchema: {},
-        schemaForResult: undefined
+    const checkInput = (allowNull: boolean) => {
+      try {
+        // Security: Validate input before processing
+        validateInput(data, allowNull)
+        return undefined
+      } catch (error) {
+        return {
+          validationErrors: [
+            createStandardValidationError(error, 'File Schema', 'input')
+          ],
+          processedSchema: {},
+          schemaForResult: undefined
+        }
       }
     }
+
+    const inputError = checkInput(!!options.strictOpenApi)
+    if (inputError) return inputError
 
     const loadedSchema = await loadSchemaFromFile(schema)
 
@@ -302,26 +354,11 @@ class FileSchemaProcessor implements SchemaProcessor {
     const isOpenApi = schemaObj.openapi || schemaObj.swagger
 
     if (isOpenApi) {
-      const targetPath = options.path || options.endpoint
-      const processedSchema = extractOpenApiSchema(
-        schemaObj,
-        targetPath,
-        options.method,
-        options.status
-      )
-
-      const validationErrors = validateWithJsonSchema(
-        data,
-        processedSchema,
-        schemaObj
-      )
-
-      return {
-        validationErrors,
-        processedSchema,
-        schemaForResult: processedSchema
-      }
+      return validateWithOpenApiSpec(data, schemaObj, options)
     } else {
+      // strictOpenApi only relaxes the null guard for OpenAPI documents
+      const nullError = data === null ? checkInput(false) : undefined
+      if (nullError) return nullError
       // Regular JSON Schema file
       const validationErrors = validateWithJsonSchema(data, loadedSchema)
 
@@ -379,28 +416,12 @@ class OpenApiSchemaProcessor implements SchemaProcessor {
     options: SchemaProcessingOptions
   ): Promise<SchemaProcessingResult> {
     // Security: Validate input before processing
-    validateInput(data)
-    const openApiSpec = schema as Record<string, unknown>
-    const targetPath = options.path || options.endpoint
-
-    const processedSchema = extractOpenApiSchema(
-      openApiSpec,
-      targetPath,
-      options.method,
-      options.status
-    )
-
-    const validationErrors = validateWithJsonSchema(
+    validateInput(data, options.strictOpenApi)
+    return validateWithOpenApiSpec(
       data,
-      processedSchema,
-      openApiSpec
+      schema as Record<string, unknown>,
+      options
     )
-
-    return {
-      validationErrors,
-      processedSchema,
-      schemaForResult: processedSchema
-    }
   }
 }
 

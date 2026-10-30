@@ -1,0 +1,109 @@
+openapi: 3.0.3
+info:
+  title: Movies API with nested refs
+  version: 1.0.0
+paths:
+  /movies:
+    get:
+      responses:
+        '200':
+          description: Movie list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieListResponse'
+    post:
+      responses:
+        '200':
+          $ref: '#/components/responses/MovieCreated'
+        '400':
+          description: Invalid request body
+  /movies/{id}:
+    get:
+      responses:
+        '200':
+          description: Movie found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieResponse'
+        '404':
+          description: Movie not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  responses:
+    MovieCreated:
+      description: Movie created
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MovieResponse'
+  schemas:
+    Envelope:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: integer
+    MovieResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/Movie'
+    MovieListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Movie'
+    Movie:
+      type: object
+      required:
+        - id
+        - name
+        - year
+        - rating
+        - director
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        year:
+          $ref: '#/components/schemas/Movie~1Year'
+        rating:
+          type: number
+        director:
+          $ref: '#/components/schemas/Director'
+        sequels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Movie'
+    Movie/Year:
+      type: integer
+      minimum: 1900
+    Director:
+      type: string
+      minLength: 1
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          required:
+            - error
+          properties:
+            error:
+              type: string

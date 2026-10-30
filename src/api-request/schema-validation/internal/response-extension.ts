@@ -212,6 +212,7 @@ export function createEnhancedResponse<T>(
             endpoint: options.endpoint,
             method: options.method,
             status: options.status,
+            strictOpenApi: options.strictOpenApi,
             mode: options.mode,
             _skipUI: true // Prevent core from displaying UI - we handle it below
           }
