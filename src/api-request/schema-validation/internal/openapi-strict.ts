@@ -276,10 +276,38 @@ function convertExclusiveBound(
 }
 
 /**
+ * Rewrite OpenAPI 3.0 `nullable: true` as draft-07 constructs AJV validates
+ * correctly: beside a declared `type` it becomes a `null` type union and admits
+ * `null` into a sibling `enum` (AJV checks `enum` even when `nullable` is set);
+ * without one, as beside an allOf/oneOf/anyOf composition, the schema wraps in
+ * `anyOf` with a `null` branch.
+ * The caller's spec is never mutated.
+ */
+function applyNullable30(copy: JsonObject): JsonObject {
+  if (copy.nullable !== true) return copy
+  delete copy.nullable
+
+  if (typeof copy.type === 'string') {
+    copy.type = [copy.type, 'null']
+  } else if (Array.isArray(copy.type)) {
+    if (!copy.type.includes('null')) copy.type = [...copy.type, 'null']
+  } else {
+    // A type-less enum keeps its constraint: OAS 3.0 nullable takes effect
+    // only beside a declared type, so it cannot admit null into an enum.
+    if (Array.isArray(copy.enum)) return copy
+    return { anyOf: [copy, { type: 'null' }] }
+  }
+
+  if (Array.isArray(copy.enum) && !copy.enum.includes(null)) {
+    copy.enum = [...copy.enum, null]
+  }
+  return copy
+}
+
+/**
  * Copy one OpenAPI 3.0 or Swagger 2.0 schema for AJV draft-07: each local `$ref` is replaced with the id
- * `refId` returns for its target, boolean exclusive bounds become numeric, `nullable` without a sibling
- * `type` is dropped because it only extends a declared type, and `$id` is dropped because these
- * versions resolve every ref against the document.
+ * `refId` returns for its target, boolean exclusive bounds become numeric, `nullable` becomes an
+ * explicit null union, and `$id` is dropped because these versions resolve every ref against the document.
  * The caller's spec is never mutated.
  */
 function prepareSchema30(
@@ -307,10 +335,9 @@ function prepareSchema30(
     copy.$ref = refId(parseLocalRef(copy.$ref))
   }
 
-  if (copy.type === undefined) delete copy.nullable
   convertExclusiveBound(copy, 'minimum', 'exclusiveMinimum')
   convertExclusiveBound(copy, 'maximum', 'exclusiveMaximum')
-  return copy
+  return applyNullable30(copy)
 }
 
 /** Register the draft-07 era schema at `segments` and every schema it references, each under its own target id */

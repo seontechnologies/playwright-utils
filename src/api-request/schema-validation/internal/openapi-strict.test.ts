@@ -300,7 +300,7 @@ describe('validateStrictOpenApi', () => {
     expect(messages({}, swagger, '/s')).toHaveLength(1)
   })
 
-  it('applies OpenAPI 3.0 nullable only to a type declared beside it', () => {
+  it('admits null for OpenAPI 3.0 nullable beside a declared type', () => {
     const nullable = makeSpec(
       {
         '/n': {
@@ -322,16 +322,64 @@ describe('validateStrictOpenApi', () => {
     expect(messages({ owner: {} }, nullable, '/n')).not.toEqual([])
   })
 
+  it('admits null for a nullable enum beside a declared type', () => {
+    const spec = makeSpec({
+      '/e': {
+        get: operation({
+          '200': jsonResponse({
+            type: 'object',
+            properties: {
+              unit: { type: 'string', enum: ['DAY', 'WEEK'], nullable: true }
+            }
+          })
+        })
+      }
+    })
+    expect(messages({ unit: null }, spec, '/e')).toEqual([])
+    expect(messages({ unit: 'DAY' }, spec, '/e')).toEqual([])
+    expect(messages({ unit: 'MONTH' }, spec, '/e')).not.toEqual([])
+  })
+
   it.each([
     ['allOf', { allOf: [{ type: 'string' }], nullable: true }],
-    ['enum', { enum: ['x'], nullable: true }]
-  ])('keeps %s constraints when nullable has no sibling type', (_, schema) => {
+    ['oneOf', { oneOf: [{ type: 'string' }], nullable: true }]
+  ])('admits null for a nullable %s composition', (_, schema) => {
     const spec = makeSpec({
       '/u': { get: operation({ '200': jsonResponse(schema) }) }
+    })
+    expect(messages(null, spec, '/u')).toEqual([])
+    expect(messages('x', spec, '/u')).toEqual([])
+    expect(messages(1, spec, '/u')).not.toEqual([])
+  })
+
+  it('keeps a type-less enum constraint when nullable has no declared type', () => {
+    const spec = makeSpec({
+      '/u': {
+        get: operation({ '200': jsonResponse({ enum: ['x'], nullable: true }) })
+      }
     })
     expect(messages('x', spec, '/u')).toEqual([])
     expect(messages(null, spec, '/u')).not.toEqual([])
     expect(messages(1, spec, '/u')).not.toEqual([])
+  })
+
+  it('admits null for a nullable ref composition', () => {
+    const spec = makeSpec(
+      {
+        '/u': {
+          get: operation({
+            '200': jsonResponse({
+              allOf: [{ $ref: '#/components/schemas/Genre' }],
+              nullable: true
+            })
+          })
+        }
+      },
+      { Genre: { type: 'string', enum: ['drama', 'comedy'] } }
+    )
+    expect(messages(null, spec, '/u')).toEqual([])
+    expect(messages('drama', spec, '/u')).toEqual([])
+    expect(messages('western', spec, '/u')).not.toEqual([])
   })
 
   it('converts boolean exclusive bounds for OpenAPI 3.0 and Swagger 2.0', () => {
