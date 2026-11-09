@@ -517,6 +517,145 @@ if (args.includes('--list')) {
     return argsFile
   }
 
+  it.each([
+    'constants/urls.ts',
+    'support/constants/nested/urls.ts',
+    'shared.constants.ts',
+    'types/user.ts',
+    'support/types/nested/user.ts',
+    'interfaces/user.ts',
+    'support/interfaces/nested/user.ts'
+  ])('skips a change confined to %s with the default config', async (file) => {
+    createRepo(
+      {
+        [file]: 'export const url = "stable"\n',
+        'tests/existing.spec.ts': `import { url } from "../${file}"\n`
+      },
+      { [file]: 'export const url = "stable"; export const newUrl = "new"\n' }
+    )
+    const argsFile = installFakePlaywright()
+    process.chdir(repo)
+
+    await runBurnIn({ baseBranch: 'main', configPath: 'missing.config.ts' })
+
+    expect(fs.existsSync(argsFile)).toBe(false)
+  })
+
+  it.each(['constantsFoo', 'typesFoo', 'interfacesFoo'])(
+    'runs dependent specs for changes inside %s',
+    async (directory) => {
+      createRepo(
+        {
+          [`${directory}/operation.ts`]: 'export const operation = 1\n',
+          'tests/existing.spec.ts': `import { operation } from "../${directory}/operation"\n`
+        },
+        { [`${directory}/operation.ts`]: 'export const operation = 2\n' }
+      )
+      const argsFile = installFakePlaywright()
+      process.chdir(repo)
+
+      await runBurnIn({ baseBranch: 'main', configPath: 'missing.config.ts' })
+
+      const args: string[] = JSON.parse(fs.readFileSync(argsFile, 'utf-8'))
+      expect(args.filter((arg) => arg.startsWith('^'))).toEqual([
+        toFileFilter('tests/existing.spec.ts')
+      ])
+    }
+  )
+
+  it('lets a custom skip list include constants in dependency analysis', async () => {
+    createRepo(
+      {
+        '.burn-in.config.ts': 'module.exports = { skipBurnInPatterns: [] }\n',
+        'constants/urls.ts': 'export const url = "stable"\n',
+        'tests/existing.spec.ts': 'import { url } from "../constants/urls"\n'
+      },
+      { 'constants/urls.ts': 'export const url = "new"\n' }
+    )
+    const argsFile = installFakePlaywright()
+    process.chdir(repo)
+
+    await runBurnIn({ baseBranch: 'main', configPath: '.burn-in.config.ts' })
+
+    const args: string[] = JSON.parse(fs.readFileSync(argsFile, 'utf-8'))
+    expect(args.filter((arg) => arg.startsWith('^'))).toEqual([
+      toFileFilter('tests/existing.spec.ts')
+    ])
+  })
+
+  describe.each(['constants', 'types', 'interfaces'])(
+    'tests colocated in %s',
+    (directory) => {
+      it.each(['spec', 'test', 'e2e'])(
+        'runs changed and helper-affected .%s.ts files',
+        async (suffix) => {
+          const existing = `tests/${directory}/${directory}.${suffix}.ts`
+          const added = `tests/${directory}/new-${directory}.${suffix}.ts`
+          createRepo(
+            {
+              '.burn-in.config.ts':
+                'module.exports = { testPatterns: ["**/*.spec.ts", "**/*.test.ts", "**/*.e2e.ts"] }\n',
+              'support/operation.ts': 'export const operation = 1\n',
+              [existing]:
+                'import { operation } from "../../support/operation"\n'
+            },
+            {
+              'support/operation.ts': 'export const operation = 2\n',
+              [added]: 'export {}\n'
+            }
+          )
+          const argsFile = installFakePlaywright()
+          process.chdir(repo)
+
+          await runBurnIn({
+            baseBranch: 'main',
+            configPath: '.burn-in.config.ts'
+          })
+
+          const args: string[] = JSON.parse(fs.readFileSync(argsFile, 'utf-8'))
+          expect(args.filter((arg) => arg.startsWith('^')).sort()).toEqual(
+            [existing, added].map(toFileFilter).sort()
+          )
+        }
+      )
+    }
+  )
+
+  it.each(['', 'playwright'])(
+    'keeps changed specs and shared helper coverage when constants change from %j',
+    async (directory) => {
+      const prefix = directory ? `${directory}/` : ''
+      const constants = `${prefix}constants/urls.ts`
+      const helper = `${prefix}support/operation.ts`
+      createRepo(
+        {
+          [constants]: 'export const url = "stable"\n',
+          [helper]: 'export const operation = 1\n',
+          [`${prefix}tests/existing.spec.ts`]:
+            'import { url } from "../constants/urls"\n',
+          [`${prefix}tests/helper.spec.ts`]:
+            'import { operation } from "../support/operation"\n'
+        },
+        {
+          [constants]:
+            'export const url = "stable"; export const newUrl = "new"\n',
+          [helper]: 'export const operation = 2\n',
+          [`${prefix}tests/new.spec.ts`]:
+            'import { newUrl } from "../constants/urls"\n'
+        }
+      )
+      const argsFile = installFakePlaywright()
+      process.chdir(path.join(repo, directory))
+
+      await runBurnIn({ baseBranch: 'main', configPath: 'missing.config.ts' })
+
+      const args: string[] = JSON.parse(fs.readFileSync(argsFile, 'utf-8'))
+      expect(args.filter((arg) => arg.startsWith('^')).sort()).toEqual(
+        ['tests/helper.spec.ts', 'tests/new.spec.ts'].map(toFileFilter).sort()
+      )
+    }
+  )
+
   it('passes each selected file to Playwright as one literal argument without a shell', async () => {
     const injected = 'tests/x;touch INJECTED;.spec.ts'
     const spaced = 'tests/with space (1).spec.ts'

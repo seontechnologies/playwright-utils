@@ -604,8 +604,10 @@ const config: BurnInConfig = {
   // Files that should never trigger tests
   skipBurnInPatterns: [
     '**/config/**',
-    '**/*constants*',
-    '**/*types*',
+    '**/*constants!(*.spec.*|*.test.*|*.e2e.*)',
+    '**/constants/**/!(*.spec.*|*.test.*|*.e2e.*)',
+    '**/*types!(*.spec.*|*.test.*|*.e2e.*)',
+    '**/types/**/!(*.spec.*|*.test.*|*.e2e.*)',
     '**/*.md'
   ],
 

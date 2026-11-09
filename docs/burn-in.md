@@ -194,10 +194,13 @@ const config: BurnInConfig = {
     '**/configuration/**',
     '**/playwright.config.ts',
     '**/*featureFlags*',
-    '**/*constants*',
+    '**/*constants!(*.spec.*|*.test.*|*.e2e.*)',
+    '**/constants/**/!(*.spec.*|*.test.*|*.e2e.*)',
     '**/*config*',
-    '**/*types*',
-    '**/*interfaces*',
+    '**/*types!(*.spec.*|*.test.*|*.e2e.*)',
+    '**/types/**/!(*.spec.*|*.test.*|*.e2e.*)',
+    '**/*interfaces!(*.spec.*|*.test.*|*.e2e.*)',
+    '**/interfaces/**/!(*.spec.*|*.test.*|*.e2e.*)',
     '**/package.json',
     '**/tsconfig.json',
     '**/*.md'
@@ -221,6 +224,12 @@ const config: BurnInConfig = {
 
 export default config
 ```
+
+The defaults skip support files inside `constants/`, `types/`, and `interfaces/`, including nested folders.
+These patterns exempt `*.spec.*`, `*.test.*`, and `*.e2e.*` files; `testPatterns` determines which tests are discovered.
+The default `testPatterns` discovers `*.spec.ts` and `*.test.ts`; add `**/*.e2e.ts` to discover that suffix.
+A custom `skipBurnInPatterns` array replaces the defaults; copy the revised filename and directory patterns above into existing custom lists to get this behavior.
+Remove the relevant patterns when changes to those files should trigger dependent tests.
 
 ## Debugging and Troubleshooting
 
