@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Burn-in defaults skip support files inside `constants/`, `types/`, and `interfaces/` directories, including nested folders.
+  The filename and directory exclusions preserve test filenames; discovery still follows `testPatterns`.
+  Changes confined to support files in those directories run no dependent tests by default.
+  Existing custom `skipBurnInPatterns` lists need the revised filename and directory patterns copied explicitly.
+
 ## [3.9.0] - 2025-11-19 (Current Release)
 
 ### Added
