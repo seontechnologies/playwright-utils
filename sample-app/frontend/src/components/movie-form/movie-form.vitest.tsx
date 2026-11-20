@@ -42,7 +42,7 @@ describe('<MovieForm />', () => {
     const { name, year, rating, director } = generateMovieWithoutId()
     const movie: Omit<Movie, 'id'> = { name, year, rating, director }
 
-    wrappedRender(<MovieForm />)
+    await wrappedRender(<MovieForm />)
     await fillName(name)
     await fillYear(year)
     await fillRating(rating)
@@ -69,7 +69,7 @@ describe('<MovieForm />', () => {
   })
 
   it('should exercise validation errors', async () => {
-    wrappedRender(<MovieForm />)
+    await wrappedRender(<MovieForm />)
 
     await fillYear(2026)
     await user.click(screen.getByText('Add Movie'))

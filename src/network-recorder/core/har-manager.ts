@@ -10,7 +10,7 @@
 
 import { promises as fs } from 'fs'
 import path from 'path'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'node:crypto'
 import * as lockfile from 'proper-lockfile'
 import type { TestInfo } from '@playwright/test'
 import { HarFileError } from './types'
@@ -200,7 +200,7 @@ export async function removeHarFile(harFilePath: string): Promise<void> {
 export function createUniqueHarFilePath(basePath: string): string {
   const ext = path.extname(basePath)
   const nameWithoutExt = basePath.slice(0, -ext.length)
-  const uniqueId = uuidv4().slice(0, 8)
+  const uniqueId = randomUUID().slice(0, 8)
 
   return `${nameWithoutExt}-${uniqueId}${ext}`
 }

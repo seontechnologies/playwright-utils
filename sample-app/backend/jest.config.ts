@@ -32,19 +32,12 @@ export const config: JestConfigWithTsJest = {
   testMatch: ['**/*.test.ts'],
   testEnvironment: 'node',
 
-  // Added ESM support
-  preset: 'ts-jest/presets/default-esm',
-  extensionsToTreatAsEsm: ['.ts'],
+  preset: 'ts-jest',
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
-      {
-        useESM: true
-      }
-    ]
+    '^.+\\.tsx?$': 'ts-jest'
   }
 }
 

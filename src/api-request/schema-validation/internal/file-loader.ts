@@ -83,7 +83,8 @@ export async function loadSchemaFromFile(filePath: string): Promise<object> {
     }
   } catch (error) {
     throw new Error(
-      `Failed to load schema file: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to load schema file: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     )
   }
 }

@@ -125,21 +125,27 @@ export class BurnInAnalyzer {
 
       if (errorMessage.includes('not a git repository')) {
         throw new Error(
-          'Not in a git repository. Please run this command from within a git repository.'
+          'Not in a git repository. Please run this command from within a git repository.',
+          { cause: error }
         )
       }
 
       if (errorMessage.includes('unknown revision')) {
         throw new Error(
-          `Branch '${sanitizedBranch}' does not exist. Please check the branch name.`
+          `Branch '${sanitizedBranch}' does not exist. Please check the branch name.`,
+          { cause: error }
         )
       }
 
       if (errorMessage.includes('bad revision')) {
-        throw new Error(`Invalid git reference: ${sanitizedBranch}`)
+        throw new Error(`Invalid git reference: ${sanitizedBranch}`, {
+          cause: error
+        })
       }
 
-      throw new Error(`Failed to get changed files: ${errorMessage}`)
+      throw new Error(`Failed to get changed files: ${errorMessage}`, {
+        cause: error
+      })
     }
   }
 

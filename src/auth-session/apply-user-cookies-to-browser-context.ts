@@ -39,7 +39,8 @@ export async function applyUserCookiesToBrowserContext(
             `Failed to apply auth cookies to browser context: ${String(cookieError)}`
           )
           throw new Error(
-            `Failed to apply auth cookies: ${String(cookieError)}`
+            `Failed to apply auth cookies: ${String(cookieError)}`,
+            { cause: cookieError }
           )
         }
       } else {
@@ -49,7 +50,10 @@ export async function applyUserCookiesToBrowserContext(
       await log.error(
         `Failed to extract auth cookies from token data: ${String(extractError)}`
       )
-      throw new Error(`Failed to extract auth cookies: ${String(extractError)}`)
+      throw new Error(
+        `Failed to extract auth cookies: ${String(extractError)}`,
+        { cause: extractError }
+      )
     }
   } catch (error) {
     await log.error(

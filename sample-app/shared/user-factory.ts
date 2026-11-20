@@ -1,7 +1,7 @@
 import { API_URL } from '@playwright/config/local.config'
 import { apiRequest } from 'src/api-request'
 import { request } from '@playwright/test'
-import type { AuthResponse } from 'sample-app/frontend/src/consumer'
+import type { AuthResponse } from '../frontend/src/consumer'
 
 export async function createTestUser({
   username,

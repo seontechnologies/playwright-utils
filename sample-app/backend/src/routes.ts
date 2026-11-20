@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { createPrismaClient } from '../prisma/client'
 import { Router } from 'express'
 import { authMiddleware } from './middleware/auth-middleware'
 import { validateId } from './middleware/validate-movie-id'
@@ -15,7 +15,7 @@ export const moviesRoute = Router()
 moviesRoute.use(authMiddleware)
 
 // Initialize PrismaClient
-const prisma = new PrismaClient()
+const prisma = createPrismaClient()
 // Create the MovieAdapter and inject it into MovieService
 const movieAdapter = new MovieAdapter(prisma)
 const movieService = new MovieService(movieAdapter)

@@ -44,11 +44,11 @@ test.describe('file-utils - Vanilla Playwright Comparison', () => {
       .toBe(true)
 
     // ❌ BOILERPLATE: Manual CSV reading with error handling
-    let csvContent = ''
+    let csvContent: string
     try {
       csvContent = await fs.readFile(filePath, 'utf-8')
     } catch (error) {
-      throw new Error(`Failed to read CSV file: ${error}`)
+      throw new Error(`Failed to read CSV file: ${error}`, { cause: error })
     }
 
     // ❌ BOILERPLATE: Manual CSV parsing with Papa Parse configuration

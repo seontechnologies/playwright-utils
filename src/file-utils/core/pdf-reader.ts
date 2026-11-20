@@ -1,7 +1,9 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { extractText, getDocumentProxy, getMeta } from 'unpdf'
 import type { PDFReadOptions, PDFReadResult } from './types'
+
+// unpdf is ESM-only; load it with a dynamic import so the CommonJS build can consume it
+const loadUnpdf = () => import('unpdf')
 
 // Note: unpdf uses PDF.js internally but doesn't expose proper TypeScript types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,6 +59,7 @@ export async function readPDF(
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options }
 
   try {
+    const { getDocumentProxy, getMeta } = await loadUnpdf()
     const dataBuffer = await fs.readFile(options.filePath)
     const pdf = await getDocumentProxy(new Uint8Array(dataBuffer))
     const meta = await getMeta(pdf)
@@ -97,7 +100,9 @@ export async function readPDF(
     }
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Failed to read PDF file: ${error.message}`)
+      throw new Error(`Failed to read PDF file: ${error.message}`, {
+        cause: error
+      })
     }
     throw error
   }
@@ -138,6 +143,7 @@ async function extractWithMergePagesSetting(
   pdf: PDFDocumentType,
   mergePages: boolean
 ): Promise<string> {
+  const { extractText } = await loadUnpdf()
   if (mergePages) {
     const result = await extractText(pdf, { mergePages: true })
     // unpdf joins wrapped lines within a page with '\n'; collapse those back

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient } from '../generated/prisma/client'
 import type {
   GetMovieResponse,
   CreateMovieRequest,
@@ -167,7 +167,6 @@ export class MovieAdapter implements MovieRepository {
         error &&
         typeof error === 'object' &&
         'code' in error &&
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (error as any).code === 'P2025'
       ) {
         return {

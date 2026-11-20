@@ -9,7 +9,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-require-imports */
+
 import * as fs from 'fs'
 import * as path from 'path'
 import * as lockfile from 'proper-lockfile'
@@ -249,7 +249,6 @@ export async function safeReadJsonFile<T>(
     return defaultValue
   }
 
-  let lastError: Error | null = null
   let release: (() => Promise<void>) | null = null
 
   try {
@@ -274,11 +273,10 @@ export async function safeReadJsonFile<T>(
 
     // Release lock before returning
     if (release) await release()
-    release = null
 
     return result
   } catch (err) {
-    lastError = err as Error
+    const lastError = err as Error
 
     // Always release lock if we have one
     if (release) {
@@ -287,7 +285,6 @@ export async function safeReadJsonFile<T>(
       } catch {
         // Ignore release errors
       }
-      release = null
     }
 
     // If read failed with lock, log the error

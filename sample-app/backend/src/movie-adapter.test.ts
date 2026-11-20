@@ -1,4 +1,5 @@
-import { Prisma, PrismaClient } from '@prisma/client'
+import { Prisma } from '../generated/prisma/client'
+import type { PrismaClient } from '../generated/prisma/client'
 import type { DeepMockProxy } from 'jest-mock-extended'
 import { mockDeep } from 'jest-mock-extended'
 import { MovieAdapter } from './movie-adapter'
@@ -22,8 +23,8 @@ import type { Movie } from '@shared/types/movie-types'
 // These tests do not touch the real database, making them unit tests that ensure correctness
 // of the adapter's interaction with the mocked data layer.
 
-jest.mock('@prisma/client', () => {
-  const actualPrisma = jest.requireActual('@prisma/client')
+jest.mock('../generated/prisma/client', () => {
+  const actualPrisma = jest.requireActual('../generated/prisma/client')
 
   // Create a mock constructor for PrismaClientKnownRequestError that supports instanceof
   class MockPrismaClientKnownRequestError extends Error {
@@ -43,7 +44,6 @@ jest.mock('@prisma/client', () => {
 
   return {
     ...actualPrisma,
-    PrismaClient: jest.fn(() => mockDeep<PrismaClient>()),
     Prisma: {
       ...actualPrisma.Prisma,
       PrismaClientKnownRequestError: MockPrismaClientKnownRequestError
@@ -58,7 +58,7 @@ describe('MovieAdapter', () => {
   const mockMovie: Movie = generateMovieWithId()
 
   beforeEach(() => {
-    prismaMock = new PrismaClient() as DeepMockProxy<PrismaClient>
+    prismaMock = mockDeep<PrismaClient>()
     movieAdapter = new MovieAdapter(prismaMock)
   })
 
@@ -201,7 +201,7 @@ describe('MovieAdapter', () => {
       const id = 999
 
       // Spy on the handleError method to ensure it's called
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const handleErrorSpy = jest.spyOn(movieAdapter as any, 'handleError')
 
       // Expect the method to throw the error
@@ -266,7 +266,7 @@ describe('MovieAdapter', () => {
       prismaMock.movie.create.mockRejectedValue(new Error(error))
 
       // Spy on the handleError method to ensure it's called
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const handleErrorSpy = jest.spyOn(movieAdapter as any, 'handleError')
 
       const result = await movieAdapter.addMovie(movieData)
@@ -337,7 +337,7 @@ describe('MovieAdapter', () => {
       prismaMock.movie.update.mockRejectedValue(error)
 
       // Spy on the handleError method to ensure it's called
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const handleErrorSpy = jest.spyOn(movieAdapter as any, 'handleError')
 
       const result = await movieAdapter.updateMovie(updateMovieData, id)

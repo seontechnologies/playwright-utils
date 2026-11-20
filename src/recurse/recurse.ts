@@ -275,7 +275,7 @@ const executePolling = async <T>(state: RecurseState<T>) => {
             throw commandError
           }
 
-          let successful = false
+          let successful: boolean
           try {
             // Handle both boolean returns and assertions that might throw
             const result = state.predicate(value)

@@ -177,7 +177,7 @@ export const defaultTokenFormatter: DefaultTokenDataFormatter = (
   }
 
   // Extract the token based on the input type
-  let token: string | unknown = ''
+  let token: unknown
 
   if (typeof tokenData === 'string') {
     token = extractTokenFromString(tokenData)

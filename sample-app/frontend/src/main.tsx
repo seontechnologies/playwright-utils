@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import App from './App'
+import App from './app'
 
 const port = import.meta.env.VITE_PORT
 const apiUrl = import.meta.env.VITE_API_URL

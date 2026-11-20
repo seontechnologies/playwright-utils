@@ -247,7 +247,7 @@ base.describe(
   () => {
     // Test without maxTestsPerError to verify default behavior
     // Merge with interceptTest fixture
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const testNoLimit = interceptTest.extend(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       createNetworkErrorMonitorFixture() as any

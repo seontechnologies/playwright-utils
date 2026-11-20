@@ -18,7 +18,7 @@ describe('<MovieInput />', () => {
   it('should render a text input', async () => {
     const { name } = movie
 
-    wrappedRender(
+    await wrappedRender(
       <MovieInput
         type="text"
         value={name}
@@ -48,7 +48,7 @@ describe('<MovieInput />', () => {
 
   it('should render a year input', async () => {
     const { year } = movie
-    wrappedRender(
+    await wrappedRender(
       <MovieInput
         type="number"
         value={year}

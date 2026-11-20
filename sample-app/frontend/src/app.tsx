@@ -4,7 +4,7 @@ import LoadingMessage from '@components/loading-message'
 import { Suspense } from 'react'
 import { ErrorBoundary } from 'react-error-boundary'
 import ErrorComponent from '@components/error-component'
-import AppRoutes from './App-routes'
+import AppRoutes from './app-routes'
 import type { Movie } from '@shared/types/movie-types'
 
 export default function App() {

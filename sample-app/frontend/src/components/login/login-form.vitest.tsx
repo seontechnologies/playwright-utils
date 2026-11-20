@@ -23,7 +23,7 @@ describe('LoginForm', () => {
         })
       })
     )
-    wrappedRender(<LoginForm />)
+    await wrappedRender(<LoginForm />)
     expect(screen.getByPlaceholderText('Username')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument()
     expect(screen.getByTestId('user-identity-select')).toBeInTheDocument()
@@ -55,7 +55,7 @@ describe('LoginForm', () => {
       })
     )
 
-    wrappedRender(<LoginForm />)
+    await wrappedRender(<LoginForm />)
 
     await user.type(screen.getByPlaceholderText('Username'), 'testuser')
     await user.type(screen.getByPlaceholderText('Password'), 'password123')

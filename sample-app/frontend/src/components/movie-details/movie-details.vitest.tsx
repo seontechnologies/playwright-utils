@@ -31,7 +31,7 @@ describe('<MovieDetails />', () => {
       })
     )
 
-    wrappedRender(<MovieDetails />, { path: '/:id', route: `/${id}` })
+    await wrappedRender(<MovieDetails />, { path: '/:id', route: `/${id}` })
 
     await waitFor(() => {
       expect(responseData).toMatchObject({ error })
@@ -57,7 +57,7 @@ describe('<MovieDetails />', () => {
       })
     )
 
-    wrappedRender(<MovieDetails />, { path: '/:id', route: `/${id}` })
+    await wrappedRender(<MovieDetails />, { path: '/:id', route: `/${id}` })
 
     await waitFor(() => {
       expect(responseData).toMatchObject({
@@ -80,7 +80,7 @@ describe('<MovieDetails />', () => {
       })
     )
 
-    wrappedRender(<MovieDetails />, { path: '/:id', route: `/${id}` })
+    await wrappedRender(<MovieDetails />, { path: '/:id', route: `/${id}` })
 
     await waitFor(() => {
       expect(responseData).toMatchObject({ data: movie })
@@ -100,7 +100,7 @@ describe('<MovieDetails />', () => {
       })
     )
 
-    wrappedRender(<MovieDetails />, {
+    await wrappedRender(<MovieDetails />, {
       route,
       path: '/movies'
     })

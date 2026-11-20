@@ -8,8 +8,8 @@ import {
 import FileDownload from './file-download'
 
 describe('<FileDownload />', () => {
-  it('should render the file download component and each file type', () => {
-    wrappedRender(<FileDownload />)
+  it('should render the file download component and each file type', async () => {
+    await wrappedRender(<FileDownload />)
     expect(screen.getByTestId('files-list')).toBeVisible()
 
     // there should be multiple download-buttons and file-types

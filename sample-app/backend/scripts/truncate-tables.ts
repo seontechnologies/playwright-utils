@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import { createPrismaClient } from '../prisma/client'
 
-const prisma = new PrismaClient()
+const prisma = createPrismaClient()
 
 // In SQLite, TRUNCATE is not supported, so we use DELETE to remove all rows from the table.
 // Unlike TRUNCATE, DELETE logs each row deletion, but it's the proper way to clear tables in SQLite.

@@ -133,9 +133,9 @@ Lambda Function (Driving Adapter)
 
 import { MovieService } from './movie-service'
 import { MovieAdapter } from './movie-adapter'
-import { PrismaClient } from '@prisma/client'
+import { createPrismaClient } from '../prisma/client'
 
-const prisma = new PrismaClient()
+const prisma = createPrismaClient()
 const movieRepository = new MovieAdapter(prisma)
 const movieService = new MovieService(movieRepository)
 
