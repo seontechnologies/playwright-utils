@@ -381,7 +381,7 @@ export function createNetworkErrorMonitorFixture(
 
         // Run the test with try/finally to ensure error checking always runs
         // even if the test fails early (regression fix from old afterEach behavior)
-        let networkError: Error | null = null
+        let networkError: Error | null
 
         try {
           await use()

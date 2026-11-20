@@ -30,7 +30,7 @@ describe('<MovieManager />', () => {
       onDelete
     }
 
-    wrappedRender(<MovieManager {...props} />)
+    await wrappedRender(<MovieManager {...props} />)
 
     await userEvent.click(screen.getByTestId('delete-movie'))
     expect(onDelete).toHaveBeenCalledOnce()

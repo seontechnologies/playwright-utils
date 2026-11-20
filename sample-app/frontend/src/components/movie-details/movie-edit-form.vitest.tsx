@@ -21,7 +21,7 @@ describe('<MovieEditForm />', () => {
   it('should cancel and submit a movie update', async () => {
     const onCancel = vi.fn()
 
-    wrappedRender(<MovieEditForm movie={movie} onCancel={onCancel} />)
+    await wrappedRender(<MovieEditForm movie={movie} onCancel={onCancel} />)
 
     await userEvent.click(screen.getByTestId('cancel'))
     expect(onCancel).toHaveBeenCalledOnce()

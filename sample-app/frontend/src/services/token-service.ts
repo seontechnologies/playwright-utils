@@ -10,7 +10,7 @@ import axios from 'axios'
 const API_URL = 'http://localhost:3001'
 
 // Using types instead of interfaces since they're not used outside this file
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type StorageState = {
   cookies: Cookie[]
   origins: Origin[]

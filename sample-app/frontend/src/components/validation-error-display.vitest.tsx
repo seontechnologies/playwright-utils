@@ -10,13 +10,13 @@ import ValidationErrorDisplay from './validation-error-display'
 import { ZodError } from 'zod'
 
 describe('<ValidationErrorDisplay />', () => {
-  it('should not render when there is no validation error', () => {
-    wrappedRender(<ValidationErrorDisplay validationError={null} />)
+  it('should not render when there is no validation error', async () => {
+    await wrappedRender(<ValidationErrorDisplay validationError={null} />)
 
     expect(screen.queryByTestId('validation-error')).not.toBeInTheDocument()
   })
 
-  it('should render validation errors correctly', () => {
+  it('should render validation errors correctly', async () => {
     const mockError = new ZodError([
       {
         path: ['name'],
@@ -32,7 +32,7 @@ describe('<ValidationErrorDisplay />', () => {
       } as any
     ])
 
-    wrappedRender(<ValidationErrorDisplay validationError={mockError} />)
+    await wrappedRender(<ValidationErrorDisplay validationError={mockError} />)
 
     expect(screen.getAllByTestId('validation-error')).toHaveLength(2)
     expect(screen.getByText('Name is required')).toBeVisible()

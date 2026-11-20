@@ -36,7 +36,10 @@ export async function applyUserStorageToBrowserContext(
     await log.error(
       `Failed to extract localStorage entries from token data: ${String(error)}`
     )
-    throw new Error(`Failed to extract localStorage entries: ${String(error)}`)
+    throw new Error(
+      `Failed to extract localStorage entries: ${String(error)}`,
+      { cause: error }
+    )
   }
 
   const entryCount = origins.reduce((sum, o) => sum + o.localStorage.length, 0)
@@ -69,7 +72,6 @@ export async function applyUserStorageToBrowserContext(
           try {
             window.localStorage.setItem(name, value)
           } catch (e) {
-            // eslint-disable-next-line no-console
             console.warn(
               `[playwright-utils] Failed to set localStorage key "${name}":`,
               e
@@ -84,7 +86,8 @@ export async function applyUserStorageToBrowserContext(
       `Failed to register localStorage init script: ${String(error)}`
     )
     throw new Error(
-      `Failed to register localStorage init script: ${String(error)}`
+      `Failed to register localStorage init script: ${String(error)}`,
+      { cause: error }
     )
   }
 

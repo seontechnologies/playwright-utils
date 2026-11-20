@@ -659,7 +659,6 @@ function getSpecAjv(spec: JsonObject): SpecValidatorEntry {
 
   let AjvClass
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const ajvModule = isJsonSchema2020(spec)
       ? require('ajv/dist/2020')
       : require('ajv')
@@ -706,7 +705,8 @@ export function validateStrictOpenApi(
   } catch (error) {
     validatorCache.delete(entry.cacheKey)
     throw new Error(
-      `Failed to compile response schema for ${label}: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to compile response schema for ${label}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     )
   }
   if (!validate) {

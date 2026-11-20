@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 
-import nock, { cleanAll } from 'nock'
+import nock from 'nock'
 import {
   getMovies,
   getMovieById,
@@ -44,7 +44,7 @@ Key differences between Nock and Pact:
 
 describe('Consumer API functions', () => {
   afterEach(() => {
-    cleanAll()
+    nock.cleanAll()
   })
 
   const movieWithId: Movie = {

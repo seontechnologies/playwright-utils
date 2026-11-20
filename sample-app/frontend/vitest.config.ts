@@ -1,3 +1,4 @@
+import { playwright } from '@vitest/browser-playwright'
 import { defineConfig, mergeConfig } from 'vitest/config'
 import viteConfig from './vite.config'
 
@@ -13,11 +14,10 @@ const config = mergeConfig(
       retry: 3,
       browser: {
         enabled: true,
-        provider: 'playwright',
+        provider: playwright(),
         instances: [
           {
-            browser: 'chromium',
-            name: 'chromium'
+            browser: 'chromium'
           }
         ]
       },

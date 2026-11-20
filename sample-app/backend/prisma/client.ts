@@ -1,14 +1,21 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaLibSql } from '@prisma/adapter-libsql'
+import { PrismaClient } from '../generated/prisma/client'
+import { resolveDatabaseUrl } from './database-url'
 
 const globalForPrisma = global as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const prisma =
-  globalForPrisma.prisma ??
+// Prisma 7 clients connect through a driver adapter
+export const createPrismaClient = () =>
   new PrismaClient({
+    adapter: new PrismaLibSql({
+      url: resolveDatabaseUrl()
+    }),
     log: ['query']
   })
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
@@ -42,7 +49,7 @@ Prisma is the most widely-used ORM for Next.js (or Node.js) applications.
  At `./prisma/client.ts` copy paste this code
 
 ```ts
-import {PrismaClient} from '@prisma/client'
+import {PrismaClient} from '../generated/prisma/client'
 
 const globalForPrisma = global as unknown as {
   prisma: PrismaClient | undefined

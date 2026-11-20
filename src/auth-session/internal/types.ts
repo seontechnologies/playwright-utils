@@ -1,7 +1,5 @@
 // Type definitions for the authentication session manager
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // We're removing TokenFetchOptions since we're making AuthProvider the only pattern for token acquisition
 
 /**

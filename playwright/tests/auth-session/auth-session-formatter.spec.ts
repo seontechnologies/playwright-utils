@@ -32,7 +32,7 @@ const stubProvider = (overrides: Partial<AuthProvider> = {}): AuthProvider => ({
 
 /** Run fn with a temporary provider, always restoring the previous one. */
 const withProvider = <T>(provider: AuthProvider, fn: () => T): T => {
-  let previous: AuthProvider | null = null
+  let previous: AuthProvider | null
   try {
     previous = getAuthProvider()
   } catch {

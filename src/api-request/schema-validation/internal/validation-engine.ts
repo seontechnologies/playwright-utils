@@ -29,7 +29,6 @@ const MAX_COMPILATION_CACHE_SIZE = 200
 function getAjvInstance(): any {
   // Lazy load AJV only when needed
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Ajv = require('ajv')
     return new Ajv({
       allErrors: true,

@@ -8,7 +8,7 @@ import {
 import MovieInfo from './movie-info'
 
 describe('<MovieInfo />', () => {
-  it('should render the movie info', () => {
+  it('should render the movie info', async () => {
     const id = 1
     const name = 'Inception'
     const year = 2010
@@ -16,7 +16,7 @@ describe('<MovieInfo />', () => {
     const director = 'Christopher Nolan'
     const movie = { id, name, year, rating, director }
 
-    wrappedRender(<MovieInfo movie={movie} />)
+    await wrappedRender(<MovieInfo movie={movie} />)
 
     expect(screen.getByText(`ID: ${id}`)).toBeVisible()
     expect(screen.getByText(name)).toBeVisible()

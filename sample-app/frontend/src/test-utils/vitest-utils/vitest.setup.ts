@@ -12,15 +12,15 @@ afterEach(() => {
 // we need all this so msw works without flake in headless mode
 
 beforeAll(async () => {
-  await worker.start({ onUnhandledRequest: 'bypass' })
+  await worker.start({ onUnhandledFrame: 'bypass' })
   if ('serviceWorker' in navigator) {
     await waitForServiceWorkerControl()
   }
 })
 
-afterAll(() => {
+afterAll(async () => {
   // If you want to stop the worker eventually, do it here:
-  worker.stop()
+  await worker.stop()
 })
 
 async function waitForServiceWorkerControl() {

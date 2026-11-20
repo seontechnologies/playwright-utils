@@ -15,7 +15,7 @@ Core TypeScript utilities live in `src/`, grouped by feature folders such as `ap
 
 ## Coding Style & Naming Conventions
 
-Source targets Node 18+, so use 2-space indentation, trailing commas, and ES module syntax. Prefer named exports and keep file names kebab-case to satisfy `eslint-plugin-filenames`. Run `npm run fix:format` (Prettier + ESLint) before pushing, and store fixtures beside their modules (for example `src/api-request/fixtures.ts`).
+Source targets Node 18+, so use 2-space indentation, trailing commas, and ES module syntax. Prefer named exports and keep file names kebab-case to satisfy the filename rule in `eslint.config.mjs`. Run `npm run fix:format` (Prettier + ESLint) before pushing, and store fixtures beside their modules (for example `src/api-request/fixtures.ts`).
 
 ## Testing Guidelines
 

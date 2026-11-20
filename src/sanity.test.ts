@@ -17,7 +17,6 @@ import {
   readZIP,
   NetworkRecorder,
   createNetworkRecorder
-  // eslint-disable-next-line import/named
 } from './index'
 // Auth session is imported separately as it's not part of the main exports
 import { configureAuthSession, getAuthToken } from './auth-session'

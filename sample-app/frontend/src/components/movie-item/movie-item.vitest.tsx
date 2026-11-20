@@ -14,7 +14,7 @@ describe('<MovieItem />', () => {
 
   it('should verify the movie and delete', async () => {
     const id = 3
-    wrappedRender(
+    await wrappedRender(
       <MovieItem
         id={id}
         name={'my movie'}

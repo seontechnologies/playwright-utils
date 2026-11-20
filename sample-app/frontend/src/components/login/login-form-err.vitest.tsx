@@ -33,7 +33,7 @@ describe('LoginForm err', () => {
       })
     )
 
-    wrappedRender(<LoginForm />)
+    await wrappedRender(<LoginForm />)
 
     await user.type(screen.getByPlaceholderText('Username'), 'testuser')
     await user.type(screen.getByPlaceholderText('Password'), 'wrongpassword')

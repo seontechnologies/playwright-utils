@@ -9,7 +9,7 @@ let testObj:
 // Try to load Playwright test, but handle gracefully if unavailable
 try {
   // This will succeed in test files but might fail in utility files
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   const { test } = require('@playwright/test')
   testObj = test
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

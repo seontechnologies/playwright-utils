@@ -8,8 +8,8 @@ import {
 import LoadingMessage from './loading-message'
 
 describe('<LoadingMessage />', () => {
-  it('should render a loading message', () => {
-    wrappedRender(<LoadingMessage />)
+  it('should render a loading message', async () => {
+    await wrappedRender(<LoadingMessage />)
 
     expect(screen.getByTestId('loading-message-comp')).toBeVisible()
   })

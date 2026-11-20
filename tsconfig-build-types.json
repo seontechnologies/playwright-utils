@@ -9,7 +9,9 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noEmit": false,
+    "rootDir": "src",
     "outDir": "dist",
-    "target": "es2020"
+    "target": "es2020",
+    "lib": ["es2022", "dom"]
   }
 }

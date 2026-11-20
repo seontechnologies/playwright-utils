@@ -5,8 +5,7 @@ import path from 'node:path'
 import { getStorageDir } from './auth-storage-utils'
 import type { AuthSessionOptions, AuthStorageConfig } from './types'
 import fs from 'node:fs'
-// eslint-disable-next-line import/named
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'node:crypto'
 import { log } from '../../log'
 
 /**
@@ -39,7 +38,7 @@ export function configureAuthSession(
   const configMetadata = {
     storageDir: options.storageDir || storageDir,
     debug: options.debug || false,
-    configId: uuidv4(),
+    configId: randomUUID(),
     timestamp: new Date().toISOString()
   }
 

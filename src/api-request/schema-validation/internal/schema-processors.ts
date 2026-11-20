@@ -72,7 +72,8 @@ function validateInput(data: unknown, allowNull = false): void {
   } catch (error) {
     if (error instanceof Error && error.message.includes('circular')) {
       throw new Error(
-        'Input contains circular references and cannot be validated'
+        'Input contains circular references and cannot be validated',
+        { cause: error }
       )
     }
     throw error
@@ -138,7 +139,6 @@ function getAjvInstance(fullSpec?: Record<string, unknown>): any {
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const Ajv = require('ajv')
       ajvInstanceCache.set(
         cacheKey,
@@ -163,7 +163,6 @@ function getAjvInstance(fullSpec?: Record<string, unknown>): any {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getDefaultAjv(): any {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Ajv = require('ajv')
     return new Ajv({
       allErrors: true,
@@ -229,7 +228,6 @@ function validateWithZodSchema(
   try {
     // Lazy load Zod only when needed
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       require('zod')
     } catch {
       throw new Error(
@@ -244,7 +242,6 @@ function validateWithZodSchema(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let ZodError: any = null
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const zod = require('zod')
       ZodError = zod.ZodError
     } catch {

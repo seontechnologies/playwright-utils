@@ -37,3 +37,9 @@ docs/.vitepress/dist
 # Project specific
 !sample-app/*/.env
 sample-app/backend/test-events/movie-events.log
+
+# Generated Prisma client
+sample-app/backend/generated/
+
+# Vitest browser mode artifacts
+.vitest/

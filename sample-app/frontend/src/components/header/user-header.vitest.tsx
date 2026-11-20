@@ -31,8 +31,8 @@ describe('<UserHeader />', () => {
     })
   })
 
-  it('renders with user information', () => {
-    wrappedRender(<UserHeader />)
+  it('renders with user information', async () => {
+    await wrappedRender(<UserHeader />)
 
     expect(screen.getByText(username)).toBeInTheDocument()
     expect(screen.getByText(userIdentifier)).toBeInTheDocument()

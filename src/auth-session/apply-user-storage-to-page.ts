@@ -34,7 +34,10 @@ export async function applyUserStorageToPage(
     await log.error(
       `Failed to extract localStorage entries from token data: ${String(error)}`
     )
-    throw new Error(`Failed to extract localStorage entries: ${String(error)}`)
+    throw new Error(
+      `Failed to extract localStorage entries: ${String(error)}`,
+      { cause: error }
+    )
   }
 
   if (origins.length === 0) {
@@ -78,7 +81,9 @@ export async function applyUserStorageToPage(
     )
   } catch (error) {
     await log.error(`Failed to write localStorage to page: ${String(error)}`)
-    throw new Error(`Failed to write localStorage to page: ${String(error)}`)
+    throw new Error(`Failed to write localStorage to page: ${String(error)}`, {
+      cause: error
+    })
   }
 
   return page

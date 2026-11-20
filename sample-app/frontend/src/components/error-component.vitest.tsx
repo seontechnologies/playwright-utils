@@ -8,8 +8,8 @@ import {
 import ErrorComponent from './error-component'
 
 describe('<ErrorComponent />', () => {
-  it('should render an error message', () => {
-    wrappedRender(<ErrorComponent />)
+  it('should render an error message', async () => {
+    await wrappedRender(<ErrorComponent />)
     expect(screen.getByTestId('error')).toBeVisible()
     expect(screen.getByText('Try reloading the page.'))
   })
