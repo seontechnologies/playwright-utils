@@ -7,7 +7,13 @@ import path from 'node:path'
  */
 export const resolveDatabaseUrl = (): string => {
   const url = process.env.DATABASE_URL ?? 'file:./dev.db'
-  return url.startsWith('file:.')
-    ? `file:${path.resolve(__dirname, url.slice('file:'.length))}`
-    : url
+  if (!url.startsWith('file:')) return url
+
+  const target = url.slice('file:'.length)
+  // absolute paths, file://host URLs and file::memory: are used as given
+  if (target.startsWith('/') || target.startsWith(':')) return url
+
+  const [filePath = '', query] = target.split('?')
+  const resolved = `file:${path.resolve(__dirname, filePath)}`
+  return query === undefined ? resolved : `${resolved}?${query}`
 }

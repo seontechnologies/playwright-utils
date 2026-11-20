@@ -318,7 +318,7 @@
     "picomatch": "^4.0.7",
     "proper-lockfile": "^4.1.2",
     "typescript": "^5.0.0 || ^6.0.0",
-    "unpdf": "^2.2.1"
+    "unpdf": "^1.9.1"
   },
   "overrides": {
     "effect": "^3.22.1",

@@ -9,7 +9,7 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --verbose --silent --config jest.config.ts",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch --config jest.config.ts",
-    "db:migrate": "npx prisma migrate reset --force --skip-seed generate",
+    "db:migrate": "npx prisma migrate reset --force && npx prisma generate",
     "db:sync": "npx prisma db push --force-reset && npx prisma generate",
     "db:migrate-prod": "npx prisma migrate deploy",
     "reset:db": "tsx ./scripts/global-setup.ts",
@@ -29,6 +29,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
     "jest-mock-extended": "^4.0.2",
     "nodemon": "^3.1.14",
     "openapi-types": "^12.1.3"

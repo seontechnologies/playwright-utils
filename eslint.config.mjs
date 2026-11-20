@@ -38,7 +38,8 @@ const localPlugin = {
 export default defineConfig(
   {
     ignores: [
-      'dist',
+      '**/dist',
+      '**/.vitepress/cache',
       '**/node_modules',
       '**/scripts',
       'coverage',
